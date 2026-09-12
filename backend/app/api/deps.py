@@ -12,7 +12,7 @@ from app.models import User
 from app.repositories.user_repository import UserRepository
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 DbSession = Annotated[Session, Depends(get_db)]
 
 
