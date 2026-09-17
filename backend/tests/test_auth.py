@@ -16,6 +16,7 @@ from app.services.auth_service import (
     InvalidCredentialsError,
     UsernameAlreadyRegisteredError,
 )
+from app.services.email_service import send_welcome_email
 
 
 class FakeUserRepository:
@@ -100,6 +101,20 @@ class AuthTests(unittest.TestCase):
         user = register(self.data, self.repository)
         self.assertEqual(user.email, self.data.email)
         self.assertEqual(user.role, UserRole.PATIENT)
+
+    def test_register_endpoint_enqueues_welcome_email(self):
+        tasks = []
+
+        class FakeBackgroundTasks:
+            def add_task(self, func, *args, **kwargs):
+                tasks.append((func, args, kwargs))
+
+        user = register(self.data, self.repository, background_tasks=FakeBackgroundTasks())
+
+        self.assertEqual(user.email, self.data.email)
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0][0], send_welcome_email)
+        self.assertEqual(tasks[0][1], (self.data.email, self.data.name))
 
     def test_register_endpoint_rejects_duplicate_email(self):
         register(self.data, self.repository)
