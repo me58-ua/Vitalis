@@ -2,8 +2,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-
 from app.api.deps import get_current_user, get_user_repository
 from app.models import User
 from app.repositories.user_repository import UserRepository
@@ -13,6 +11,7 @@ from app.services.auth_service import (
 	EmailAlreadyRegisteredError,
 	InactiveUserError,
 	InvalidCredentialsError,
+	UsernameAlreadyRegisteredError,
 )
 
 
@@ -26,10 +25,10 @@ def register(
 ) -> User:
 	try:
 		return AuthService(users).register_patient(data)
-	except EmailAlreadyRegisteredError:
+	except (EmailAlreadyRegisteredError, UsernameAlreadyRegisteredError) as error:
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
-			detail="A user with this email already exists",
+			detail=str(error) or "The email or username is already registered",
 		)
 
 

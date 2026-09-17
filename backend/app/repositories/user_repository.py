@@ -13,6 +13,9 @@ class UserRepository:
     def get_by_email(self, email: str) -> User | None:
         return self.session.scalar(select(User).where(User.email == email))
 
+    def get_by_username(self, username: str) -> User | None:
+        return self.session.scalar(select(User).where(User.username == username))
+
     def get_by_id(self, user_id: UUID) -> User | None:
         return self.session.get(User, user_id)
 

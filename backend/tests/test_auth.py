@@ -14,6 +14,7 @@ from app.services.auth_service import (
     AuthService,
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
+    UsernameAlreadyRegisteredError,
 )
 
 
@@ -23,6 +24,9 @@ class FakeUserRepository:
 
     def get_by_email(self, email):
         return self.users.get(email)
+
+    def get_by_username(self, username):
+        return next((user for user in self.users.values() if user.username == username), None)
 
     def get_by_id(self, user_id):
         return next((user for user in self.users.values() if user.id == user_id), None)
@@ -42,6 +46,7 @@ class AuthTests(unittest.TestCase):
         self.service = AuthService(self.repository)
         self.data = UserRegisterRequest(
             name="New Patient",
+            username="new_patient",
             email="new.patient@example.com",
             password="StrongPass123!",
             tel="+34123456789",
@@ -66,6 +71,12 @@ class AuthTests(unittest.TestCase):
         with self.assertRaises(EmailAlreadyRegisteredError):
             self.service.register_patient(self.data)
 
+    def test_duplicate_username_is_rejected(self):
+        self.service.register_patient(self.data)
+        duplicate = self.data.model_copy(update={"email": "other@example.com"})
+        with self.assertRaises(UsernameAlreadyRegisteredError):
+            self.service.register_patient(duplicate)
+
     def test_login_returns_user_and_token_contains_subject_and_role(self):
         user = self.service.register_patient(self.data)
         authenticated = self.service.authenticate(self.data.email, self.data.password)
@@ -74,6 +85,11 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(authenticated.id, user.id)
         self.assertEqual(payload["sub"], str(user.id))
         self.assertEqual(payload["role"], "patient")
+
+    def test_login_accepts_username(self):
+        user = self.service.register_patient(self.data)
+        authenticated = self.service.authenticate(self.data.username, self.data.password)
+        self.assertEqual(authenticated.id, user.id)
 
     def test_wrong_password_is_rejected(self):
         self.service.register_patient(self.data)
