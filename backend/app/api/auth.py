@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from app.api.deps import get_current_user, get_user_repository
 from app.models import User
@@ -13,6 +13,7 @@ from app.services.auth_service import (
 	InvalidCredentialsError,
 	UsernameAlreadyRegisteredError,
 )
+from app.services.email_service import send_welcome_email
 
 
 router = APIRouter()
@@ -22,9 +23,13 @@ router = APIRouter()
 def register(
 	data: UserRegisterRequest,
 	users: Annotated[UserRepository, Depends(get_user_repository)],
+	background_tasks: BackgroundTasks = None,
 ) -> User:
 	try:
-		return AuthService(users).register_patient(data)
+		user = AuthService(users).register_patient(data)
+		if background_tasks is not None:
+			background_tasks.add_task(send_welcome_email, user.email, user.name)
+		return user
 	except (EmailAlreadyRegisteredError, UsernameAlreadyRegisteredError) as error:
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
