@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -61,3 +62,15 @@ class ProfessionalProfileResponse(ProfessionalProfileBase):
 
     id: UUID
     user_id: UUID
+
+
+class BasicUserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=150)
+    tel: str | None = Field(default=None, min_length=1, max_length=32)
+    birth_date: date | None = None
+    gender: str | None = Field(default=None, max_length=50)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=128)
