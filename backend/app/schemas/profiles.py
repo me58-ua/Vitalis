@@ -74,3 +74,43 @@ class BasicUserUpdate(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class PatientSummaryResponse(BaseModel):
+    id: UUID
+    name: str
+    username: str
+    gender: str | None
+    email: str
+    tel: str
+    blood_type: str | None
+    allergies_summary: str | None
+    chronic_conditions_summary: str | None
+
+
+class PatientListResponse(BaseModel):
+    patients: list[PatientSummaryResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class ProfessionalPublicResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    specialty: str
+    bio: str | None
+    practice_address: str | None
+    practice_phone: str | None
+    is_accepting_new_patients: bool
+    default_consultation_duration_minutes: int
+    telehealth_enabled: bool
+
+
+class ProfessionalListResponse(BaseModel):
+    professionals: list[ProfessionalPublicResponse]
+    total: int
+    page: int
+    page_size: int
