@@ -70,3 +70,19 @@ def send_appointment_confirmation(email: str, appointment_data: dict) -> None:
         location=appointment.get("location") or "nuestra clínica",
     )
     _send_email(email, "Confirmación de cita", html_content)
+
+
+def send_password_reset_email(email: str, name: str, token: str) -> None:
+    reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+    html_content = _render_template(
+        "password_reset.html",
+        name=name,
+        reset_url=reset_url,
+        expires_in_minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES,
+    )
+    _send_email(email, "Restablece tu contrasena de Vitalis", html_content)
+
+
+def send_password_changed_email(email: str, name: str) -> None:
+    html_content = _render_template("password_changed.html", name=name)
+    _send_email(email, "Contrasena actualizada en Vitalis", html_content)

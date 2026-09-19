@@ -37,6 +37,12 @@ def get_current_user(
         raise credentials_exception
 
     user = users.get_by_id(user_id) if user_id else None
-    if user is None or not user.is_active:
+    token_session_version = payload.get("session_version", 0)
+    if (
+        user is None
+        or not user.is_active
+        or not isinstance(token_session_version, int)
+        or token_session_version != user.session_version
+    ):
         raise credentials_exception
     return user
