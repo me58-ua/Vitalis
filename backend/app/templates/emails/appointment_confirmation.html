@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirmación de cita</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f4f7fb; font-family: Arial, sans-serif; color: #1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f7fb; padding: 32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);">
+            <tr>
+              <td style="background: linear-gradient(135deg, #0f766e, #14b8a6); padding: 24px 32px; color: white; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px;">Confirmación de cita</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 32px;">
+                <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827;">Hola, {{ name }}</h2>
+                <p style="margin: 0 0 16px; line-height: 1.6; font-size: 16px;">
+                  Tu cita ha sido confirmada con éxito.
+                </p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #f9fafb; margin-bottom: 20px;">
+                  <tr>
+                    <td style="padding: 16px 20px; line-height: 1.8; font-size: 15px; color: #374151;">
+                      <strong>Fecha:</strong> {{ date }}<br />
+                      <strong>Hora:</strong> {{ time }}<br />
+                      <strong>Ubicación:</strong> {{ location }}
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin: 0; line-height: 1.6; font-size: 14px; color: #4b5563;">
+                  Recuerda llegar con 10 minutos de antelación y si necesitas cambiar tu cita, contáctanos lo antes posible.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

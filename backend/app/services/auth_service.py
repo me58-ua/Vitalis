@@ -63,4 +63,4 @@ class AuthService:
         return user
 
     def issue_access_token(self, user: User) -> str:
-        return create_access_token(str(user.id), user.role.value)
+        return create_access_token(str(user.id), user.role.value, getattr(user, "session_version", 0) or 0)
