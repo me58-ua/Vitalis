@@ -46,7 +46,9 @@ class AuthTests(unittest.TestCase):
         self.repository = FakeUserRepository()
         self.service = AuthService(self.repository)
         self.data = UserRegisterRequest(
+            role=UserRole.PATIENT,
             name="New Patient",
+            dni="X1234567L",
             username="new_patient",
             email="new.patient@example.com",
             password="StrongPass123!",
@@ -67,8 +69,34 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(user.role, UserRole.PATIENT)
         self.assertNotEqual(user.password_hash, self.data.password)
         self.assertEqual(user.email, self.data.email)
+        self.assertEqual(user.dni, self.data.dni)
         self.assertIsNotNone(user.patient_profile)
         self.assertIsNone(user.patient_profile.address)
+
+    def test_registers_professional_as_inactive_with_professional_profile(self):
+        data = UserRegisterRequest(
+            role=UserRole.PROFESSIONAL,
+            name="New Professional",
+            dni="Y1234567X",
+            username="new_professional",
+            email="new.professional@example.com",
+            password="StrongPass123!",
+            tel="+34123456789",
+            birth_date=date(1985, 6, 15),
+            terms_accepted=True,
+            specialty="Cardiology",
+            bio="Experienced cardiologist",
+            practice_address="Madrid",
+            practice_phone="+34910000000",
+            is_accepting_new_patients=True,
+            default_consultation_duration_minutes=30,
+            telehealth_enabled=True,
+        )
+        user = self.service.register_user(data)
+        self.assertEqual(user.role, UserRole.PROFESSIONAL)
+        self.assertFalse(user.is_active)
+        self.assertIsNotNone(user.professional_profile)
+        self.assertEqual(user.professional_profile.specialty, "Cardiology")
 
     def test_registration_requires_terms_acceptance(self):
         with self.assertRaises(ValueError):

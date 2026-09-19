@@ -1,13 +1,15 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import UserRole
 
 
 class UserRegisterRequest(BaseModel):
+    role: UserRole
     name: str = Field(min_length=1, max_length=150)
+    dni: str = Field(min_length=5, max_length=20)
     username: str = Field(min_length=3, max_length=50)
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=8, max_length=128)
@@ -19,15 +21,32 @@ class UserRegisterRequest(BaseModel):
     allergies_summary: str | None = Field(default=None, max_length=255)
     chronic_conditions_summary: str | None = Field(default=None, max_length=255)
     timezone: str = Field(default="Europe/Madrid", max_length=50)
+    specialty: str | None = Field(default=None, max_length=150)
+    bio: str | None = Field(default=None, max_length=500)
+    practice_address: str | None = Field(default=None, max_length=255)
+    practice_phone: str | None = Field(default=None, max_length=50)
+    is_accepting_new_patients: bool | None = None
+    default_consultation_duration_minutes: int | None = Field(default=None, gt=0)
+    telehealth_enabled: bool | None = None
     terms_accepted: bool = Field(description="Must be true to create an account")
 
-    @field_validator("name", "username", "email", "tel")
+    @field_validator("role", mode="before")
+    @classmethod
+    def normalize_role(cls, value: UserRole | str) -> UserRole | str:
+        return value.lower() if isinstance(value, str) else value
+
+    @field_validator("name", "dni", "username", "email", "tel")
     @classmethod
     def strip_required_text(cls, value: str) -> str:
         value = value.strip()
         if not value:
             raise ValueError("must not be empty")
         return value
+
+    @field_validator("dni")
+    @classmethod
+    def normalize_dni(cls, value: str) -> str:
+        return value.strip().upper()
 
     @field_validator("username")
     @classmethod
@@ -52,6 +71,27 @@ class UserRegisterRequest(BaseModel):
             raise ValueError("terms and conditions must be accepted")
         return value
 
+    @model_validator(mode="after")
+    def validate_role_fields(self) -> "UserRegisterRequest":
+        if self.role == UserRole.ADMIN:
+            raise ValueError("public registration is only available for patients and professionals")
+        if self.role == UserRole.PROFESSIONAL:
+            required_fields = (
+                "specialty",
+                "bio",
+                "practice_address",
+                "practice_phone",
+                "is_accepting_new_patients",
+                "default_consultation_duration_minutes",
+                "telehealth_enabled",
+            )
+            missing = [field for field in required_fields if getattr(self, field) is None]
+            if missing:
+                raise ValueError(
+                    "professional registration requires: " + ", ".join(missing)
+                )
+        return self
+
 
 class ForgotPasswordRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
@@ -75,6 +115,7 @@ class UserResponse(BaseModel):
 
     id: UUID
     name: str
+    dni: str
     username: str
     email: str
     tel: str

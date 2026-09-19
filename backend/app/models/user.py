@@ -25,6 +25,7 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+    dni: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     tel: Mapped[str] = mapped_column(String(32), nullable=False)

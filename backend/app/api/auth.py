@@ -38,7 +38,7 @@ def register(
 	background_tasks: BackgroundTasks = None,
 ) -> User:
 	try:
-		user = AuthService(users).register_patient(data)
+		user = AuthService(users).register_user(data)
 		if background_tasks is not None:
 			background_tasks.add_task(send_welcome_email, user.email, user.name)
 		return user

@@ -17,6 +17,7 @@ class AdminUserService:
     def create(self, data: AdminUserCreate) -> User:
         user = User(
             name=data.name,
+            dni=data.dni,
             username=data.username,
             email=data.email,
             password_hash=hash_password(data.password),
