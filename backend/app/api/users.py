@@ -1,0 +1,85 @@
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from app.api.deps import get_current_admin, get_user_repository
+from app.models import User, UserRole
+from app.repositories.user_repository import UserRepository
+from app.schemas.users import (
+	AdminUserCreate,
+	AdminUserListResponse,
+	AdminUserResponse,
+	AdminUserUpdate,
+)
+from app.services.admin_user_service import AdminUserConflictError, AdminUserService
+
+
+router = APIRouter(prefix="/admin/users", tags=["admin-users"])
+AdminUser = Annotated[User, Depends(get_current_admin)]
+Users = Annotated[UserRepository, Depends(get_user_repository)]
+
+
+def parse_role(value: str | None) -> UserRole | None:
+	if value is None:
+		return None
+	try:
+		return UserRole(value.lower())
+	except ValueError as error:
+		raise HTTPException(
+			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			detail="role must be PATIENT, PROFESSIONAL, or ADMIN",
+		) from error
+
+
+@router.get("", response_model=AdminUserListResponse)
+def list_users(
+	_: AdminUser,
+	users: Users,
+	role: str | None = Query(default=None),
+	search: str | None = Query(default=None, max_length=100),
+	page: int = Query(default=1, ge=1),
+	page_size: int = Query(default=20, ge=1, le=100),
+) -> AdminUserListResponse:
+	records, total = users.list(
+		role=parse_role(role),
+		search=search,
+		offset=(page - 1) * page_size,
+		limit=page_size,
+	)
+	return AdminUserListResponse(users=records, total=total, page=page, page_size=page_size)
+
+
+@router.post("", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(data: AdminUserCreate, _: AdminUser, users: Users) -> User:
+	try:
+		return AdminUserService(users).create(data)
+	except AdminUserConflictError as error:
+		raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.get("/{user_id}", response_model=AdminUserResponse)
+def get_user(user_id: UUID, _: AdminUser, users: Users) -> User:
+	user = users.get_by_id(user_id)
+	if user is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+	return user
+
+
+@router.patch("/{user_id}", response_model=AdminUserResponse)
+def update_user(user_id: UUID, data: AdminUserUpdate, _: AdminUser, users: Users) -> User:
+	user = users.get_by_id(user_id)
+	if user is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+	try:
+		return AdminUserService(users).update(user, data)
+	except AdminUserConflictError as error:
+		raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: UUID, _: AdminUser, users: Users) -> None:
+	user = users.get_by_id(user_id)
+	if user is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+	users.delete(user)

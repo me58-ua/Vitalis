@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import User, UserRole
 from app.models.password_reset_token import PasswordResetToken
 
 
@@ -24,6 +24,44 @@ class UserRepository:
         self.session.add(user)
         self.session.flush()
         return user
+
+    def list(
+        self,
+        role: UserRole | None,
+        search: str | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[User], int]:
+        query = select(User)
+        count_query = select(func.count()).select_from(User)
+        filters = []
+        if role is not None:
+            filters.append(User.role == role)
+        if search:
+            search_pattern = f"%{search}%"
+            filters.append(
+                or_(
+                    User.name.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                    User.username.ilike(search_pattern),
+                )
+            )
+        if filters:
+            query = query.where(*filters)
+            count_query = count_query.where(*filters)
+        users = list(self.session.scalars(query.order_by(User.created_at.desc()).offset(offset).limit(limit)))
+        total = self.session.scalar(count_query) or 0
+        return users, total
+
+    def update(self, user: User, values: dict) -> User:
+        for field, value in values.items():
+            setattr(user, field, value)
+        self.session.flush()
+        return user
+
+    def delete(self, user: User) -> None:
+        self.session.delete(user)
+        self.session.flush()
 
     def invalidate_password_reset_tokens(self, user_id) -> None:
         self.session.query(PasswordResetToken).filter(
