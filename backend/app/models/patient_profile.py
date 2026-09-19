@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,5 @@ class PatientProfile(Base):
     allergies_summary: Mapped[str | None] = mapped_column(String(255), nullable=True)
     chronic_conditions_summary: Mapped[str | None] = mapped_column(String(255), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="Europe/Madrid")
-    language_preference: Mapped[str] = mapped_column(String(10), nullable=False, default="es")
 
     user = relationship("User", back_populates="patient_profile")

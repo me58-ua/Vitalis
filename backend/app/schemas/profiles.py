@@ -10,7 +10,6 @@ class PatientProfileBase(BaseModel):
     allergies_summary: str | None = Field(default=None, max_length=255)
     chronic_conditions_summary: str | None = Field(default=None, max_length=255)
     timezone: str = Field(default="Europe/Madrid", max_length=50)
-    language_preference: str = Field(default="es", max_length=10)
 
 
 class PatientProfileCreate(PatientProfileBase):
@@ -23,7 +22,6 @@ class PatientProfileUpdate(BaseModel):
     allergies_summary: str | None = Field(default=None, max_length=255)
     chronic_conditions_summary: str | None = Field(default=None, max_length=255)
     timezone: str | None = Field(default=None, max_length=50)
-    language_preference: str | None = Field(default=None, max_length=10)
 
 
 class PatientProfileResponse(PatientProfileBase):

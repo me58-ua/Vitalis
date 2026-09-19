@@ -53,6 +53,7 @@ class AuthTests(unittest.TestCase):
             tel="+34123456789",
             birth_date=date(1995, 6, 15),
             gender=None,
+            terms_accepted=True,
         )
 
     def test_password_is_hashed_and_verifies(self):
@@ -66,6 +67,12 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(user.role, UserRole.PATIENT)
         self.assertNotEqual(user.password_hash, self.data.password)
         self.assertEqual(user.email, self.data.email)
+        self.assertIsNotNone(user.patient_profile)
+        self.assertIsNone(user.patient_profile.address)
+
+    def test_registration_requires_terms_acceptance(self):
+        with self.assertRaises(ValueError):
+            UserRegisterRequest(**{**self.data.model_dump(), "terms_accepted": False})
 
     def test_duplicate_email_is_rejected(self):
         self.service.register_patient(self.data)

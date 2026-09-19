@@ -1,7 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models import User, UserRole
+from app.models import PatientProfile, User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import UserRegisterRequest
 
@@ -43,6 +43,14 @@ class AuthService:
             tel=data.tel,
             birth_date=data.birth_date,
             gender=data.gender,
+            terms_accepted=data.terms_accepted,
+            patient_profile=PatientProfile(
+                address=data.address,
+                blood_type=data.blood_type,
+                allergies_summary=data.allergies_summary,
+                chronic_conditions_summary=data.chronic_conditions_summary,
+                timezone=data.timezone,
+            ),
         )
         try:
             return self.users.create(user)

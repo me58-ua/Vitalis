@@ -14,6 +14,12 @@ class UserRegisterRequest(BaseModel):
     tel: str = Field(min_length=1, max_length=32)
     birth_date: date
     gender: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=255)
+    blood_type: str | None = Field(default=None, max_length=10)
+    allergies_summary: str | None = Field(default=None, max_length=255)
+    chronic_conditions_summary: str | None = Field(default=None, max_length=255)
+    timezone: str = Field(default="Europe/Madrid", max_length=50)
+    terms_accepted: bool = Field(description="Must be true to create an account")
 
     @field_validator("name", "username", "email", "tel")
     @classmethod
@@ -37,6 +43,13 @@ class UserRegisterRequest(BaseModel):
         value = value.strip().lower()
         if "@" not in value or value.startswith("@") or value.endswith("@"):
             raise ValueError("must be a valid email address")
+        return value
+
+    @field_validator("terms_accepted")
+    @classmethod
+    def require_terms_acceptance(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("terms and conditions must be accepted")
         return value
 
 
