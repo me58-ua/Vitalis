@@ -1,4 +1,12 @@
 from app.models.user import User, UserRole
+from app.models.patient_profile import PatientProfile
+from app.models.professional_profile import ProfessionalProfile
 from app.models.password_reset_token import PasswordResetToken
 
-__all__ = ["PasswordResetToken", "User", "UserRole"]
+__all__ = [
+	"PatientProfile",
+	"PasswordResetToken",
+	"ProfessionalProfile",
+	"User",
+	"UserRole",
+]

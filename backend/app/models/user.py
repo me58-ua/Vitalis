@@ -1,12 +1,17 @@
 import enum
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.patient_profile import PatientProfile
+    from app.models.professional_profile import ProfessionalProfile
 
 
 class UserRole(str, enum.Enum):
@@ -42,4 +47,10 @@ class User(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+    patient_profile: Mapped["PatientProfile | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    professional_profile: Mapped["ProfessionalProfile | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
