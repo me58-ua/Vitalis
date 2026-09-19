@@ -1,7 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password
-from app.models import User
+from app.models import User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.users import AdminUserCreate, AdminUserUpdate
 
@@ -25,6 +25,7 @@ class AdminUserService:
             tel=data.tel,
             birth_date=data.birth_date,
             gender=data.gender,
+            is_active=data.role != UserRole.PROFESSIONAL,
         )
         try:
             return self.users.create(user)

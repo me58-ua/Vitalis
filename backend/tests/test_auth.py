@@ -36,7 +36,8 @@ class FakeUserRepository:
         user.id = uuid.uuid4()
         user.created_at = datetime.now(timezone.utc)
         user.updated_at = user.created_at
-        user.is_active = True
+        if user.is_active is None:
+            user.is_active = True
         self.users[user.email] = user
         return user
 
