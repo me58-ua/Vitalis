@@ -20,7 +20,11 @@ from app.schemas.profiles import (
     ProfessionalProfileResponse,
     ProfessionalProfileUpdate,
 )
-from app.services.profile_service import InvalidCurrentPasswordError, ProfileService
+from app.services.profile_service import (
+    InvalidCurrentPasswordError,
+    ProfileNotFoundError,
+    ProfileService,
+)
 
 
 router = APIRouter(tags=["profiles"])
@@ -30,16 +34,12 @@ Users = Annotated[UserRepository, Depends(get_user_repository)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 
 
-def profile_not_found() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-
-
 @router.get("/patients/me/profile", response_model=PatientProfileResponse)
 def get_patient_profile(current_user: CurrentPatient, profiles: Profiles):
-    profile = profiles.get_patient(current_user.id)
-    if profile is None:
-        raise profile_not_found()
-    return profile
+    try:
+        return ProfileService(None, profiles).get_patient_profile(current_user)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.patch("/patients/me/profile", response_model=PatientProfileResponse)
@@ -48,10 +48,10 @@ def update_patient_profile(
     current_user: CurrentPatient,
     profiles: Profiles,
 ):
-    profile = ProfileService(None, profiles).update_patient_profile(current_user, data)
-    if profile is None:
-        raise profile_not_found()
-    return profile
+    try:
+        return ProfileService(None, profiles).update_patient_profile(current_user, data)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.patch("/patients/me", response_model=UserResponse)
@@ -72,10 +72,10 @@ def change_patient_password(data: ChangePasswordRequest, current_user: CurrentPa
 
 @router.get("/professionals/me/profile", response_model=ProfessionalProfileResponse)
 def get_professional_profile(current_user: CurrentProfessional, profiles: Profiles):
-    profile = profiles.get_professional(current_user.id)
-    if profile is None:
-        raise profile_not_found()
-    return profile
+    try:
+        return ProfileService(None, profiles).get_professional_profile(current_user)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.patch("/professionals/me/profile", response_model=ProfessionalProfileResponse)
@@ -84,10 +84,10 @@ def update_professional_profile(
     current_user: CurrentProfessional,
     profiles: Profiles,
 ):
-    profile = ProfileService(None, profiles).update_professional_profile(current_user, data)
-    if profile is None:
-        raise profile_not_found()
-    return profile
+    try:
+        return ProfileService(None, profiles).update_professional_profile(current_user, data)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.patch("/professionals/me", response_model=UserResponse)

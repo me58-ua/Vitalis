@@ -1,18 +1,15 @@
 from typing import Annotated
-from uuid import UUID
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core.security import decode_access_token
 from app.database import get_db
 from app.models import User, UserRole
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService, InvalidAccessTokenError
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -45,22 +42,9 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = decode_access_token(token)
-        subject = payload.get("sub")
-        user_id = UUID(subject) if isinstance(subject, str) else None
-    except (JWTError, ValueError):
+        return AuthService(users).get_current_user(token)
+    except InvalidAccessTokenError:
         raise credentials_exception
-
-    user = users.get_by_id(user_id) if user_id else None
-    token_session_version = payload.get("session_version", 0)
-    if (
-        user is None
-        or not user.is_active
-        or not isinstance(token_session_version, int)
-        or token_session_version != user.session_version
-    ):
-        raise credentials_exception
-    return user
 
 #para las funciones que solo el admin puede hacer
 def get_current_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:

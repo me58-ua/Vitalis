@@ -13,7 +13,6 @@ from app.schemas.auth import (
 	UserResponse,
 )
 from app.services.password_reset_service import InvalidPasswordResetToken, PasswordResetService
-from app.core.rate_limit import password_reset_rate_limiter
 from app.services.email_service import (
 	send_password_changed_email,
 	send_password_reset_email,
@@ -54,15 +53,16 @@ def login(
 	form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 	users: Annotated[UserRepository, Depends(get_user_repository)],
 ) -> TokenResponse:
+	service = AuthService(users)
 	try:
-		user = AuthService(users).authenticate(form_data.username, form_data.password)
+		user = service.authenticate(form_data.username, form_data.password)
 	except (InvalidCredentialsError, InactiveUserError):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Incorrect email or password",
 			headers={"WWW-Authenticate": "Bearer"},
 		)
-	return TokenResponse(access_token=AuthService(users).issue_access_token(user))
+	return TokenResponse(access_token=service.issue_access_token(user))
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
@@ -74,13 +74,10 @@ def forgot_password(
 ) -> dict[str, str]:
 	message = "Si el correo está registrado, recibirás instrucciones para restablecer la contraseña."
 	client_host = request.client.host if request.client else "unknown"
-	allowed_by_ip = password_reset_rate_limiter.allow(f"ip:{client_host}")
-	allowed_by_email = password_reset_rate_limiter.allow(f"email:{data.email}")
-	if allowed_by_ip and allowed_by_email:
-		user = users.get_by_email(data.email)
-		if user is not None and user.is_active:
-			token = PasswordResetService(users).issue_token(user)
-			background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
+	reset = PasswordResetService(users).request_reset(data.email, client_host)
+	if reset is not None:
+		user, token = reset
+		background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
 	return {"message": message}
 
 

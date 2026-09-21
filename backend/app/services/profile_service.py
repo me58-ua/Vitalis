@@ -14,6 +14,10 @@ class InvalidCurrentPasswordError(Exception):
     pass
 
 
+class ProfileNotFoundError(Exception):
+    pass
+
+
 class ProfileService:
     def __init__(self, users: UserRepository, profiles: ProfileRepository):
         self.users = users
@@ -30,14 +34,22 @@ class ProfileService:
         self.users.session.flush()
         return user
 
-    def update_patient_profile(self, user: User, data: PatientProfileUpdate):
+    def get_patient_profile(self, user: User):
         profile = self.profiles.get_patient(user.id)
         if profile is None:
-            return None
+            raise ProfileNotFoundError("Profile not found")
+        return profile
+
+    def get_professional_profile(self, user: User):
+        profile = self.profiles.get_professional(user.id)
+        if profile is None:
+            raise ProfileNotFoundError("Profile not found")
+        return profile
+
+    def update_patient_profile(self, user: User, data: PatientProfileUpdate):
+        profile = self.get_patient_profile(user)
         return self.profiles.update(profile, data.model_dump(exclude_unset=True))
 
     def update_professional_profile(self, user: User, data: ProfessionalProfileUpdate):
-        profile = self.profiles.get_professional(user.id)
-        if profile is None:
-            return None
+        profile = self.get_professional_profile(user)
         return self.profiles.update(profile, data.model_dump(exclude_unset=True))
