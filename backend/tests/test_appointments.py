@@ -3,21 +3,25 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+from sqlalchemy.exc import IntegrityError
+
 from app.models import AppointmentStatus, AppointmentType, UserRole
 from app.schemas.appointments import (
+    AdminAppointmentCreate,
     AdminAppointmentUpdate,
     AppointmentCancelRequest,
     ConsultationNoteCreate,
     ConsultationNoteUpdate,
     ProfessionalAppointmentStatusUpdate,
     ProfessionalAppointmentCreate,
-    ProfessionalScheduleUpdate,
 )
 from app.services.appointment_service import (
     AppointmentAccessError,
+    AppointmentConflictError,
+    AppointmentNotFoundError,
     AppointmentService,
+    AppointmentValidationError,
 )
-from app.services.schedule_service import ScheduleService
 
 
 class FakeAppointmentRepository:
@@ -27,6 +31,7 @@ class FakeAppointmentRepository:
         self.notes = []
         self.created_appointments = []
         self.rolled_back = False
+        self.fail_create_appointment = False
 
     def get_appointment(self, appointment_id):
         return self.appointment if self.appointment and self.appointment.id == appointment_id else None
@@ -41,6 +46,8 @@ class FakeAppointmentRepository:
         return history
 
     def create_appointment(self, appointment):
+        if self.fail_create_appointment:
+            raise IntegrityError("insert appointment", {}, Exception("conflict"))
         self.created_appointments.append(appointment)
         return appointment
 
@@ -48,16 +55,8 @@ class FakeAppointmentRepository:
         self.notes.append(note)
         return note
 
-    def get_schedule(self, schedule_id):
-        return self.schedule if self.schedule.id == schedule_id else None
-
     def get_note(self, note_id):
         return self.note if self.note.id == note_id else None
-
-    def update_schedule(self, schedule, values):
-        for field, value in values.items():
-            setattr(schedule, field, value)
-        return schedule
 
     def update_note(self, note, values):
         for field, value in values.items():
@@ -107,16 +106,6 @@ class AppointmentServiceTests(unittest.TestCase):
         self.users = FakeUserRepository([self.patient, self.professional])
         self.professionals = FakeProfessionalRepository(self.patient_id)
         self.service = AppointmentService(self.repository, self.users, self.professionals)
-        self.schedule_service = ScheduleService(self.repository, self.users)
-        self.schedule = SimpleNamespace(
-            id=uuid.uuid4(),
-            professional_id=self.professional_id,
-            day_of_week=0,
-            start_time=datetime(2026, 9, 22, 9, tzinfo=timezone.utc).time(),
-            end_time=datetime(2026, 9, 22, 17, tzinfo=timezone.utc).time(),
-            slot_duration_min=30,
-            is_active=True,
-        )
         self.note = SimpleNamespace(
             id=uuid.uuid4(),
             appointment_id=self.appointment_id,
@@ -125,8 +114,118 @@ class AppointmentServiceTests(unittest.TestCase):
             patient_summary="Initial summary",
             diagnosis="Initial diagnosis",
         )
-        self.repository.schedule = self.schedule
         self.repository.note = self.note
+
+    def _admin_appointment_data(self, **overrides):
+        values = {
+            "patient_id": self.patient_id,
+            "professional_id": self.professional_id,
+            "start_time": datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            "type": AppointmentType.VIDEO,
+            "reason": "Follow-up",
+        }
+        values.update(overrides)
+        return AdminAppointmentCreate(**values)
+
+    def test_admin_can_create_appointment_for_valid_users(self):
+        result = self.service.create_appointment(self._admin_appointment_data())
+
+        self.assertEqual(result.patient_id, self.patient_id)
+        self.assertEqual(result.professional_id, self.professional_id)
+        self.assertEqual(len(self.repository.created_appointments), 1)
+
+    def test_admin_create_rejects_missing_or_wrong_role_users(self):
+        cases = (
+            {"patient_id": uuid.uuid4()},
+            {"patient_id": self.professional_id},
+            {"professional_id": uuid.uuid4()},
+            {"professional_id": self.patient_id},
+        )
+
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(AppointmentNotFoundError):
+                    self.service.create_appointment(self._admin_appointment_data(**overrides))
+
+    def test_admin_create_rejects_invalid_time_range(self):
+        data = AdminAppointmentCreate.model_construct(
+            patient_id=self.patient_id,
+            professional_id=self.professional_id,
+            start_time=datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            end_time=datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            type=AppointmentType.VIDEO,
+            reason=None,
+        )
+
+        with self.assertRaises(AppointmentValidationError):
+            self.service.create_appointment(data)
+
+    def test_admin_create_translates_conflict_and_rolls_back(self):
+        self.repository.fail_create_appointment = True
+
+        with self.assertRaises(AppointmentConflictError):
+            self.service.create_appointment(self._admin_appointment_data())
+
+        self.assertTrue(self.repository.rolled_back)
+
+    def test_get_user_returns_matching_role_and_rejects_missing_or_wrong_role(self):
+        self.assertIs(self.service._get_user(self.patient_id, UserRole.PATIENT), self.patient)
+
+        with self.assertRaises(AppointmentNotFoundError):
+            self.service._get_user(uuid.uuid4(), UserRole.PATIENT)
+        with self.assertRaises(AppointmentNotFoundError):
+            self.service._get_user(self.professional_id, UserRole.PATIENT)
+
+    def test_professional_can_create_for_assigned_patient(self):
+        data = ProfessionalAppointmentCreate(
+            patient_id=self.patient_id,
+            start_time=datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            end_time=datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            type=AppointmentType.IN_PERSON,
+        )
+
+        result = self.service.create_for_professional(
+            self.professional_id, self.professional, data
+        )
+
+        self.assertEqual(result.patient_id, self.patient_id)
+        self.assertEqual(result.professional_id, self.professional_id)
+
+    def test_professional_create_rejects_identity_patient_and_assignment_errors(self):
+        data = ProfessionalAppointmentCreate(
+            patient_id=self.patient_id,
+            start_time=datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            end_time=datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            type=AppointmentType.IN_PERSON,
+        )
+
+        with self.assertRaises(AppointmentAccessError):
+            self.service.create_for_professional(uuid.uuid4(), self.professional, data)
+
+        for patient_id in (uuid.uuid4(), self.professional_id):
+            with self.subTest(patient_id=patient_id):
+                invalid_data = data.model_copy(update={"patient_id": patient_id})
+                with self.assertRaises(AppointmentNotFoundError):
+                    self.service.create_for_professional(
+                        self.professional_id, self.professional, invalid_data
+                    )
+
+        self.professionals.assigned_patient_id = uuid.uuid4()
+        with self.assertRaises(AppointmentAccessError):
+            self.service.create_for_professional(self.professional_id, self.professional, data)
+
+    def test_professional_create_translates_conflict(self):
+        self.repository.fail_create_appointment = True
+        data = ProfessionalAppointmentCreate(
+            patient_id=self.patient_id,
+            start_time=datetime(2026, 9, 22, 12, tzinfo=timezone.utc),
+            end_time=datetime(2026, 9, 22, 13, tzinfo=timezone.utc),
+            type=AppointmentType.IN_PERSON,
+        )
+
+        with self.assertRaises(AppointmentConflictError):
+            self.service.create_for_professional(self.professional_id, self.professional, data)
 
     def test_admin_status_update_records_old_new_actor_and_reason(self):
         result = self.service.update_as_admin(
@@ -179,6 +278,22 @@ class AppointmentServiceTests(unittest.TestCase):
                 data,
             )
 
+    def test_professional_can_create_consultation_note_for_owned_appointment(self):
+        data = ConsultationNoteCreate(
+            appointment_id=self.appointment_id,
+            clinical_notes="Private note",
+            patient_summary="Summary",
+            diagnosis="Diagnosis",
+        )
+
+        result = self.service.create_consultation_note(
+            self.professional_id, self.professional, data
+        )
+
+        self.assertEqual(result.appointment_id, self.appointment_id)
+        self.assertEqual(result.professional_id, self.professional_id)
+        self.assertEqual(len(self.repository.notes), 1)
+
     def test_professional_status_update_records_audit_history(self):
         result = self.service.update_status_as_professional(
             self.professional_id,
@@ -193,25 +308,6 @@ class AppointmentServiceTests(unittest.TestCase):
         self.assertEqual(result.status, AppointmentStatus.COMPLETED)
         self.assertEqual(self.repository.history[-1].old_status, AppointmentStatus.PENDING)
         self.assertEqual(self.repository.history[-1].changed_by, self.professional_id)
-
-    def test_professional_schedule_update_is_partial_and_validates_range(self):
-        result = self.schedule_service.update_schedule_as_professional(
-            self.professional_id,
-            self.professional,
-            self.schedule.id,
-            ProfessionalScheduleUpdate(slot_duration_min=45),
-        )
-        self.assertEqual(result.slot_duration_min, 45)
-        self.assertEqual(result.start_time.hour, 9)
-
-        self.schedule.end_time = datetime(2026, 9, 22, 8, tzinfo=timezone.utc).time()
-        with self.assertRaises(Exception):
-            self.schedule_service.update_schedule_as_professional(
-                self.professional_id,
-                self.professional,
-                self.schedule.id,
-                ProfessionalScheduleUpdate(is_active=False),
-            )
 
     def test_consultation_note_update_does_not_change_appointment_id(self):
         result = self.service.update_consultation_note(
