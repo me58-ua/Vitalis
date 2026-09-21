@@ -109,7 +109,7 @@ class ProfessionalScheduleUpdate(BaseModel):
     is_active: bool | None = None
 
 
-class ProfessionalAppointmentStatusUpdate(BaseModel):a
+class ProfessionalAppointmentStatusUpdate(BaseModel):
     status: AppointmentStatus
     reason: str | None = None
 

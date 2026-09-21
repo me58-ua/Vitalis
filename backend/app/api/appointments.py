@@ -7,10 +7,12 @@ from app.api.deps import (
     get_appointment_repository,
     get_current_admin,
     get_current_patient,
+    get_professional_repository,
     get_user_repository,
 )
 from app.models import User
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.appointments import (
     AdminAppointmentUpdate,
@@ -20,17 +22,14 @@ from app.schemas.appointments import (
     AdminScheduleCreate,
     AdminScheduleResponse,
 )
-from app.services.admin_appointment_service import (
-    AdminAppointmentConflictError,
-    AdminAppointmentNotFoundError,
-    AdminAppointmentService,
-)
 from app.services.appointment_service import (
+    AppointmentAccessError,
     AppointmentConflictError,
     AppointmentNotFoundError,
     AppointmentService,
     AppointmentValidationError,
 )
+from app.services.schedule_service import ScheduleService
 
 
 router = APIRouter(prefix="/admin", tags=["admin-appointments"])
@@ -39,6 +38,7 @@ AdminUser = Annotated[User, Depends(get_current_admin)]
 CurrentPatient = Annotated[User, Depends(get_current_patient)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Users = Annotated[UserRepository, Depends(get_user_repository)]
+Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
 
 
 @router.post("/schedules", response_model=AdminScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -49,10 +49,10 @@ def create_schedule(
     users: Users,
 ):
     try:
-        return AdminAppointmentService(appointments, users).create_schedule(data)
-    except AdminAppointmentNotFoundError as error:
+        return ScheduleService(appointments, users).create_schedule(data)
+    except AppointmentNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
-    except AdminAppointmentConflictError as error:
+    except AppointmentConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
@@ -62,12 +62,15 @@ def create_appointment(
     _: AdminUser,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AdminAppointmentService(appointments, users).create_appointment(data)
-    except AdminAppointmentNotFoundError as error:
+        return AppointmentService(appointments, users, professionals).create_appointment(data)
+    except AppointmentNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
-    except AdminAppointmentConflictError as error:
+    except AppointmentValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except AppointmentConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
@@ -81,9 +84,10 @@ def update_appointment(
     current_admin: AdminUser,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AppointmentService(appointments, users).update_as_admin(
+        return AppointmentService(appointments, users, professionals).update_as_admin(
             appointment_id, data, current_admin
         )
     except AppointmentNotFoundError as error:
@@ -105,9 +109,10 @@ def cancel_patient_appointment(
     current_patient: CurrentPatient,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AppointmentService(appointments, users).cancel_appointment(
+        return AppointmentService(appointments, users, professionals).cancel_appointment(
             patient_id,
             appointment_id,
             current_patient,

@@ -33,6 +33,7 @@ from app.services.appointment_service import (
     AppointmentValidationError,
 )
 from app.services.professional_service import ProfessionalNotFoundError, ProfessionalService
+from app.services.schedule_service import ScheduleService
 
 
 router = APIRouter(tags=["professionals"])
@@ -119,9 +120,10 @@ def create_consultation_note(
     current_user: CurrentProfessional,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AppointmentService(appointments, users).create_consultation_note(
+        return AppointmentService(appointments, users, professionals).create_consultation_note(
             professional_id, current_user, data
         )
     except AppointmentAccessError as error:
@@ -143,9 +145,10 @@ def update_professional_appointment_status(
     current_user: CurrentProfessional,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AppointmentService(appointments, users).update_status_as_professional(
+        return AppointmentService(appointments, users, professionals).update_status_as_professional(
             professional_id, current_user, appointment_id, data
         )
     except AppointmentAccessError as error:
@@ -171,7 +174,7 @@ def update_professional_schedule(
     users: Users,
 ):
     try:
-        return AppointmentService(appointments, users).update_schedule_as_professional(
+        return ScheduleService(appointments, users).update_schedule_as_professional(
             professional_id, current_user, schedule_id, data
         )
     except AppointmentAccessError as error:
@@ -195,9 +198,10 @@ def update_professional_consultation_note(
     current_user: CurrentProfessional,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AppointmentService(appointments, users).update_consultation_note(
+        return AppointmentService(appointments, users, professionals).update_consultation_note(
             professional_id, current_user, note_id, data
         )
     except AppointmentAccessError as error:
@@ -219,9 +223,10 @@ def cancel_professional_appointment(
     current_user: CurrentProfessional,
     appointments: Appointments,
     users: Users,
+    professionals: Professionals,
 ):
     try:
-        return AppointmentService(appointments, users).cancel_appointment(
+        return AppointmentService(appointments, users, professionals).cancel_appointment(
             professional_id,
             appointment_id,
             current_user,

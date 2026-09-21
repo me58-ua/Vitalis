@@ -7,7 +7,6 @@ from app.models import (
     AppointmentNote,
     AppointmentStatus,
     AppointmentStatusHistory,
-    ProfessionalSchedule,
     User,
     UserRole,
 )
@@ -15,13 +14,13 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.appointments import (
+    AdminAppointmentCreate,
     AdminAppointmentUpdate,
     ConsultationNoteCreate,
     AppointmentCancelRequest,
     ConsultationNoteUpdate,
     ProfessionalAppointmentStatusUpdate,
     ProfessionalAppointmentCreate,
-    ProfessionalScheduleUpdate,
 )
 
 
@@ -46,11 +45,27 @@ class AppointmentService:
         self,
         appointments: AppointmentRepository,
         users: UserRepository,
-        professionals: ProfessionalRepository | None = None,
+        professionals: ProfessionalRepository,
     ):
         self.appointments = appointments
         self.users = users
         self.professionals = professionals
+
+    def create_appointment(self, data: AdminAppointmentCreate) -> Appointment:
+        patient = self._get_user(data.patient_id, UserRole.PATIENT)
+        professional = self._get_user(data.professional_id, UserRole.PROFESSIONAL)
+        if data.end_time <= data.start_time:
+            raise AppointmentValidationError("end_time must be after start_time")
+
+        appointment = Appointment(
+            patient_id=patient.id,
+            professional_id=professional.id,
+            start_time=data.start_time,
+            end_time=data.end_time,
+            type=data.type,
+            reason=data.reason,
+        )
+        return self._create_appointment(appointment)
 
     def update_as_admin(
         self,
@@ -93,10 +108,8 @@ class AppointmentService:
         data: ProfessionalAppointmentCreate,
     ) -> Appointment:
         self._require_path_identity(professional_id, current_user.id)
-        patient = self.users.get_by_id(data.patient_id)
-        if patient is None or patient.role != UserRole.PATIENT:
-            raise AppointmentNotFoundError("Patient not found")
-        if self.professionals is None or not self.professionals.has_patient_assignment(
+        patient = self._get_user(data.patient_id, UserRole.PATIENT)
+        if not self.professionals.has_patient_assignment(
             professional_id, data.patient_id
         ):
             raise AppointmentAccessError("Patient is not assigned to this professional")
@@ -216,31 +229,6 @@ class AppointmentService:
             self.appointments.rollback()
             raise AppointmentConflictError("Could not cancel appointment") from error
 
-    def update_schedule_as_professional(
-        self,
-        professional_id,
-        current_user: User,
-        schedule_id,
-        data: ProfessionalScheduleUpdate,
-    ) -> ProfessionalSchedule:
-        self._require_path_identity(professional_id, current_user.id)
-        schedule = self.appointments.get_schedule(schedule_id)
-        if schedule is None:
-            raise AppointmentNotFoundError("Schedule not found")
-        if schedule.professional_id != professional_id:
-            raise AppointmentAccessError("Schedule does not belong to this professional")
-
-        values = data.model_dump(exclude_unset=True)
-        start_time = values.get("start_time", schedule.start_time)
-        end_time = values.get("end_time", schedule.end_time)
-        if end_time <= start_time:
-            raise AppointmentValidationError("end_time must be after start_time")
-        try:
-            return self.appointments.update_schedule(schedule, values)
-        except IntegrityError as error:
-            self.appointments.rollback()
-            raise AppointmentConflictError("Could not update schedule") from error
-
     def update_consultation_note(
         self,
         professional_id,
@@ -267,6 +255,12 @@ class AppointmentService:
         if appointment is None:
             raise AppointmentNotFoundError("Appointment not found")
         return appointment
+
+    def _get_user(self, user_id, role: UserRole) -> User:
+        user = self.users.get_by_id(user_id)
+        if user is None or user.role != role:
+            raise AppointmentNotFoundError(f"{role.value.capitalize()} not found")
+        return user
 
     def _create_appointment(self, appointment: Appointment) -> Appointment:
         try:

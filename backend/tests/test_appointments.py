@@ -17,6 +17,7 @@ from app.services.appointment_service import (
     AppointmentAccessError,
     AppointmentService,
 )
+from app.services.schedule_service import ScheduleService
 
 
 class FakeAppointmentRepository:
@@ -106,6 +107,7 @@ class AppointmentServiceTests(unittest.TestCase):
         self.users = FakeUserRepository([self.patient, self.professional])
         self.professionals = FakeProfessionalRepository(self.patient_id)
         self.service = AppointmentService(self.repository, self.users, self.professionals)
+        self.schedule_service = ScheduleService(self.repository, self.users)
         self.schedule = SimpleNamespace(
             id=uuid.uuid4(),
             professional_id=self.professional_id,
@@ -193,7 +195,7 @@ class AppointmentServiceTests(unittest.TestCase):
         self.assertEqual(self.repository.history[-1].changed_by, self.professional_id)
 
     def test_professional_schedule_update_is_partial_and_validates_range(self):
-        result = self.service.update_schedule_as_professional(
+        result = self.schedule_service.update_schedule_as_professional(
             self.professional_id,
             self.professional,
             self.schedule.id,
@@ -204,7 +206,7 @@ class AppointmentServiceTests(unittest.TestCase):
 
         self.schedule.end_time = datetime(2026, 9, 22, 8, tzinfo=timezone.utc).time()
         with self.assertRaises(Exception):
-            self.service.update_schedule_as_professional(
+            self.schedule_service.update_schedule_as_professional(
                 self.professional_id,
                 self.professional,
                 self.schedule.id,
