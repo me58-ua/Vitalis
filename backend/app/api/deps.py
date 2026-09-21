@@ -10,6 +10,7 @@ from app.core.security import decode_access_token
 from app.database import get_db
 from app.models import User, UserRole
 from app.repositories.profile_repository import ProfileRepository
+from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
 
@@ -24,6 +25,10 @@ def get_user_repository(db: DbSession) -> UserRepository:
 
 def get_profile_repository(db: DbSession) -> ProfileRepository:
     return ProfileRepository(db)
+
+
+def get_appointment_repository(db: DbSession) -> AppointmentRepository:
+    return AppointmentRepository(db)
 
 
 def get_professional_repository(db: DbSession) -> ProfessionalRepository:
