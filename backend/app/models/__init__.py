@@ -7,6 +7,7 @@ from app.models.appointment import Appointment, AppointmentStatus, AppointmentTy
 from app.models.professional_schedule import ProfessionalSchedule
 from app.models.appointment_status_history import AppointmentStatusHistory
 from app.models.chat_message import ChatMessage
+from app.models.appointment_note import AppointmentNote
 
 __all__ = [
 	"PatientProfile",
@@ -21,4 +22,5 @@ __all__ = [
 	"ProfessionalSchedule",
 	"AppointmentStatusHistory",
 	"ChatMessage",
+	"AppointmentNote",
 ]

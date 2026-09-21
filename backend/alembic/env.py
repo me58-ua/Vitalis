@@ -8,6 +8,7 @@ from app.database import Base
 from app.models import (
     Appointment,
     AppointmentStatusHistory,
+    AppointmentNote,
     ChatMessage,
     PatientProfile,
     ProfessionalPatient,
