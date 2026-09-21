@@ -5,7 +5,17 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import settings
 from app.database import Base
-from app.models import PatientProfile, ProfessionalPatient, ProfessionalProfile, User
+from app.models import (
+    Appointment,
+    AppointmentStatusHistory,
+    AppointmentNote,
+    ChatMessage,
+    PatientProfile,
+    ProfessionalPatient,
+    ProfessionalProfile,
+    ProfessionalSchedule,
+    User,
+)
 
 
 config = context.config

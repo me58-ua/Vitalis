@@ -63,6 +63,9 @@ class UserRepository:
         self.session.delete(user)
         self.session.flush()
 
+    def rollback(self) -> None:
+        self.session.rollback()
+
     def invalidate_password_reset_tokens(self, user_id) -> None:
         self.session.query(PasswordResetToken).filter(
             PasswordResetToken.user_id == user_id,

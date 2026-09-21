@@ -95,3 +95,10 @@ class ProfessionalRepository:
             )
         )
         return self.session.execute(query).first()
+
+    def has_patient_assignment(self, professional_id: UUID, patient_id: UUID) -> bool:
+        query = select(ProfessionalPatient.professional_id).where(
+            ProfessionalPatient.professional_id == professional_id,
+            ProfessionalPatient.patient_id == patient_id,
+        )
+        return self.session.scalar(query) is not None

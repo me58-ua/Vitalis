@@ -4,36 +4,43 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import (
+    get_appointment_repository,
     get_current_professional,
     get_professional_repository,
+    get_user_repository,
 )
 from app.models import User
+from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
-from app.schemas.profiles import (
-    PatientListResponse,
-    PatientSummaryResponse,
-    ProfessionalListResponse,
-    ProfessionalPublicResponse,
+from app.repositories.user_repository import UserRepository
+from app.schemas.appointments import (
+    AppointmentCancelRequest,
+    ConsultationNoteCreate,
+    ConsultationNoteResponse,
+    ConsultationNoteUpdate,
+    ProfessionalAppointmentCreate,
+    ProfessionalAppointmentStatusUpdate,
+    ProfessionalScheduleResponse,
+    ProfessionalScheduleUpdate,
+    AppointmentResponse,
 )
+from app.schemas.profiles import PatientListResponse, ProfessionalListResponse, ProfessionalPublicResponse
+from app.services.appointment_service import (
+    AppointmentAccessError,
+    AppointmentConflictError,
+    AppointmentNotFoundError,
+    AppointmentService,
+    AppointmentValidationError,
+)
+from app.services.professional_service import ProfessionalNotFoundError, ProfessionalService
+from app.services.schedule_service import ScheduleService
 
 
 router = APIRouter(tags=["professionals"])
 CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
-
-
-def professional_response(user: User, profile) -> ProfessionalPublicResponse:
-    return ProfessionalPublicResponse(
-        id=user.id,
-        name=user.name,
-        specialty=profile.specialty,
-        bio=profile.bio,
-        practice_address=profile.practice_address,
-        practice_phone=profile.practice_phone,
-        is_accepting_new_patients=profile.is_accepting_new_patients,
-        default_consultation_duration_minutes=profile.default_consultation_duration_minutes,
-        telehealth_enabled=profile.telehealth_enabled,
-    )
+Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
+Users = Annotated[UserRepository, Depends(get_user_repository)]
 
 
 @router.get("/professionals/me/patients", response_model=PatientListResponse)
@@ -44,30 +51,8 @@ def list_my_patients(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> PatientListResponse:
-    patient_records, total = professionals.list_patients(
-        professional_id=current_user.id,
-        search=search,
-        offset=(page - 1) * page_size,
-        limit=page_size,
-    )
-    return PatientListResponse(
-        patients=[
-            PatientSummaryResponse(
-                id=user.id,
-                name=user.name,
-                username=user.username,
-                gender=user.gender,
-                email=user.email,
-                tel=user.tel,
-                blood_type=profile.blood_type,
-                allergies_summary=profile.allergies_summary,
-                chronic_conditions_summary=profile.chronic_conditions_summary,
-            )
-            for user, profile in patient_records
-        ],
-        total=total,
-        page=page,
-        page_size=page_size,
+    return ProfessionalService(professionals).list_my_patients(
+        current_user.id, search, page, page_size
     )
 
 
@@ -81,25 +66,176 @@ def list_professionals(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> ProfessionalListResponse:
-    records, total = professionals.list_professionals(
-        name=name,
-        specialty=specialty,
-        is_accepting_new_patients=is_accepting_new_patients,
-        telehealth_enabled=telehealth_enabled,
-        offset=(page - 1) * page_size,
-        limit=page_size,
-    )
-    return ProfessionalListResponse(
-        professionals=[professional_response(user, profile) for user, profile in records],
-        total=total,
-        page=page,
-        page_size=page_size,
+    return ProfessionalService(professionals).list_professionals(
+        name,
+        specialty,
+        is_accepting_new_patients,
+        telehealth_enabled,
+        page,
+        page_size,
     )
 
 
 @router.get("/professionals/{professional_id}", response_model=ProfessionalPublicResponse)
 def get_professional(professional_id: UUID, professionals: Professionals) -> ProfessionalPublicResponse:
-    record = professionals.get_professional(professional_id)
-    if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professional not found")
-    return professional_response(*record)
+    try:
+        return ProfessionalService(professionals).get_professional(professional_id)
+    except ProfessionalNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.post(
+    "/professionals/{professional_id}/appointments",
+    response_model=AppointmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_professional_appointment(
+    professional_id: UUID,
+    data: ProfessionalAppointmentCreate,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        return AppointmentService(appointments, users, professionals).create_for_professional(
+            professional_id, current_user, data
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.post(
+    "/professionals/{professional_id}/consultation-notes",
+    response_model=ConsultationNoteResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_consultation_note(
+    professional_id: UUID,
+    data: ConsultationNoteCreate,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        return AppointmentService(appointments, users, professionals).create_consultation_note(
+            professional_id, current_user, data
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.patch(
+    "/professionals/{professional_id}/appointments/{appointment_id}/status",
+    response_model=AppointmentResponse,
+)
+def update_professional_appointment_status(
+    professional_id: UUID,
+    appointment_id: UUID,
+    data: ProfessionalAppointmentStatusUpdate,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        return AppointmentService(appointments, users, professionals).update_status_as_professional(
+            professional_id, current_user, appointment_id, data
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.patch(
+    "/professionals/{professional_id}/schedules/{schedule_id}",
+    response_model=ProfessionalScheduleResponse,
+)
+def update_professional_schedule(
+    professional_id: UUID,
+    schedule_id: UUID,
+    data: ProfessionalScheduleUpdate,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    users: Users,
+):
+    try:
+        return ScheduleService(appointments, users).update_schedule_as_professional(
+            professional_id, current_user, schedule_id, data
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.patch(
+    "/professionals/{professional_id}/consultation-notes/{note_id}",
+    response_model=ConsultationNoteResponse,
+)
+def update_professional_consultation_note(
+    professional_id: UUID,
+    note_id: UUID,
+    data: ConsultationNoteUpdate,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        return AppointmentService(appointments, users, professionals).update_consultation_note(
+            professional_id, current_user, note_id, data
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@router.post(
+    "/professionals/{professional_id}/appointments/{appointment_id}/cancel",
+    response_model=AppointmentResponse,
+)
+def cancel_professional_appointment(
+    professional_id: UUID,
+    appointment_id: UUID,
+    data: AppointmentCancelRequest,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        return AppointmentService(appointments, users, professionals).cancel_appointment(
+            professional_id,
+            appointment_id,
+            current_user,
+            data,
+            enforce_patient_notice=False,
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error

@@ -12,7 +12,12 @@ from app.schemas.users import (
 	AdminUserResponse,
 	AdminUserUpdate,
 )
-from app.services.admin_user_service import AdminUserConflictError, AdminUserService
+from app.services.admin_user_service import (
+	AdminUserConflictError,
+	AdminUserDeleteConflictError,
+	AdminUserNotFoundError,
+	AdminUserService,
+)
 
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
@@ -41,7 +46,7 @@ def list_users(
 	page: int = Query(default=1, ge=1),
 	page_size: int = Query(default=20, ge=1, le=100),
 ) -> AdminUserListResponse:
-	records, total = users.list(
+	records, total = AdminUserService(users).list(
 		role=parse_role(role),
 		search=search,
 		offset=(page - 1) * page_size,
@@ -60,26 +65,28 @@ def create_user(data: AdminUserCreate, _: AdminUser, users: Users) -> User:
 
 @router.get("/{user_id}", response_model=AdminUserResponse)
 def get_user(user_id: UUID, _: AdminUser, users: Users) -> User:
-	user = users.get_by_id(user_id)
-	if user is None:
-		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-	return user
+	try:
+		return AdminUserService(users).get(user_id)
+	except AdminUserNotFoundError as error:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.patch("/{user_id}", response_model=AdminUserResponse)
 def update_user(user_id: UUID, data: AdminUserUpdate, _: AdminUser, users: Users) -> User:
-	user = users.get_by_id(user_id)
-	if user is None:
-		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 	try:
-		return AdminUserService(users).update(user, data)
+		service = AdminUserService(users)
+		return service.update(service.get(user_id), data)
+	except AdminUserNotFoundError as error:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 	except AdminUserConflictError as error:
 		raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: UUID, _: AdminUser, users: Users) -> None:
-	user = users.get_by_id(user_id)
-	if user is None:
-		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-	users.delete(user)
+	try:
+		AdminUserService(users).delete(user_id)
+	except AdminUserNotFoundError as error:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+	except AdminUserDeleteConflictError as error:
+		raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error

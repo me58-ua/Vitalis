@@ -1,6 +1,9 @@
-from sqlalchemy.exc import IntegrityError
+from uuid import UUID
 
-from app.core.security import create_access_token, hash_password, verify_password
+from sqlalchemy.exc import IntegrityError
+from jose import JWTError
+
+from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
 from app.models import PatientProfile, ProfessionalProfile, User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import UserRegisterRequest
@@ -21,6 +24,10 @@ class InvalidCredentialsError(Exception):
 
 
 class InactiveUserError(Exception):
+    pass
+
+
+class InvalidAccessTokenError(Exception):
     pass
 
 
@@ -84,6 +91,25 @@ class AuthService:
             raise InvalidCredentialsError
         if not user.is_active:
             raise InactiveUserError
+        return user
+
+    def get_current_user(self, token: str) -> User:
+        try:
+            payload = decode_access_token(token)
+            subject = payload.get("sub")
+            user_id = UUID(subject) if isinstance(subject, str) else None
+        except (JWTError, ValueError):
+            raise InvalidAccessTokenError
+
+        user = self.users.get_by_id(user_id) if user_id else None
+        token_session_version = payload.get("session_version", 0)
+        if (
+            user is None
+            or not user.is_active
+            or not isinstance(token_session_version, int)
+            or token_session_version != user.session_version
+        ):
+            raise InvalidAccessTokenError
         return user
 
     def issue_access_token(self, user: User) -> str:
