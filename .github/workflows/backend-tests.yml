@@ -5,6 +5,12 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend-tests.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-tests.yml"    
 
 permissions:
   contents: read
