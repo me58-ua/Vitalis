@@ -15,6 +15,7 @@ from app.models import (
     ProfessionalProfile,
     ProfessionalSchedule,
     User,
+    RefreshToken,
 )
 
 

@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import PatientProfile, ProfessionalProfile
+from app.models import Allergy, ChronicCondition, HabitLog, Medication, PatientProfile, ProfessionalProfile
 
 
 class ProfileRepository:
@@ -23,3 +23,23 @@ class ProfileRepository:
             setattr(profile, field, value)
         self.session.flush()
         return profile
+
+    def add_health_record(self, record):
+        self.session.add(record)
+        self.session.flush()
+        return record
+
+    def list_health_records(self, profile_id):
+        return {
+            "allergies": list(self.session.scalars(select(Allergy).where(Allergy.patient_id == profile_id).order_by(Allergy.id))),
+            "chronic_conditions": list(self.session.scalars(select(ChronicCondition).where(ChronicCondition.patient_id == profile_id).order_by(ChronicCondition.id))),
+            "medications": list(self.session.scalars(select(Medication).where(Medication.patient_id == profile_id).order_by(Medication.id))),
+            "habit_logs": list(self.session.scalars(select(HabitLog).where(HabitLog.patient_id == profile_id).order_by(HabitLog.date, HabitLog.id))),
+        }
+
+    def get_health_record(self, model, profile_id, record_id):
+        return self.session.scalar(select(model).where(model.patient_id == profile_id, model.id == record_id))
+
+    def delete_health_record(self, record):
+        self.session.delete(record)
+        self.session.flush()

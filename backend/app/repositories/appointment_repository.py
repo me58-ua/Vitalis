@@ -29,6 +29,16 @@ class AppointmentRepository:
     def get_note(self, note_id: UUID) -> AppointmentNote | None:
         return self.session.get(AppointmentNote, note_id)
 
+    def has_shared_appointment(self, patient_id: UUID, professional_id: UUID) -> bool:
+        return self.session.scalar(
+            select(Appointment.id)
+            .where(
+                Appointment.patient_id == patient_id,
+                Appointment.professional_id == professional_id,
+            )
+            .limit(1)
+        ) is not None
+
     def update_appointment(self, appointment: Appointment, values: dict) -> Appointment:
         for field, value in values.items():
             setattr(appointment, field, value)

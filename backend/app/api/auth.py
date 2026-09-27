@@ -11,6 +11,7 @@ from app.schemas.auth import (
 	TokenResponse,
 	UserRegisterRequest,
 	UserResponse,
+	RefreshTokenRequest,
 )
 from app.services.password_reset_service import InvalidPasswordResetToken, PasswordResetService
 from app.services.email_service import (
@@ -23,6 +24,7 @@ from app.services.auth_service import (
 	InactiveUserError,
 	InvalidCredentialsError,
 	UsernameAlreadyRegisteredError,
+	InvalidRefreshTokenError,
 )
 from app.services.email_service import send_welcome_email
 
@@ -62,7 +64,26 @@ def login(
 			detail="Incorrect email or password",
 			headers={"WWW-Authenticate": "Bearer"},
 		)
-	return TokenResponse(access_token=service.issue_access_token(user))
+	return TokenResponse(
+		access_token=service.issue_access_token(user),
+		refresh_token=service.issue_refresh_token(user),
+	)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(
+	data: RefreshTokenRequest,
+	users: Annotated[UserRepository, Depends(get_user_repository)],
+) -> TokenResponse:
+	try:
+		access_token, refresh_token = AuthService(users).refresh_tokens(data.refresh_token)
+	except InvalidRefreshTokenError:
+		raise HTTPException(
+			status_code=status.HTTP_401_UNAUTHORIZED,
+			detail="Invalid or expired refresh token",
+			headers={"WWW-Authenticate": "Bearer"},
+		)
+	return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
+    AI_API_URL: str = ""
+    AI_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

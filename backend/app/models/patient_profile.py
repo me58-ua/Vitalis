@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,8 +20,14 @@ class PatientProfile(Base):
     )
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     blood_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    allergies_summary: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    chronic_conditions_summary: Mapped[str | None] = mapped_column(String(255), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="Europe/Madrid")
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    share_health_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     user = relationship("User", back_populates="patient_profile")
+    allergies = relationship("Allergy", back_populates="patient_profile", cascade="all, delete-orphan")
+    chronic_conditions = relationship(
+        "ChronicCondition", back_populates="patient_profile", cascade="all, delete-orphan"
+    )
+    medications = relationship("Medication", back_populates="patient_profile", cascade="all, delete-orphan")
+    habit_logs = relationship("HabitLog", back_populates="patient_profile", cascade="all, delete-orphan")

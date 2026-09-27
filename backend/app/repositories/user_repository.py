@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import User, UserRole
 from app.models.password_reset_token import PasswordResetToken
+from app.models.refresh_token import RefreshToken
 
 
 class UserRepository:
@@ -83,6 +84,21 @@ class UserRepository:
             .where(
                 PasswordResetToken.token_hash == token_hash,
                 PasswordResetToken.used_at.is_(None),
+            )
+            .with_for_update()
+        )
+
+    def create_refresh_token(self, refresh_token: RefreshToken) -> RefreshToken:
+        self.session.add(refresh_token)
+        self.session.flush()
+        return refresh_token
+
+    def get_active_refresh_token(self, token_hash: str) -> RefreshToken | None:
+        return self.session.scalar(
+            select(RefreshToken)
+            .where(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.revoked_at.is_(None),
             )
             .with_for_update()
         )

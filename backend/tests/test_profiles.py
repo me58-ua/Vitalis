@@ -83,12 +83,12 @@ class ProfileTests(unittest.TestCase):
     def test_patient_profile_update_changes_only_supplied_fields(self):
         result = self.service.update_patient_profile(
             self.user,
-            PatientProfileUpdate(allergies_summary="Penicillin"),
+            PatientProfileUpdate(timezone="UTC"),
         )
 
-        self.assertEqual(result.allergies_summary, "Penicillin")
+        self.assertEqual(result.timezone, "UTC")
         self.assertIsNone(result.address)
-        self.assertEqual(result.timezone, "Europe/Madrid")
+        self.assertEqual(result.timezone, "UTC")
 
     def test_basic_user_update_cannot_accept_email_or_role(self):
         update = BasicUserUpdate(name="Updated Patient", tel="+34222222222")

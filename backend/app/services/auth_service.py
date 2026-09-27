@@ -1,10 +1,19 @@
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from jose import JWTError
 
-from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
-from app.models import PatientProfile, ProfessionalProfile, User, UserRole
+from app.config import settings
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_access_token,
+    hash_password,
+    hash_refresh_token,
+    verify_password,
+)
+from app.models import PatientProfile, ProfessionalProfile, RefreshToken, User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import UserRegisterRequest
 
@@ -28,6 +37,10 @@ class InactiveUserError(Exception):
 
 
 class InvalidAccessTokenError(Exception):
+    pass
+
+
+class InvalidRefreshTokenError(Exception):
     pass
 
 
@@ -58,8 +71,6 @@ class AuthService:
             user.patient_profile = PatientProfile(
                 address=data.address,
                 blood_type=data.blood_type,
-                allergies_summary=data.allergies_summary,
-                chronic_conditions_summary=data.chronic_conditions_summary,
                 timezone=data.timezone,
             )
         else:
@@ -114,3 +125,33 @@ class AuthService:
 
     def issue_access_token(self, user: User) -> str:
         return create_access_token(str(user.id), user.role.value, getattr(user, "session_version", 0) or 0)
+
+    def issue_refresh_token(self, user: User) -> str:
+        raw_token = create_refresh_token()
+        refresh_token = RefreshToken(
+            user_id=user.id,
+            token_hash=hash_refresh_token(raw_token),
+            session_version=user.session_version,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        )
+        self.users.create_refresh_token(refresh_token)
+        return raw_token
+
+    def refresh_tokens(self, raw_token: str) -> tuple[str, str]:
+        refresh_token = self.users.get_active_refresh_token(hash_refresh_token(raw_token))
+        now = datetime.now(timezone.utc)
+        if refresh_token is None or refresh_token.expires_at <= now:
+            raise InvalidRefreshTokenError
+
+        user = self.users.get_by_id(refresh_token.user_id)
+        if (
+            user is None
+            or not user.is_active
+            or refresh_token.session_version != user.session_version
+        ):
+            raise InvalidRefreshTokenError
+
+        refresh_token.revoked_at = now
+        self.users.session.flush()
+        return self.issue_access_token(user), self.issue_refresh_token(user)

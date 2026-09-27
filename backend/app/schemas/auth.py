@@ -18,8 +18,6 @@ class UserRegisterRequest(BaseModel):
     gender: str | None = Field(default=None, max_length=50)
     address: str | None = Field(default=None, max_length=255)
     blood_type: str | None = Field(default=None, max_length=10)
-    allergies_summary: str | None = Field(default=None, max_length=255)
-    chronic_conditions_summary: str | None = Field(default=None, max_length=255)
     timezone: str = Field(default="Europe/Madrid", max_length=50)
     specialty: str | None = Field(default=None, max_length=150)
     bio: str | None = Field(default=None, max_length=500)
@@ -129,4 +127,9 @@ class UserResponse(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(min_length=1)

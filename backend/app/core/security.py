@@ -27,7 +27,15 @@ def create_password_reset_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def create_refresh_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
 def hash_password_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
@@ -52,8 +60,10 @@ __all__ = [
     "JWTError",
     "create_access_token",
     "create_password_reset_token",
+    "create_refresh_token",
     "decode_access_token",
     "hash_password",
     "hash_password_reset_token",
+    "hash_refresh_token",
     "verify_password",
 ]

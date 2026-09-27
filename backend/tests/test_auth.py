@@ -7,7 +7,13 @@ from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.auth import login, me, register
-from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    hash_refresh_token,
+    verify_password,
+)
 from app.models import UserRole
 from app.schemas.auth import UserRegisterRequest
 from app.services.auth_service import (
@@ -22,6 +28,8 @@ from app.services.email_service import send_welcome_email
 class FakeUserRepository:
     def __init__(self):
         self.users = {}
+        self.refresh_tokens = {}
+        self.session = SimpleNamespace(flush=lambda: None)
 
     def get_by_email(self, email):
         return self.users.get(email)
@@ -40,6 +48,16 @@ class FakeUserRepository:
             user.is_active = True
         self.users[user.email] = user
         return user
+
+    def create_refresh_token(self, refresh_token):
+        self.refresh_tokens[refresh_token.token_hash] = refresh_token
+        return refresh_token
+
+    def get_active_refresh_token(self, token_hash):
+        refresh_token = self.refresh_tokens.get(token_hash)
+        if refresh_token is None or refresh_token.revoked_at is not None:
+            return None
+        return refresh_token
 
 
 class AuthTests(unittest.TestCase):
@@ -168,6 +186,17 @@ class AuthTests(unittest.TestCase):
         payload = decode_access_token(response.access_token)
         self.assertEqual(response.token_type, "bearer")
         self.assertEqual(payload["sub"], str(user.id))
+        self.assertTrue(response.refresh_token)
+
+    def test_refresh_token_rotates_and_revokes_previous_token(self):
+        user = self.service.register_patient(self.data)
+        first_refresh_token = self.service.issue_refresh_token(user)
+
+        access_token, second_refresh_token = self.service.refresh_tokens(first_refresh_token)
+
+        self.assertNotEqual(first_refresh_token, second_refresh_token)
+        self.assertEqual(decode_access_token(access_token)["sub"], str(user.id))
+        self.assertIsNone(self.repository.get_active_refresh_token(hash_refresh_token(first_refresh_token)))
 
     def test_me_endpoint_returns_current_user(self):
         user = self.service.register_patient(self.data)

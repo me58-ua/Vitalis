@@ -7,9 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class PatientProfileBase(BaseModel):
     address: str | None = Field(default=None, max_length=255)
     blood_type: str | None = Field(default=None, max_length=10)
-    allergies_summary: str | None = Field(default=None, max_length=255)
-    chronic_conditions_summary: str | None = Field(default=None, max_length=255)
     timezone: str = Field(default="Europe/Madrid", max_length=50)
+    onboarding_completed: bool = False
+    share_health_data: bool = False
 
 
 class PatientProfileCreate(PatientProfileBase):
@@ -19,9 +19,9 @@ class PatientProfileCreate(PatientProfileBase):
 class PatientProfileUpdate(BaseModel):
     address: str | None = Field(default=None, max_length=255)
     blood_type: str | None = Field(default=None, max_length=10)
-    allergies_summary: str | None = Field(default=None, max_length=255)
-    chronic_conditions_summary: str | None = Field(default=None, max_length=255)
     timezone: str | None = Field(default=None, max_length=50)
+    onboarding_completed: bool | None = None
+    share_health_data: bool | None = None
 
 
 class PatientProfileResponse(PatientProfileBase):
