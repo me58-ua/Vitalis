@@ -1,4 +1,5 @@
 from typing import Annotated
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,7 +11,7 @@ from app.api.deps import (
     get_professional_repository,
     get_user_repository,
 )
-from app.models import User
+from app.models import AppointmentType, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
@@ -21,6 +22,9 @@ from app.schemas.appointments import (
     AdminAppointmentResponse,
     AdminScheduleCreate,
     AdminScheduleResponse,
+    AvailabilityResponse,
+    AvailabilitySlot,
+    PatientAppointmentCreate,
 )
 from app.services.appointment_service import (
     AppointmentAccessError,
@@ -89,6 +93,61 @@ def update_appointment(
     try:
         return AppointmentService(appointments, users, professionals).update_as_admin(
             appointment_id, data, current_admin
+        )
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+
+@patient_router.get(
+    "/professionals/{professional_id}/availability",
+    response_model=AvailabilityResponse,
+)
+def professional_availability(
+    professional_id: UUID,
+    requested_date: date,
+    appointment_type: AppointmentType,
+    _: CurrentPatient,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        slots = AppointmentService(appointments, users, professionals).list_available_slots(
+            professional_id, requested_date, appointment_type
+        )
+        return AvailabilityResponse(
+            professional_id=professional_id,
+            date=requested_date,
+            slots=[
+                AvailabilitySlot(start_time=start, end_time=end, type=appointment_type)
+                for start, end in slots
+            ],
+        )
+    except AppointmentNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+
+
+@patient_router.post(
+    "/patients/me/appointments",
+    response_model=AdminAppointmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_patient_appointment(
+    data: PatientAppointmentCreate,
+    current_patient: CurrentPatient,
+    appointments: Appointments,
+    users: Users,
+    professionals: Professionals,
+):
+    try:
+        return AppointmentService(appointments, users, professionals).create_for_patient(
+            current_patient, data
         )
     except AppointmentNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error

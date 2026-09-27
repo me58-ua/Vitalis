@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
 
@@ -19,6 +20,7 @@ from app.schemas.appointments import (
     ConsultationNoteCreate,
     AppointmentCancelRequest,
     ConsultationNoteUpdate,
+    PatientAppointmentCreate,
     ProfessionalAppointmentStatusUpdate,
     ProfessionalAppointmentCreate,
 )
@@ -66,6 +68,65 @@ class AppointmentService:
             reason=data.reason,
         )
         return self._create_appointment(appointment)
+
+    def list_available_slots(self, professional_id, requested_date: date, appointment_type):
+        professional_record = self.professionals.get_professional(professional_id)
+        if professional_record is None:
+            raise AppointmentNotFoundError("Professional not found")
+        _, profile = professional_record
+        if not profile.is_accepting_new_patients:
+            raise AppointmentValidationError("Professional is not accepting new patients")
+        if appointment_type.value == "video" and not profile.telehealth_enabled:
+            raise AppointmentValidationError("Teleconsultation is not enabled")
+
+        timezone_info = ZoneInfo("Europe/Madrid")
+        local_start = datetime.combine(requested_date, time.min, tzinfo=timezone_info)
+        local_end = local_start + timedelta(days=1)
+        schedules = self.appointments.list_active_schedules(
+            professional_id, requested_date.weekday()
+        )
+        booked = self.appointments.list_booked_appointments(
+            professional_id, local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc)
+        )
+        slots = []
+        for schedule in schedules:
+            slot_start = datetime.combine(requested_date, schedule.start_time, tzinfo=timezone_info)
+            schedule_end = datetime.combine(requested_date, schedule.end_time, tzinfo=timezone_info)
+            duration = timedelta(minutes=schedule.slot_duration_min)
+            while slot_start + duration <= schedule_end:
+                slot_end = slot_start + duration
+                if not any(
+                    appointment.start_time < slot_end and appointment.end_time > slot_start
+                    for appointment in booked
+                ):
+                    slots.append((slot_start, slot_end))
+                slot_start = slot_end
+        return sorted(set(slots))
+
+    def create_for_patient(self, current_user: User, data: PatientAppointmentCreate) -> Appointment:
+        professional_record = self.professionals.get_professional(data.professional_id)
+        if professional_record is None:
+            raise AppointmentNotFoundError("Professional not found")
+        _, profile = professional_record
+        if not profile.is_accepting_new_patients:
+            raise AppointmentValidationError("Professional is not accepting new patients")
+        if data.type.value == "video" and not profile.telehealth_enabled:
+            raise AppointmentValidationError("Teleconsultation is not enabled")
+        available_slots = self.list_available_slots(
+            data.professional_id, data.start_time.astimezone(ZoneInfo("Europe/Madrid")).date(), data.type
+        )
+        if (data.start_time, data.end_time) not in available_slots:
+            raise AppointmentValidationError("Selected time is not an available slot")
+        return self._create_appointment(
+            Appointment(
+                patient_id=current_user.id,
+                professional_id=data.professional_id,
+                start_time=data.start_time,
+                end_time=data.end_time,
+                type=data.type,
+                reason=data.reason,
+            )
+        )
 
     def update_as_admin(
         self,

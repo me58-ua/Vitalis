@@ -67,6 +67,7 @@ class ProfessionalProfileResponse(ProfessionalProfileBase):
     approval_status: ProfessionalApprovalStatus
     rejection_reason: str | None
     reviewed_at: datetime | None
+    reviewed_by: UUID | None
 
 
 class BasicUserUpdate(BaseModel):

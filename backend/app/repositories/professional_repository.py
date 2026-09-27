@@ -3,7 +3,14 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import PatientProfile, ProfessionalPatient, ProfessionalProfile, User, UserRole
+from app.models import (
+    PatientProfile,
+    ProfessionalApprovalStatus,
+    ProfessionalPatient,
+    ProfessionalProfile,
+    User,
+    UserRole,
+)
 
 
 class ProfessionalRepository:
@@ -102,3 +109,17 @@ class ProfessionalRepository:
             ProfessionalPatient.patient_id == patient_id,
         )
         return self.session.scalar(query) is not None
+
+    def list_pending_profiles(self) -> list[ProfessionalProfile]:
+        return list(
+            self.session.scalars(
+                select(ProfessionalProfile)
+                .where(ProfessionalProfile.approval_status == ProfessionalApprovalStatus.PENDING)
+                .order_by(ProfessionalProfile.created_at)
+            )
+        )
+
+    def get_profile_by_user_id(self, user_id: UUID) -> ProfessionalProfile | None:
+        return self.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )

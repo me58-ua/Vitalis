@@ -1,9 +1,10 @@
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Appointment, AppointmentStatusHistory, AppointmentNote, ProfessionalSchedule
+from app.models import Appointment, AppointmentStatus, AppointmentStatusHistory, AppointmentNote, ProfessionalSchedule
 
 
 class AppointmentRepository:
@@ -25,6 +26,32 @@ class AppointmentRepository:
 
     def get_schedule(self, schedule_id: UUID) -> ProfessionalSchedule | None:
         return self.session.get(ProfessionalSchedule, schedule_id)
+
+    def list_active_schedules(self, professional_id: UUID, day_of_week: int):
+        return list(
+            self.session.scalars(
+                select(ProfessionalSchedule)
+                .where(
+                    ProfessionalSchedule.professional_id == professional_id,
+                    ProfessionalSchedule.day_of_week == day_of_week,
+                    ProfessionalSchedule.is_active.is_(True),
+                )
+                .order_by(ProfessionalSchedule.start_time)
+            )
+        )
+
+    def list_booked_appointments(self, professional_id: UUID, start: datetime, end: datetime):
+        return list(
+            self.session.scalars(
+                select(Appointment)
+                .where(
+                    Appointment.professional_id == professional_id,
+                    Appointment.status != AppointmentStatus.CANCELLED,
+                    Appointment.start_time < end,
+                    Appointment.end_time > start,
+                )
+            )
+        )
 
     def get_note(self, note_id: UUID) -> AppointmentNote | None:
         return self.session.get(AppointmentNote, note_id)

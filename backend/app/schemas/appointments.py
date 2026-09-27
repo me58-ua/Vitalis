@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import date, datetime, time
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -146,3 +146,31 @@ class ConsultationNoteResponse(ConsultationNoteCreate):
     professional_id: UUID
     created_at: datetime
     updated_at: datetime
+
+
+class PatientAppointmentCreate(BaseModel):
+    professional_id: UUID
+    start_time: datetime
+    end_time: datetime
+    type: AppointmentType
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def validate_appointment(self) -> "PatientAppointmentCreate":
+        if self.start_time.tzinfo is None or self.end_time.tzinfo is None:
+            raise ValueError("start_time and end_time must include a timezone")
+        if self.end_time <= self.start_time:
+            raise ValueError("end_time must be after start_time")
+        return self
+
+
+class AvailabilitySlot(BaseModel):
+    start_time: datetime
+    end_time: datetime
+    type: AppointmentType
+
+
+class AvailabilityResponse(BaseModel):
+    professional_id: UUID
+    date: date
+    slots: list[AvailabilitySlot]

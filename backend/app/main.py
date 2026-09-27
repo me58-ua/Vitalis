@@ -16,6 +16,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router)
+app.include_router(users.professional_approval_router)
 app.include_router(appointments.router)
 app.include_router(appointments.patient_router)
 app.include_router(profiles.router)
