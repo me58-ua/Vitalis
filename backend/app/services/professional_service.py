@@ -90,4 +90,5 @@ class ProfessionalService:
             is_accepting_new_patients=profile.is_accepting_new_patients,
             default_consultation_duration_minutes=profile.default_consultation_duration_minutes,
             telehealth_enabled=profile.telehealth_enabled,
+            license_number=profile.license_number,
         )

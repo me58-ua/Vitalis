@@ -1,6 +1,6 @@
 from app.models.user import User, UserRole
 from app.models.patient_profile import PatientProfile
-from app.models.professional_profile import ProfessionalProfile
+from app.models.professional_profile import ProfessionalApprovalStatus, ProfessionalProfile
 from app.models.professional_patient import ProfessionalPatient
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
@@ -16,6 +16,7 @@ __all__ = [
 	"PasswordResetToken",
 	"RefreshToken",
 	"ProfessionalProfile",
+	"ProfessionalApprovalStatus",
 	"ProfessionalPatient",
 	"User",
 	"UserRole",

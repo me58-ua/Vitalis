@@ -26,6 +26,7 @@ class UserRegisterRequest(BaseModel):
     is_accepting_new_patients: bool | None = None
     default_consultation_duration_minutes: int | None = Field(default=None, gt=0)
     telehealth_enabled: bool | None = None
+    license_number: str | None = Field(default=None, max_length=50)
     terms_accepted: bool = Field(description="Must be true to create an account")
 
     @field_validator("role", mode="before")
@@ -82,6 +83,7 @@ class UserRegisterRequest(BaseModel):
                 "is_accepting_new_patients",
                 "default_consultation_duration_minutes",
                 "telehealth_enabled",
+                "license_number",
             )
             missing = [field for field in required_fields if getattr(self, field) is None]
             if missing:

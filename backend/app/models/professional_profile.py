@@ -1,10 +1,18 @@
+import enum
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+
+class ProfessionalApprovalStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class ProfessionalProfile(Base):
@@ -25,5 +33,19 @@ class ProfessionalProfile(Base):
     is_accepting_new_patients: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     default_consultation_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     telehealth_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    license_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    approval_status: Mapped[ProfessionalApprovalStatus] = mapped_column(
+        Enum(
+            ProfessionalApprovalStatus,
+            name="professional_approval_status",
+            values_callable=lambda statuses: [status.value for status in statuses],
+        ),
+        nullable=False,
+        default=ProfessionalApprovalStatus.PENDING,
+        server_default="pending",
+    )
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="professional_profile")

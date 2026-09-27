@@ -1,7 +1,9 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.models import ProfessionalApprovalStatus
 
 
 class PatientProfileBase(BaseModel):
@@ -39,6 +41,7 @@ class ProfessionalProfileBase(BaseModel):
     is_accepting_new_patients: bool = True
     default_consultation_duration_minutes: int = Field(default=30, gt=0)
     telehealth_enabled: bool = True
+    license_number: str = Field(min_length=1, max_length=50)
 
 
 class ProfessionalProfileCreate(ProfessionalProfileBase):
@@ -53,6 +56,7 @@ class ProfessionalProfileUpdate(BaseModel):
     is_accepting_new_patients: bool | None = None
     default_consultation_duration_minutes: int | None = Field(default=None, gt=0)
     telehealth_enabled: bool | None = None
+    license_number: str | None = Field(default=None, min_length=1, max_length=50)
 
 
 class ProfessionalProfileResponse(ProfessionalProfileBase):
@@ -60,6 +64,9 @@ class ProfessionalProfileResponse(ProfessionalProfileBase):
 
     id: UUID
     user_id: UUID
+    approval_status: ProfessionalApprovalStatus
+    rejection_reason: str | None
+    reviewed_at: datetime | None
 
 
 class BasicUserUpdate(BaseModel):
@@ -105,6 +112,7 @@ class ProfessionalPublicResponse(BaseModel):
     is_accepting_new_patients: bool
     default_consultation_duration_minutes: int
     telehealth_enabled: bool
+    license_number: str
 
 
 class ProfessionalListResponse(BaseModel):

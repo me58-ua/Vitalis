@@ -54,6 +54,7 @@ class ProfessionalListingTests(unittest.TestCase):
             is_accepting_new_patients=True,
             default_consultation_duration_minutes=30,
             telehealth_enabled=True,
+            license_number="COL-12345",
         )
         self.repository = FakeProfessionalRepository()
 

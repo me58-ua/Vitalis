@@ -82,6 +82,7 @@ class AuthService:
                 is_accepting_new_patients=data.is_accepting_new_patients,
                 default_consultation_duration_minutes=data.default_consultation_duration_minutes,
                 telehealth_enabled=data.telehealth_enabled,
+                license_number=data.license_number,
             )
         try:
             return self.users.create(user)
