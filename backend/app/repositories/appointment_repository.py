@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Appointment, AppointmentStatus, AppointmentStatusHistory, AppointmentNote, ProfessionalSchedule
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule
 
 
 class AppointmentRepository:
@@ -65,6 +65,31 @@ class AppointmentRepository:
             )
             .limit(1)
         ) is not None
+
+    def list_patient_history(self, patient_id: UUID, professional_id: UUID) -> list[Appointment]:
+        return list(
+            self.session.scalars(
+                select(Appointment)
+                .where(
+                    Appointment.patient_id == patient_id,
+                    Appointment.professional_id == professional_id,
+                )
+                .order_by(Appointment.start_time.desc())
+            )
+        )
+
+    def list_patient_notes(self, patient_id: UUID, professional_id: UUID) -> list[AppointmentNote]:
+        return list(
+            self.session.scalars(
+                select(AppointmentNote)
+                .join(Appointment, Appointment.id == AppointmentNote.appointment_id)
+                .where(
+                    Appointment.patient_id == patient_id,
+                    Appointment.professional_id == professional_id,
+                )
+                .order_by(AppointmentNote.created_at.desc())
+            )
+        )
 
     def update_appointment(self, appointment: Appointment, values: dict) -> Appointment:
         for field, value in values.items():

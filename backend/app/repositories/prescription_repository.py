@@ -22,6 +22,20 @@ class PrescriptionRepository:
             )
         )
 
+    def list_for_patient_and_professional(
+        self, patient_profile_id: UUID, professional_profile_id: UUID
+    ) -> list[Prescription]:
+        return list(
+            self.session.scalars(
+                select(Prescription)
+                .where(
+                    Prescription.patient_id == patient_profile_id,
+                    Prescription.professional_id == professional_profile_id,
+                )
+                .order_by(Prescription.created_at.desc())
+            )
+        )
+
     def create(self, prescription: Prescription) -> Prescription:
         self.session.add(prescription)
         self.session.flush()

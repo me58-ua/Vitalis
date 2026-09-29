@@ -7,11 +7,13 @@ from app.api.deps import (
     get_appointment_repository,
     get_current_patient,
     get_current_professional,
+    get_prescription_repository,
     get_profile_repository,
 )
 from app.models import Allergy, ChronicCondition, HabitLog, Medication, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.profile_repository import ProfileRepository
+from app.repositories.prescription_repository import PrescriptionRepository
 from app.schemas.health import (
     AllergyCreate, AllergyResponse, ChronicConditionCreate, ChronicConditionResponse,
     ConsentUpdate, HabitLogCreate, HabitLogResponse, HealthSnapshot, MedicationCreate,
@@ -25,6 +27,7 @@ CurrentPatient = Annotated[User, Depends(get_current_patient)]
 CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
+Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 
 
 def _profile(current_user: User, profiles: ProfileRepository):
@@ -102,7 +105,10 @@ def patient_health_snapshot(
     current_user: CurrentProfessional,
     profiles: Profiles,
     appointments: Appointments,
+    prescriptions: Prescriptions,
 ):
     if not appointments.has_shared_appointment(patient_id, current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No shared appointment with this patient")
-    return PatientHealthService(profiles).snapshot_by_user_id(patient_id)
+    return PatientHealthService(profiles, appointments, prescriptions).snapshot_by_user_id(
+        patient_id, current_user.id
+    )

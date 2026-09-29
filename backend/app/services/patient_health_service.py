@@ -5,25 +5,48 @@ from urllib.request import Request, urlopen
 
 from app.config import settings
 from app.models import Allergy, ChronicCondition, HabitLog, Medication
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 
 
 class PatientHealthService:
     blocks = ("alergias", "enfermedades_cronicas", "medicacion", "habitos")
 
-    def __init__(self, profiles: ProfileRepository):
+    def __init__(
+        self,
+        profiles: ProfileRepository,
+        appointments: AppointmentRepository | None = None,
+        prescriptions: PrescriptionRepository | None = None,
+    ):
         self.profiles = profiles
+        self.appointments = appointments
+        self.prescriptions = prescriptions
 
-    def snapshot(self, profile):
+    def snapshot(self, profile, professional_id=None):
         if not profile.share_health_data:
             return {"consent_shared": False, "message": "El paciente no ha compartido sus datos de salud."}
-        return {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+        result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+        if self.appointments is None or self.prescriptions is None or professional_id is None:
+            return result
 
-    def snapshot_by_user_id(self, user_id):
+        professional_profile = self.profiles.get_professional(professional_id)
+        if professional_profile is None:
+            return result
+        result.update(
+            appointments=self.appointments.list_patient_history(profile.user_id, professional_id),
+            clinical_notes=self.appointments.list_patient_notes(profile.user_id, professional_id),
+            prescriptions=self.prescriptions.list_for_patient_and_professional(
+                profile.id, professional_profile.id
+            ),
+        )
+        return result
+
+    def snapshot_by_user_id(self, user_id, professional_id=None):
         profile = self.profiles.get_patient(user_id)
         if profile is None:
             raise ValueError("Profile not found")
-        return self.snapshot(profile)
+        return self.snapshot(profile, professional_id)
 
     def save_onboarding_message(self, profile, block: str, message: str):
         if block not in self.blocks:

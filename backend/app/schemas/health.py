@@ -55,6 +55,43 @@ class HabitLogResponse(HealthRecordBase, HabitLogCreate):
     pass
 
 
+class AppointmentHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    professional_id: UUID
+    start_time: datetime
+    end_time: datetime
+    status: str
+    type: str
+    reason: str | None
+
+
+class ClinicalNoteHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    appointment_id: UUID
+    professional_id: UUID
+    clinical_notes: str | None
+    patient_summary: str | None
+    diagnosis: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PrescriptionHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    appointment_id: UUID
+    patient_id: UUID
+    professional_id: UUID
+    file_url: str
+    notas: str | None
+    created_at: datetime
+
+
 class HealthSnapshot(BaseModel):
     consent_shared: bool
     message: str | None = None
@@ -62,6 +99,9 @@ class HealthSnapshot(BaseModel):
     chronic_conditions: list[ChronicConditionResponse] = []
     medications: list[MedicationResponse] = []
     habit_logs: list[HabitLogResponse] = []
+    appointments: list[AppointmentHistoryResponse] = []
+    clinical_notes: list[ClinicalNoteHistoryResponse] = []
+    prescriptions: list[PrescriptionHistoryResponse] = []
 
 
 class ConsentUpdate(BaseModel):
