@@ -139,6 +139,22 @@ class AppointmentResponse(AdminAppointmentResponse):
     pass
 
 
+class ProfessionalAppointmentHistoryResponse(AdminAppointmentResponse):
+    patient_name: str
+    patient_username: str
+    patient_email: str
+    clinical_notes: str | None = None
+    patient_summary: str | None = None
+    diagnosis: str | None = None
+
+
+class ProfessionalAppointmentHistoryListResponse(BaseModel):
+    appointments: list[ProfessionalAppointmentHistoryResponse]
+    total: int
+    page: int
+    page_size: int
+
+
 class ConsultationNoteResponse(ConsultationNoteCreate):
     model_config = ConfigDict(from_attributes=True)
 

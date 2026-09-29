@@ -1,10 +1,10 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, User
 
 
 class AppointmentRepository:
@@ -90,6 +90,52 @@ class AppointmentRepository:
                 .order_by(AppointmentNote.created_at.desc())
             )
         )
+
+    def list_past_for_professional(
+        self,
+        professional_id: UUID,
+        now: datetime,
+        patient_id: UUID | None,
+        patient_search: str | None,
+        start: datetime | None,
+        end: datetime | None,
+        appointment_status: AppointmentStatus | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[tuple[Appointment, User]], int]:
+        filters = [
+            Appointment.professional_id == professional_id,
+            Appointment.end_time < now,
+        ]
+        if patient_id is not None:
+            filters.append(Appointment.patient_id == patient_id)
+        if patient_search:
+            pattern = f"%{patient_search}%"
+            filters.append(
+                or_(User.name.ilike(pattern), User.username.ilike(pattern), User.email.ilike(pattern))
+            )
+        if start is not None:
+            filters.append(Appointment.start_time >= start)
+        if end is not None:
+            filters.append(Appointment.start_time < end)
+        if appointment_status is not None:
+            filters.append(Appointment.status == appointment_status)
+
+        query = (
+            select(Appointment, User, AppointmentNote)
+            .join(User, User.id == Appointment.patient_id)
+            .outerjoin(AppointmentNote, AppointmentNote.appointment_id == Appointment.id)
+            .where(and_(*filters))
+            .order_by(Appointment.start_time.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        count_query = (
+            select(func.count(Appointment.id))
+            .join(User, User.id == Appointment.patient_id)
+            .where(and_(*filters))
+        )
+        return list(self.session.execute(query).all()), self.session.scalar(count_query) or 0
 
     def update_appointment(self, appointment: Appointment, values: dict) -> Appointment:
         for field, value in values.items():

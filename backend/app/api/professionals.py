@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -8,10 +9,14 @@ from app.api.deps import (
     get_current_professional,
     get_professional_repository,
     get_user_repository,
+    get_prescription_repository,
+    get_profile_repository,
 )
-from app.models import User
+from app.models import AppointmentStatus, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
+from app.repositories.prescription_repository import PrescriptionRepository
+from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.appointments import (
     AppointmentCancelRequest,
@@ -23,6 +28,7 @@ from app.schemas.appointments import (
     ProfessionalScheduleResponse,
     ProfessionalScheduleUpdate,
     AppointmentResponse,
+    ProfessionalAppointmentHistoryListResponse,
 )
 from app.schemas.profiles import PatientListResponse, ProfessionalListResponse, ProfessionalPublicResponse
 from app.services.appointment_service import (
@@ -33,6 +39,7 @@ from app.services.appointment_service import (
     AppointmentValidationError,
 )
 from app.services.professional_service import ProfessionalNotFoundError, ProfessionalService
+from app.services.professional_follow_up_service import ProfessionalFollowUpService
 from app.services.schedule_service import ScheduleService
 
 
@@ -41,6 +48,8 @@ CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Users = Annotated[UserRepository, Depends(get_user_repository)]
+Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
+Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 
 
 @router.get("/professionals/me/patients", response_model=PatientListResponse)
@@ -54,6 +63,42 @@ def list_my_patients(
     return ProfessionalService(professionals).list_my_patients(
         current_user.id, search, page, page_size
     )
+
+
+@router.get(
+    "/professionals/{professional_id}/appointments/history",
+    response_model=ProfessionalAppointmentHistoryListResponse,
+)
+def list_past_appointments(
+    professional_id: UUID,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    prescriptions: Prescriptions,
+    profiles: Profiles,
+    patient_id: UUID | None = None,
+    patient_search: str | None = Query(default=None, max_length=100),
+    start_date: date | None = None,
+    end_date: date | None = None,
+    appointment_status: AppointmentStatus | None = Query(default=None, alias="status"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+):
+    try:
+        return ProfessionalFollowUpService(appointments, prescriptions, profiles).list_past_appointments(
+            professional_id,
+            current_user,
+            patient_id,
+            patient_search,
+            start_date,
+            end_date,
+            appointment_status,
+            page,
+            page_size,
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
 
 
 @router.get("/professionals", response_model=ProfessionalListResponse)

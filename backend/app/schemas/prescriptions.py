@@ -16,6 +16,14 @@ class PrescriptionResponse(BaseModel):
     created_at: datetime
 
 
+class PrescriptionListResponse(BaseModel):
+    prescriptions: list[PrescriptionResponse]
+    total: int
+    page: int
+    page_size: int
+    message: str | None = None
+
+
 class PrescriptionAuthorizationCreate(BaseModel):
     reason: str | None = Field(default=None, max_length=1000)
 
