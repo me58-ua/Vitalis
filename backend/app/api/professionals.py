@@ -208,6 +208,8 @@ def update_professional_consultation_note(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except AppointmentNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except AppointmentValidationError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
     except AppointmentConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 

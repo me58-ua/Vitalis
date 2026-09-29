@@ -113,6 +113,7 @@ class AppointmentServiceTests(unittest.TestCase):
             clinical_notes="Initial note",
             patient_summary="Initial summary",
             diagnosis="Initial diagnosis",
+            created_at=datetime.now(timezone.utc),
         )
         self.repository.note = self.note
 
@@ -319,6 +320,31 @@ class AppointmentServiceTests(unittest.TestCase):
 
         self.assertEqual(result.clinical_notes, "Updated note")
         self.assertEqual(result.appointment_id, self.appointment_id)
+
+    def test_consultation_note_can_be_updated_within_edit_window(self):
+        self.note.created_at = datetime.now(timezone.utc) - timedelta(hours=23)
+
+        result = self.service.update_consultation_note(
+            self.professional_id,
+            self.professional,
+            self.note.id,
+            ConsultationNoteUpdate(diagnosis="Updated diagnosis"),
+        )
+
+        self.assertEqual(result.diagnosis, "Updated diagnosis")
+
+    def test_consultation_note_cannot_be_updated_after_edit_window(self):
+        self.note.created_at = datetime.now(timezone.utc) - timedelta(hours=24, seconds=1)
+
+        with self.assertRaises(AppointmentValidationError):
+            self.service.update_consultation_note(
+                self.professional_id,
+                self.professional,
+                self.note.id,
+                ConsultationNoteUpdate(diagnosis="Should not be saved"),
+            )
+
+        self.assertEqual(self.note.diagnosis, "Initial diagnosis")
 
     def test_patient_cancellation_is_audited_when_more_than_24_hours_away(self):
         self.appointment.start_time = datetime.now(timezone.utc) + timedelta(hours=48)

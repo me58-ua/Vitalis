@@ -42,16 +42,21 @@ class AppointmentConflictError(Exception):
     pass
 
 
+DEFAULT_CONSULTATION_NOTE_EDIT_WINDOW = timedelta(hours=24)
+
+
 class AppointmentService:
     def __init__(
         self,
         appointments: AppointmentRepository,
         users: UserRepository,
         professionals: ProfessionalRepository,
+        note_edit_window: timedelta = DEFAULT_CONSULTATION_NOTE_EDIT_WINDOW,
     ):
         self.appointments = appointments
         self.users = users
         self.professionals = professionals
+        self.note_edit_window = note_edit_window
 
     def create_appointment(self, data: AdminAppointmentCreate) -> Appointment:
         patient = self._get_user(data.patient_id, UserRole.PATIENT)
@@ -303,6 +308,11 @@ class AppointmentService:
             raise AppointmentNotFoundError("Consultation note not found")
         if note.professional_id != professional_id:
             raise AppointmentAccessError("Consultation note does not belong to this professional")
+        if self._note_edit_window_expired(note):
+            window_hours = self.note_edit_window.total_seconds() / 3600
+            raise AppointmentValidationError(
+                f"Consultation notes can only be edited within {window_hours:g} hours of creation"
+            )
         try:
             return self.appointments.update_note(
                 note, data.model_dump(exclude_unset=True)
@@ -331,6 +341,12 @@ class AppointmentService:
             raise AppointmentConflictError(
                 "Appointment conflicts with an existing booking"
             ) from error
+
+    def _note_edit_window_expired(self, note: AppointmentNote) -> bool:
+        created_at = note.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) >= created_at + self.note_edit_window
 
     @staticmethod
     def _require_appointment_owner(appointment: Appointment, professional_id) -> None:
