@@ -9,6 +9,7 @@ from app.models.professional_schedule import ProfessionalSchedule
 from app.models.appointment_status_history import AppointmentStatusHistory
 from app.models.chat_message import ChatMessage
 from app.models.appointment_note import AppointmentNote
+from app.models.prescription import Prescription, PrescriptionAuthorization
 from app.models.health import Allergy, AllergySeverity, ChronicCondition, HabitLog, HabitType, Medication
 
 __all__ = [
@@ -27,6 +28,8 @@ __all__ = [
 	"AppointmentStatusHistory",
 	"ChatMessage",
 	"AppointmentNote",
+	"Prescription",
+	"PrescriptionAuthorization",
 	"Allergy",
 	"AllergySeverity",
 	"ChronicCondition",

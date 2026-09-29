@@ -16,6 +16,8 @@ from app.models import (
     ProfessionalSchedule,
     User,
     RefreshToken,
+    Prescription,
+    PrescriptionAuthorization,
 )
 
 

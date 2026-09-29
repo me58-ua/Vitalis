@@ -54,6 +54,9 @@ class ContractTests(unittest.TestCase):
             "/professionals/me/patients",
             "/professionals",
             "/professionals/{professional_id}",
+            "/professionals/{professional_id}/appointments/{appointment_id}/prescription",
+            "/admin/appointments/{appointment_id}/prescription-authorization",
+            "/patients/me/appointments/{appointment_id}/prescription",
         }
         self.assertTrue(expected.issubset(paths))
         self.assertIn("patch", paths["/admin/users/{user_id}"])
