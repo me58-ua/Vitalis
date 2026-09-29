@@ -10,6 +10,9 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService, InvalidAccessTokenError
+from app.repositories.prescription_repository import PrescriptionRepository
+from app.services.file_storage import LocalFileStorage
+from app.config import settings
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -30,6 +33,14 @@ def get_appointment_repository(db: DbSession) -> AppointmentRepository:
 
 def get_professional_repository(db: DbSession) -> ProfessionalRepository:
     return ProfessionalRepository(db)
+
+
+def get_prescription_repository(db: DbSession) -> PrescriptionRepository:
+    return PrescriptionRepository(db)
+
+
+def get_file_storage() -> LocalFileStorage:
+    return LocalFileStorage(settings.FILE_STORAGE_PATH)
 
 
 def get_current_user(
