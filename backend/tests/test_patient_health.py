@@ -3,7 +3,7 @@ import uuid
 from types import SimpleNamespace
 
 from app.models import AllergySeverity, HabitType
-from app.services.patient_health_service import PatientHealthService
+from app.services.patient_health_service import PatientHealthService, PatientHistoryAccessError
 
 
 class FakeSession:
@@ -36,6 +36,10 @@ class FakeHistoryAppointments:
         self.appointments = appointments
         self.notes = notes
         self.calls = []
+
+    def has_shared_appointment(self, patient_id, professional_id):
+        self.calls.append(("shared", patient_id, professional_id))
+        return True
 
     def list_patient_history(self, patient_id, professional_id):
         self.calls.append(("appointments", patient_id, professional_id))
@@ -113,22 +117,40 @@ class PatientHealthTests(unittest.TestCase):
             prescriptions.calls[0], (profile.id, repository.professional_profile.id)
         )
 
-    def test_professional_snapshot_does_not_query_history_without_consent(self):
+    def test_professional_snapshot_keeps_own_history_without_patient_consent(self):
         patient_user_id = uuid.uuid4()
         profile = SimpleNamespace(
             id=uuid.uuid4(), user_id=patient_user_id, share_health_data=False
         )
         repository = FakeProfiles(profile)
-        appointments = FakeHistoryAppointments([], [])
-        prescriptions = FakeHistoryPrescriptions([])
+        repository.professional_profile = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+        appointments = FakeHistoryAppointments(["appointment"], ["note"])
+        prescriptions = FakeHistoryPrescriptions(["prescription"])
 
         result = PatientHealthService(repository, appointments, prescriptions).snapshot_by_user_id(
-            patient_user_id, uuid.uuid4()
+            patient_user_id, repository.professional_profile.user_id
         )
 
         self.assertFalse(result["consent_shared"])
-        self.assertEqual(appointments.calls, [])
-        self.assertEqual(prescriptions.calls, [])
+        self.assertEqual(result["appointments"], ["appointment"])
+        self.assertEqual(result["clinical_notes"], ["note"])
+        self.assertEqual(result["prescriptions"], ["prescription"])
+        self.assertNotIn("allergies", result)
+
+    def test_professional_without_shared_appointment_cannot_access_history(self):
+        patient_user_id = uuid.uuid4()
+        profile = SimpleNamespace(
+            id=uuid.uuid4(), user_id=patient_user_id, share_health_data=True
+        )
+        repository = FakeProfiles(profile)
+        repository.professional_profile = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+        appointments = FakeHistoryAppointments([], [])
+        appointments.has_shared_appointment = lambda patient_id, professional_id: False
+
+        with self.assertRaises(PatientHistoryAccessError):
+            PatientHealthService(
+                repository, appointments, FakeHistoryPrescriptions([])
+            ).snapshot_by_user_id(patient_user_id, repository.professional_profile.user_id)
 
 
 if __name__ == "__main__":

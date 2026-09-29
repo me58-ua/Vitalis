@@ -10,6 +10,10 @@ from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 
 
+class PatientHistoryAccessError(Exception):
+    pass
+
+
 class PatientHealthService:
     blocks = ("alergias", "enfermedades_cronicas", "medicacion", "habitos")
 
@@ -24,21 +28,25 @@ class PatientHealthService:
         self.prescriptions = prescriptions
 
     def snapshot(self, profile, professional_id=None):
-        if not profile.share_health_data:
-            return {"consent_shared": False, "message": "El paciente no ha compartido sus datos de salud."}
-        result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
         if self.appointments is None or self.prescriptions is None or professional_id is None:
-            return result
+            if not profile.share_health_data:
+                return {"consent_shared": False, "message": "El paciente no ha compartido sus datos de salud."}
+            return {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
 
+        if not self.appointments.has_shared_appointment(profile.user_id, professional_id):
+            raise PatientHistoryAccessError("No shared appointment with this patient")
         professional_profile = self.profiles.get_professional(professional_id)
         if professional_profile is None:
-            return result
+            raise PatientHistoryAccessError("Professional profile not found")
+
+        if profile.share_health_data:
+            result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+        else:
+            result = {"consent_shared": False, "message": "El paciente no ha compartido sus datos de salud."}
         result.update(
             appointments=self.appointments.list_patient_history(profile.user_id, professional_id),
             clinical_notes=self.appointments.list_patient_notes(profile.user_id, professional_id),
-            prescriptions=self.prescriptions.list_for_patient_and_professional(
-                profile.id, professional_profile.id
-            ),
+            prescriptions=self.prescriptions.list_for_patient_and_professional(profile.id, professional_profile.id),
         )
         return result
 
