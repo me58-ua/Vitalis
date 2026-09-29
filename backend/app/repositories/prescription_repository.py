@@ -1,9 +1,10 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Prescription, PrescriptionAuthorization
+from app.models import PatientProfile, Prescription, PrescriptionAuthorization, User
 
 
 class PrescriptionRepository:
@@ -21,6 +22,53 @@ class PrescriptionRepository:
                 PrescriptionAuthorization.appointment_id == appointment_id
             )
         )
+
+    def list_for_patient_and_professional(
+        self, patient_profile_id: UUID, professional_profile_id: UUID
+    ) -> list[Prescription]:
+        return list(
+            self.session.scalars(
+                select(Prescription)
+                .where(
+                    Prescription.patient_id == patient_profile_id,
+                    Prescription.professional_id == professional_profile_id,
+                )
+                .order_by(Prescription.created_at.desc())
+            )
+        )
+
+    def list_for_professional(
+        self,
+        professional_profile_id: UUID,
+        patient_user_id: UUID | None,
+        start: datetime | None,
+        end: datetime | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[Prescription], int]:
+        filters = [Prescription.professional_id == professional_profile_id]
+        if patient_user_id is not None:
+            filters.append(PatientProfile.user_id == patient_user_id)
+        if start is not None:
+            filters.append(Prescription.created_at >= start)
+        if end is not None:
+            filters.append(Prescription.created_at < end)
+        query = (
+            select(Prescription)
+            .join(PatientProfile, PatientProfile.id == Prescription.patient_id)
+            .join(User, User.id == PatientProfile.user_id)
+            .where(*filters)
+            .order_by(Prescription.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        count_query = (
+            select(func.count(Prescription.id))
+            .join(PatientProfile, PatientProfile.id == Prescription.patient_id)
+            .join(User, User.id == PatientProfile.user_id)
+            .where(*filters)
+        )
+        return list(self.session.scalars(query)), self.session.scalar(count_query) or 0
 
     def create(self, prescription: Prescription) -> Prescription:
         self.session.add(prescription)

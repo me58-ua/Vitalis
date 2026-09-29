@@ -1,9 +1,9 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.api.deps import (
@@ -24,6 +24,7 @@ from app.schemas.prescriptions import (
     PrescriptionAuthorizationCreate,
     PrescriptionAuthorizationResponse,
     PrescriptionResponse,
+    PrescriptionListResponse,
 )
 from app.services.file_storage import FileStorage
 from app.services.prescription_service import (
@@ -33,6 +34,7 @@ from app.services.prescription_service import (
     PrescriptionService,
     PrescriptionValidationError,
 )
+from app.services.professional_follow_up_service import ProfessionalFollowUpService
 
 
 router = APIRouter(tags=["prescriptions"])
@@ -141,3 +143,35 @@ def download_prescription(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except PrescriptionNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.get(
+    "/professionals/{professional_id}/prescriptions",
+    response_model=PrescriptionListResponse,
+)
+def list_professional_prescriptions(
+    professional_id: UUID,
+    current_user: CurrentProfessional,
+    appointments: Appointments,
+    profiles: Profiles,
+    prescriptions: Prescriptions,
+    patient_id: UUID | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+):
+    try:
+        return ProfessionalFollowUpService(appointments, prescriptions, profiles).list_prescriptions(
+            professional_id,
+            current_user,
+            patient_id,
+            start_date,
+            end_date,
+            page,
+            page_size,
+        )
+    except AppointmentAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
