@@ -14,6 +14,7 @@ from app.models import (
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.appointments import (
     AdminAppointmentCreate,
     AdminAppointmentUpdate,
@@ -24,6 +25,8 @@ from app.schemas.appointments import (
     ProfessionalAppointmentStatusUpdate,
     ProfessionalAppointmentCreate,
 )
+from app.models import AuditAction
+from app.services.audit_service import AuditService
 
 
 class AppointmentNotFoundError(Exception):
@@ -52,11 +55,13 @@ class AppointmentService:
         users: UserRepository,
         professionals: ProfessionalRepository,
         note_edit_window: timedelta = DEFAULT_CONSULTATION_NOTE_EDIT_WINDOW,
+        audits: AuditRepository | None = None,
     ):
         self.appointments = appointments
         self.users = users
         self.professionals = professionals
         self.note_edit_window = note_edit_window
+        self.audit = AuditService(audits)
 
     def create_appointment(self, data: AdminAppointmentCreate) -> Appointment:
         patient = self._get_user(data.patient_id, UserRole.PATIENT)
@@ -160,6 +165,14 @@ class AppointmentService:
                         reason=data.reason,
                     )
                 )
+                self.audit.record(
+                    changed_by.id,
+                    changed_by.role,
+                    AuditAction.UPDATE,
+                    "appointment",
+                    appointment.id,
+                    appointment.patient_id,
+                )
             return updated
         except IntegrityError as error:
             self.appointments.rollback()
@@ -209,7 +222,16 @@ class AppointmentService:
             diagnosis=data.diagnosis,
         )
         try:
-            return self.appointments.create_note(note)
+            created = self.appointments.create_note(note)
+            self.audit.record(
+                current_user.id,
+                current_user.role,
+                AuditAction.CREATE,
+                "clinical_note",
+                created.id,
+                appointment.patient_id,
+            )
+            return created
         except IntegrityError as error:
             self.appointments.rollback()
             raise AppointmentConflictError(
@@ -242,6 +264,14 @@ class AppointmentService:
                     changed_by=professional_id,
                     reason=data.reason,
                 )
+            )
+            self.audit.record(
+                current_user.id,
+                current_user.role,
+                AuditAction.UPDATE,
+                "appointment",
+                appointment.id,
+                appointment.patient_id,
             )
             return updated
         except IntegrityError as error:
@@ -290,6 +320,14 @@ class AppointmentService:
                     reason=data.reason,
                 )
             )
+            self.audit.record(
+                current_user.id,
+                current_user.role,
+                AuditAction.UPDATE,
+                "appointment",
+                appointment.id,
+                appointment.patient_id,
+            )
             return updated
         except IntegrityError as error:
             self.appointments.rollback()
@@ -314,9 +352,19 @@ class AppointmentService:
                 f"Consultation notes can only be edited within {window_hours:g} hours of creation"
             )
         try:
-            return self.appointments.update_note(
+            updated = self.appointments.update_note(
                 note, data.model_dump(exclude_unset=True)
             )
+            appointment = self._get_appointment(note.appointment_id)
+            self.audit.record(
+                current_user.id,
+                current_user.role,
+                AuditAction.UPDATE,
+                "clinical_note",
+                note.id,
+                appointment.patient_id,
+            )
+            return updated
         except IntegrityError as error:
             self.appointments.rollback()
             raise AppointmentConflictError("Could not update consultation note") from error

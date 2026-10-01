@@ -8,6 +8,7 @@ from app.api.deps import (
     get_appointment_repository,
     get_current_admin,
     get_current_patient,
+    get_audit_repository,
     get_professional_repository,
     get_user_repository,
 )
@@ -15,6 +16,7 @@ from app.models import AppointmentType, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.appointments import (
     AdminAppointmentUpdate,
     AppointmentCancelRequest,
@@ -43,6 +45,7 @@ CurrentPatient = Annotated[User, Depends(get_current_patient)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
+Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 
 
 @router.post("/schedules", response_model=AdminScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -89,9 +92,10 @@ def update_appointment(
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals).update_as_admin(
+        return AppointmentService(appointments, users, professionals, audits=audits).update_as_admin(
             appointment_id, data, current_admin
         )
     except AppointmentNotFoundError as error:
@@ -169,9 +173,10 @@ def cancel_patient_appointment(
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals).cancel_appointment(
+        return AppointmentService(appointments, users, professionals, audits=audits).cancel_appointment(
             patient_id,
             appointment_id,
             current_patient,

@@ -83,6 +83,15 @@ class FakeProfessionalRepository:
         return patient_id == self.assigned_patient_id
 
 
+class FakeAuditRepository:
+    def __init__(self):
+        self.logs = []
+
+    def create(self, log):
+        self.logs.append(log)
+        return log
+
+
 class AppointmentServiceTests(unittest.TestCase):
     def setUp(self):
         self.professional_id = uuid.uuid4()
@@ -363,6 +372,53 @@ class AppointmentServiceTests(unittest.TestCase):
         self.assertEqual(history.new_status, AppointmentStatus.CANCELLED)
         self.assertEqual(history.changed_by, self.patient_id)
         self.assertEqual(history.reason, "Schedule changed")
+
+    def test_cancellation_audit_is_a_modification_of_the_appointment(self):
+        self.appointment.start_time = datetime.now(timezone.utc) + timedelta(hours=48)
+        audits = FakeAuditRepository()
+        service = AppointmentService(self.repository, self.users, self.professionals, audits=audits)
+
+        service.cancel_appointment(
+            self.patient_id,
+            self.appointment_id,
+            self.patient,
+            AppointmentCancelRequest(reason="Schedule changed"),
+            enforce_patient_notice=True,
+        )
+
+        self.assertEqual(len(audits.logs), 1)
+        self.assertEqual(audits.logs[0].accion.value, "modificacion")
+        self.assertEqual(audits.logs[0].entidad, "appointment")
+        self.assertEqual(audits.logs[0].entidad_id, self.appointment_id)
+        self.assertEqual(audits.logs[0].patient_id, self.patient_id)
+
+    def test_routine_appointment_creation_is_not_audited(self):
+        audits = FakeAuditRepository()
+        service = AppointmentService(self.repository, self.users, self.professionals, audits=audits)
+
+        service.create_appointment(self._admin_appointment_data())
+
+        self.assertEqual(audits.logs, [])
+
+    def test_clinical_note_creation_and_edit_are_audited(self):
+        audits = FakeAuditRepository()
+        service = AppointmentService(self.repository, self.users, self.professionals, audits=audits)
+        created = service.create_consultation_note(
+            self.professional_id,
+            self.professional,
+            ConsultationNoteCreate(appointment_id=self.appointment_id, diagnosis="Initial"),
+        )
+        created.created_at = datetime.now(timezone.utc)
+        self.repository.note = created
+        service.update_consultation_note(
+            self.professional_id,
+            self.professional,
+            created.id,
+            ConsultationNoteUpdate(diagnosis="Updated"),
+        )
+
+        self.assertEqual([log.accion.value for log in audits.logs], ["creacion", "modificacion"])
+        self.assertEqual(audits.logs[0].entidad, "clinical_note")
 
     def test_patient_cannot_cancel_within_24_hours(self):
         self.appointment.start_time = datetime.now(timezone.utc) + timedelta(hours=23)

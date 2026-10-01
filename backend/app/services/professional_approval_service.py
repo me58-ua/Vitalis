@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from app.models import ProfessionalApprovalStatus, User
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.audit_repository import AuditRepository
+from app.models import AuditAction
+from app.services.audit_service import AuditService
 
 
 class ProfessionalApprovalError(Exception):
@@ -10,9 +13,10 @@ class ProfessionalApprovalError(Exception):
 
 
 class ProfessionalApprovalService:
-    def __init__(self, professionals: ProfessionalRepository, users: UserRepository):
+    def __init__(self, professionals: ProfessionalRepository, users: UserRepository, audits: AuditRepository | None = None):
         self.professionals = professionals
         self.users = users
+        self.audit = AuditService(audits)
 
     def list_pending(self):
         return self.professionals.list_pending_profiles()
@@ -34,4 +38,11 @@ class ProfessionalApprovalService:
         profile.reviewed_by = admin.id
         user.is_active = status == ProfessionalApprovalStatus.APPROVED
         self.professionals.session.flush()
+        self.audit.record(
+            admin.id,
+            admin.role,
+            AuditAction.UPDATE,
+            "professional_profile",
+            getattr(profile, "id", professional_id),
+        )
         return profile

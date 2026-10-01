@@ -3,7 +3,10 @@ from sqlalchemy.exc import IntegrityError
 from app.core.security import hash_password
 from app.models import User, UserRole
 from app.repositories.user_repository import UserRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.users import AdminUserCreate, AdminUserUpdate
+from app.models import AuditAction
+from app.services.audit_service import AuditService
 
 
 class AdminUserConflictError(Exception):
@@ -19,8 +22,9 @@ class AdminUserDeleteConflictError(Exception):
 
 
 class AdminUserService:
-    def __init__(self, users: UserRepository):
+    def __init__(self, users: UserRepository, audits: AuditRepository | None = None):
         self.users = users
+        self.audit = AuditService(audits)
 
     def list(
         self,
@@ -56,21 +60,39 @@ class AdminUserService:
             self.users.rollback()
             raise AdminUserConflictError("Email or username is already registered") from error
 
-    def update(self, user: User, data: AdminUserUpdate) -> User:
+    def update(self, user: User, data: AdminUserUpdate, actor: User | None = None) -> User:
         values = data.model_dump(exclude_unset=True)
+        role_or_activation_changed = "role" in values or "is_active" in values
         password = values.pop("password", None)
         if password is not None:
             values["password_hash"] = hash_password(password)
         try:
-            return self.users.update(user, values)
+            updated = self.users.update(user, values)
+            if role_or_activation_changed and actor is not None:
+                self.audit.record(
+                    actor.id,
+                    actor.role,
+                    AuditAction.UPDATE,
+                    "user_role",
+                    user.id,
+                )
+            return updated
         except IntegrityError as error:
             self.users.rollback()
             raise AdminUserConflictError("Email or username is already registered") from error
 
-    def delete(self, user_id) -> None:
+    def delete(self, user_id, actor: User | None = None) -> None:
         user = self.get(user_id)
         try:
             self.users.delete(user)
+            if actor is not None:
+                self.audit.record(
+                    actor.id,
+                    actor.role,
+                    AuditAction.DELETE,
+                    "user",
+                    user.id,
+                )
         except IntegrityError as error:
             self.users.rollback()
             raise AdminUserDeleteConflictError(

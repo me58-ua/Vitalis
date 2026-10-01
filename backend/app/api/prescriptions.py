@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 
 from app.api.deps import (
     get_appointment_repository,
+    get_audit_repository,
     get_current_admin,
     get_current_patient,
     get_current_professional,
@@ -20,6 +21,7 @@ from app.models import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.prescriptions import (
     PrescriptionAuthorizationCreate,
     PrescriptionAuthorizationResponse,
@@ -46,6 +48,7 @@ Appointments = Annotated[AppointmentRepository, Depends(get_appointment_reposito
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Storage = Annotated[FileStorage, Depends(get_file_storage)]
+Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 
 
 def _service(
@@ -53,6 +56,7 @@ def _service(
     profiles: ProfileRepository,
     prescriptions: PrescriptionRepository,
     storage: FileStorage,
+    audits: AuditRepository | None = None,
 ) -> PrescriptionService:
     return PrescriptionService(
         appointments,
@@ -61,6 +65,7 @@ def _service(
         storage,
         emission_window=timedelta(hours=settings.PRESCRIPTION_EMISSION_WINDOW_HOURS),
         max_file_size=settings.PRESCRIPTION_MAX_SIZE_BYTES,
+        audits=audits,
     )
 
 
@@ -77,11 +82,12 @@ def upload_prescription(
     profiles: Profiles,
     prescriptions: Prescriptions,
     storage: Storage,
+    audits: Audits,
     file: UploadFile = File(...),
     notas: str | None = Form(default=None),
 ):
     try:
-        return _service(appointments, profiles, prescriptions, storage).upload(
+        return _service(appointments, profiles, prescriptions, storage, audits).upload(
             professional_id,
             current_user,
             appointment_id,
@@ -113,9 +119,10 @@ def authorize_late_prescription(
     profiles: Profiles,
     prescriptions: Prescriptions,
     storage: Storage,
+    audits: Audits,
 ):
     try:
-        return _service(appointments, profiles, prescriptions, storage).authorize_late_issue(
+        return _service(appointments, profiles, prescriptions, storage, audits).authorize_late_issue(
             appointment_id, current_admin, data
         )
     except PrescriptionNotFoundError as error:

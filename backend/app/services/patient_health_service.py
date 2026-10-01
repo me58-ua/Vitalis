@@ -8,6 +8,9 @@ from app.models import Allergy, ChronicCondition, HabitLog, Medication
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
+from app.repositories.audit_repository import AuditRepository
+from app.models import AuditAction, UserRole
+from app.services.audit_service import AuditService
 
 
 class PatientHistoryAccessError(Exception):
@@ -22,10 +25,12 @@ class PatientHealthService:
         profiles: ProfileRepository,
         appointments: AppointmentRepository | None = None,
         prescriptions: PrescriptionRepository | None = None,
+        audits: AuditRepository | None = None,
     ):
         self.profiles = profiles
         self.appointments = appointments
         self.prescriptions = prescriptions
+        self.audit = AuditService(audits)
 
     def snapshot(self, profile, professional_id=None):
         if self.appointments is None or self.prescriptions is None or professional_id is None:
@@ -47,6 +52,14 @@ class PatientHealthService:
             appointments=self.appointments.list_patient_history(profile.user_id, professional_id),
             clinical_notes=self.appointments.list_patient_notes(profile.user_id, professional_id),
             prescriptions=self.prescriptions.list_for_patient_and_professional(profile.id, professional_profile.id),
+        )
+        self.audit.record(
+            professional_id,
+            UserRole.PROFESSIONAL,
+            AuditAction.READ,
+            "patient_profile",
+            profile.id,
+            profile.id,
         )
         return result
 

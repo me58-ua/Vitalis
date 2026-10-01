@@ -12,6 +12,7 @@ from app.models.appointment_note import AppointmentNote
 from app.models.prescription import Prescription, PrescriptionAuthorization
 from app.models.health import Allergy, AllergySeverity, ChronicCondition, HabitLog, HabitType, Medication
 from app.models.health_document import HealthDocument, HealthDocumentType
+from app.models.audit_log import AuditAction, AuditLog
 
 __all__ = [
 	"PatientProfile",
@@ -39,4 +40,6 @@ __all__ = [
 	"Medication",
 	"HealthDocument",
 	"HealthDocumentType",
+	"AuditAction",
+	"AuditLog",
 ]

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.deps import (
     get_appointment_repository,
     get_current_professional,
+    get_audit_repository,
     get_professional_repository,
     get_user_repository,
     get_prescription_repository,
@@ -18,6 +19,7 @@ from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.appointments import (
     AppointmentCancelRequest,
     ConsultationNoteCreate,
@@ -50,6 +52,7 @@ Appointments = Annotated[AppointmentRepository, Depends(get_appointment_reposito
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
+Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 
 
 @router.get("/professionals/me/patients", response_model=PatientListResponse)
@@ -166,9 +169,10 @@ def create_consultation_note(
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals).create_consultation_note(
+        return AppointmentService(appointments, users, professionals, audits=audits).create_consultation_note(
             professional_id, current_user, data
         )
     except AppointmentAccessError as error:
@@ -191,9 +195,10 @@ def update_professional_appointment_status(
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals).update_status_as_professional(
+        return AppointmentService(appointments, users, professionals, audits=audits).update_status_as_professional(
             professional_id, current_user, appointment_id, data
         )
     except AppointmentAccessError as error:
@@ -244,9 +249,10 @@ def update_professional_consultation_note(
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals).update_consultation_note(
+        return AppointmentService(appointments, users, professionals, audits=audits).update_consultation_note(
             professional_id, current_user, note_id, data
         )
     except AppointmentAccessError as error:
@@ -271,9 +277,10 @@ def cancel_professional_appointment(
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals).cancel_appointment(
+        return AppointmentService(appointments, users, professionals, audits=audits).cancel_appointment(
             professional_id,
             appointment_id,
             current_user,

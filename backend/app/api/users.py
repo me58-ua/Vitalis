@@ -3,13 +3,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_current_admin, get_professional_repository, get_user_repository
+from app.api.deps import get_audit_repository, get_current_admin, get_professional_repository, get_user_repository
 from app.models import ProfessionalApprovalStatus, User, UserRole
 from app.repositories.professional_repository import ProfessionalRepository
 from app.schemas.profiles import ProfessionalProfileResponse
 from app.schemas.professional_approval import ProfessionalRejectionRequest
 from app.services.professional_approval_service import ProfessionalApprovalError, ProfessionalApprovalService
 from app.repositories.user_repository import UserRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.users import (
 	AdminUserCreate,
 	AdminUserListResponse,
@@ -29,6 +30,7 @@ professional_approval_router = APIRouter(prefix="/admin/professionals", tags=["a
 AdminUser = Annotated[User, Depends(get_current_admin)]
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
+Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 
 
 @professional_approval_router.get("/pending", response_model=list[ProfessionalProfileResponse])
@@ -42,9 +44,10 @@ def approve_professional(
 	admin: AdminUser,
 	professionals: Professionals,
 	users: Users,
+	audits: Audits,
 ):
 	try:
-		return ProfessionalApprovalService(professionals, users).decide(
+		return ProfessionalApprovalService(professionals, users, audits).decide(
 			professional_id, admin, ProfessionalApprovalStatus.APPROVED
 		)
 	except ProfessionalApprovalError as error:
@@ -58,9 +61,10 @@ def reject_professional(
 	admin: AdminUser,
 	professionals: Professionals,
 	users: Users,
+	audits: Audits,
 ):
 	try:
-		return ProfessionalApprovalService(professionals, users).decide(
+		return ProfessionalApprovalService(professionals, users, audits).decide(
 			professional_id,
 			admin,
 			ProfessionalApprovalStatus.REJECTED,
@@ -118,10 +122,10 @@ def get_user(user_id: UUID, _: AdminUser, users: Users) -> User:
 
 
 @router.patch("/{user_id}", response_model=AdminUserResponse)
-def update_user(user_id: UUID, data: AdminUserUpdate, _: AdminUser, users: Users) -> User:
+def update_user(user_id: UUID, data: AdminUserUpdate, admin: AdminUser, users: Users, audits: Audits) -> User:
 	try:
-		service = AdminUserService(users)
-		return service.update(service.get(user_id), data)
+		service = AdminUserService(users, audits)
+		return service.update(service.get(user_id), data, admin)
 	except AdminUserNotFoundError as error:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 	except AdminUserConflictError as error:
@@ -129,9 +133,9 @@ def update_user(user_id: UUID, data: AdminUserUpdate, _: AdminUser, users: Users
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: UUID, _: AdminUser, users: Users) -> None:
+def delete_user(user_id: UUID, admin: AdminUser, users: Users, audits: Audits) -> None:
 	try:
-		AdminUserService(users).delete(user_id)
+		AdminUserService(users, audits).delete(user_id, admin)
 	except AdminUserNotFoundError as error:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 	except AdminUserDeleteConflictError as error:

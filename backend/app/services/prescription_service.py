@@ -9,7 +9,10 @@ from app.models import AppointmentStatus, Prescription, PrescriptionAuthorizatio
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.prescriptions import PrescriptionAuthorizationCreate
+from app.models import AuditAction
+from app.services.audit_service import AuditService
 from app.services.file_storage import FileStorage
 
 
@@ -44,6 +47,7 @@ class PrescriptionService:
         emission_window: timedelta = DEFAULT_PRESCRIPTION_EMISSION_WINDOW,
         max_file_size: int = PRESCRIPTION_MAX_SIZE_BYTES,
         now=None,
+        audits: AuditRepository | None = None,
     ):
         self.appointments = appointments
         self.profiles = profiles
@@ -52,6 +56,7 @@ class PrescriptionService:
         self.emission_window = emission_window
         self.max_file_size = max_file_size
         self.now = now or (lambda: datetime.now(timezone.utc))
+        self.audit = AuditService(audits)
 
     def upload(
         self,
@@ -87,19 +92,31 @@ class PrescriptionService:
         try:
             self.storage.save(file, key, self.max_file_size)
             if existing:
-                return self.prescriptions.update(
+                result = self.prescriptions.update(
                     existing,
                     {"notas": notas, "patient_id": patient_profile.id, "professional_id": professional_profile.id},
                 )
-            return self.prescriptions.create(
-                Prescription(
-                    appointment_id=appointment.id,
-                    patient_id=patient_profile.id,
-                    professional_id=professional_profile.id,
-                    file_url=key,
-                    notas=notas,
+                action = AuditAction.UPDATE
+            else:
+                result = self.prescriptions.create(
+                    Prescription(
+                        appointment_id=appointment.id,
+                        patient_id=patient_profile.id,
+                        professional_id=professional_profile.id,
+                        file_url=key,
+                        notas=notas,
+                    )
                 )
+                action = AuditAction.CREATE
+            self.audit.record(
+                current_user.id,
+                current_user.role,
+                action,
+                "prescription",
+                result.id,
+                patient_profile.id,
             )
+            return result
         except ValueError as error:
             raise PrescriptionValidationError(str(error)) from error
         except IntegrityError as error:
@@ -121,13 +138,23 @@ class PrescriptionService:
         if existing is not None:
             return existing
         try:
-            return self.prescriptions.create_authorization(
+            result = self.prescriptions.create_authorization(
                 PrescriptionAuthorization(
                     appointment_id=appointment_id,
                     authorized_by=current_admin.id,
                     reason=data.reason,
                 )
             )
+            patient_profile = self.profiles.get_patient(appointment.patient_id)
+            self.audit.record(
+                current_admin.id,
+                current_admin.role,
+                AuditAction.CREATE,
+                "prescription_authorization",
+                result.id,
+                patient_profile.id if patient_profile else None,
+            )
+            return result
         except IntegrityError as error:
             self.prescriptions.rollback()
             raise PrescriptionConflictError("Could not authorize late prescription") from error

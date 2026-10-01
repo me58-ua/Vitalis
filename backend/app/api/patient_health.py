@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import (
     get_appointment_repository,
+    get_audit_repository,
     get_current_patient,
     get_current_professional,
     get_prescription_repository,
@@ -14,12 +15,15 @@ from app.models import Allergy, ChronicCondition, HabitLog, Medication, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.prescription_repository import PrescriptionRepository
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.health import (
     AllergyCreate, AllergyResponse, ChronicConditionCreate, ChronicConditionResponse,
     ConsentUpdate, HabitLogCreate, HabitLogResponse, HealthSnapshot, MedicationCreate,
     MedicationResponse, OnboardingMessageRequest, OnboardingMessageResponse, OnboardingSkipResponse,
 )
 from app.services.patient_health_service import PatientHealthService
+from app.models import AuditAction
+from app.services.audit_service import AuditService
 
 
 router = APIRouter(tags=["patient-health"])
@@ -28,6 +32,7 @@ CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
+Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 
 
 def _profile(current_user: User, profiles: ProfileRepository):
@@ -48,6 +53,7 @@ def update_consent(
     data: ConsentUpdate,
     current_user: CurrentPatient,
     profiles: Profiles,
+    audits: Audits,
     patient_id: UUID | None = None,
 ):
     if patient_id is not None and patient_id != current_user.id:
@@ -55,6 +61,14 @@ def update_consent(
     profile = _profile(current_user, profiles)
     profile.share_health_data = data.share_health_data
     profiles.session.flush()
+    AuditService(audits).record(
+        current_user.id,
+        current_user.role,
+        AuditAction.UPDATE,
+        "patient_profile",
+        profile.id,
+        profile.id,
+    )
     return {"share_health_data": profile.share_health_data}
 
 
@@ -106,9 +120,10 @@ def patient_health_snapshot(
     profiles: Profiles,
     appointments: Appointments,
     prescriptions: Prescriptions,
+    audits: Audits,
 ):
     if not appointments.has_shared_appointment(patient_id, current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No shared appointment with this patient")
-    return PatientHealthService(profiles, appointments, prescriptions).snapshot_by_user_id(
+    return PatientHealthService(profiles, appointments, prescriptions, audits).snapshot_by_user_id(
         patient_id, current_user.id
     )
