@@ -13,6 +13,7 @@ from app.services.auth_service import AuthService, InvalidAccessTokenError
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.health_document_repository import HealthDocumentRepository
 from app.repositories.audit_repository import AuditRepository
+from app.repositories.privacy_repository import PrivacyRepository
 from app.services.file_storage import LocalFileStorage
 from app.config import settings
 
@@ -47,6 +48,10 @@ def get_health_document_repository(db: DbSession) -> HealthDocumentRepository:
 
 def get_audit_repository(db: DbSession) -> AuditRepository:
     return AuditRepository(db)
+
+
+def get_privacy_repository(db: DbSession) -> PrivacyRepository:
+    return PrivacyRepository(db)
 
 
 def get_file_storage() -> LocalFileStorage:
