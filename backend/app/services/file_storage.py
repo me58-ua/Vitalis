@@ -21,9 +21,11 @@ class LocalFileStorage:
                 while chunk := source.read(1024 * 1024):
                     total += len(chunk)
                     if total > max_size:
-                        destination.unlink(missing_ok=True)
-                        raise ValueError("Prescription file exceeds the maximum allowed size")
+                        break
                     target.write(chunk)
+            if total > max_size:
+                destination.unlink(missing_ok=True)
+                raise ValueError("File exceeds the maximum allowed size")
         except Exception:
             destination.unlink(missing_ok=True)
             raise

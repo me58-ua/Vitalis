@@ -11,6 +11,7 @@ from app.models.chat_message import ChatMessage
 from app.models.appointment_note import AppointmentNote
 from app.models.prescription import Prescription, PrescriptionAuthorization
 from app.models.health import Allergy, AllergySeverity, ChronicCondition, HabitLog, HabitType, Medication
+from app.models.health_document import HealthDocument, HealthDocumentType
 
 __all__ = [
 	"PatientProfile",
@@ -36,4 +37,6 @@ __all__ = [
 	"HabitLog",
 	"HabitType",
 	"Medication",
+	"HealthDocument",
+	"HealthDocumentType",
 ]

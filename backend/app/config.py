@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     FILE_STORAGE_PATH: str = "storage"
     PRESCRIPTION_EMISSION_WINDOW_HOURS: int = 8
     PRESCRIPTION_MAX_SIZE_BYTES: int = 10 * 1024 * 1024
+    HEALTH_DOCUMENT_MAX_SIZE_BYTES: int = 10 * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file=".env",
