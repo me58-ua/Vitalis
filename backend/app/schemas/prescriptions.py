@@ -24,6 +24,26 @@ class PrescriptionListResponse(BaseModel):
     message: str | None = None
 
 
+class PatientPrescriptionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    appointment_id: UUID
+    patient_id: UUID
+    professional_id: UUID
+    professional_name: str
+    appointment_date: datetime
+    file_url: str
+    download_url: str
+    notas: str | None
+    created_at: datetime
+
+
+class PatientPrescriptionListResponse(BaseModel):
+    prescriptions: list[PatientPrescriptionResponse]
+    total: int
+
+
 class PrescriptionAuthorizationCreate(BaseModel):
     reason: str | None = Field(default=None, max_length=1000)
 

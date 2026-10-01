@@ -146,6 +146,30 @@ class PrescriptionService:
             raise PrescriptionNotFoundError("Prescription file not found")
         return prescription, path
 
+    def list_for_patient_view(
+        self, patient_id: UUID, current_user: User, professional_id: UUID | None = None
+    ) -> list[dict]:
+        self._require_patient_identity(patient_id, current_user.id)
+        patient_profile = self.profiles.get_patient(current_user.id)
+        if patient_profile is None:
+            raise PrescriptionNotFoundError("Patient profile not found")
+        rows = self.prescriptions.list_for_patient_view(current_user.id, professional_id)
+        return [
+            {
+                "id": prescription.id,
+                "appointment_id": prescription.appointment_id,
+                "patient_id": prescription.patient_id,
+                "professional_id": prescription.professional_id,
+                "professional_name": professional.name,
+                "appointment_date": appointment.start_time,
+                "file_url": prescription.file_url,
+                "download_url": f"/patients/me/appointments/{prescription.appointment_id}/prescription",
+                "notas": prescription.notas,
+                "created_at": prescription.created_at,
+            }
+            for prescription, appointment, professional in rows
+        ]
+
     def can_upload_prescription(self, appointment) -> bool:
         if appointment.status != AppointmentStatus.COMPLETED:
             return False
@@ -158,6 +182,11 @@ class PrescriptionService:
     def _require_identity(path_id: UUID, user_id: UUID) -> None:
         if path_id != user_id:
             raise PrescriptionAccessError("Professional identity does not match the URL")
+
+    @staticmethod
+    def _require_patient_identity(path_id: UUID, user_id: UUID) -> None:
+        if path_id != user_id:
+            raise PrescriptionAccessError("Patient identity does not match the URL")
 
     @staticmethod
     def _storage_key(appointment_id: UUID, filename: str) -> str:

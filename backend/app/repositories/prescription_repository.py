@@ -4,7 +4,14 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import PatientProfile, Prescription, PrescriptionAuthorization, User
+from app.models import (
+    Appointment,
+    PatientProfile,
+    Prescription,
+    PrescriptionAuthorization,
+    ProfessionalProfile,
+    User,
+)
 
 
 class PrescriptionRepository:
@@ -35,6 +42,32 @@ class PrescriptionRepository:
                 )
                 .order_by(Prescription.created_at.desc())
             )
+        )
+
+    def list_for_patient_view(
+        self, patient_user_id: UUID, professional_user_id: UUID | None = None
+    ) -> list[tuple[Prescription, Appointment, User]]:
+        filters = [
+            Prescription.patient_id == PatientProfile.id,
+            PatientProfile.user_id == patient_user_id,
+            Prescription.appointment_id == Appointment.id,
+            Prescription.professional_id == ProfessionalProfile.id,
+            ProfessionalProfile.user_id == Appointment.professional_id,
+            User.id == ProfessionalProfile.user_id,
+        ]
+        if professional_user_id is not None:
+            filters.append(ProfessionalProfile.user_id == professional_user_id)
+        return list(
+            self.session.execute(
+                select(Prescription, Appointment, User)
+                .select_from(Prescription)
+                .join(PatientProfile, PatientProfile.id == Prescription.patient_id)
+                .join(Appointment, Appointment.id == Prescription.appointment_id)
+                .join(ProfessionalProfile, ProfessionalProfile.id == Prescription.professional_id)
+                .join(User, User.id == ProfessionalProfile.user_id)
+                .where(*filters)
+                .order_by(Appointment.start_time.desc(), Prescription.created_at.desc())
+            ).all()
         )
 
     def list_for_professional(

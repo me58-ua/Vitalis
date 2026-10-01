@@ -23,6 +23,7 @@ from app.repositories.profile_repository import ProfileRepository
 from app.schemas.prescriptions import (
     PrescriptionAuthorizationCreate,
     PrescriptionAuthorizationResponse,
+    PatientPrescriptionListResponse,
     PrescriptionResponse,
     PrescriptionListResponse,
 )
@@ -139,6 +140,30 @@ def download_prescription(
             appointment_id, current_user
         )
         return FileResponse(path, filename=Path(prescription.file_url).name)
+    except PrescriptionAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except PrescriptionNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.get(
+    "/patients/{patient_id}/prescriptions",
+    response_model=PatientPrescriptionListResponse,
+)
+def list_patient_prescriptions(
+    patient_id: UUID,
+    current_user: CurrentPatient,
+    profiles: Profiles,
+    prescriptions: Prescriptions,
+    appointments: Appointments,
+    storage: Storage,
+    professional_id: UUID | None = None,
+):
+    try:
+        items = _service(appointments, profiles, prescriptions, storage).list_for_patient_view(
+            patient_id, current_user, professional_id
+        )
+        return {"prescriptions": items, "total": len(items)}
     except PrescriptionAccessError as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except PrescriptionNotFoundError as error:

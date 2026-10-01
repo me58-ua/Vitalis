@@ -41,6 +41,7 @@ class FakePrescriptions:
     def __init__(self):
         self.prescription = None
         self.authorization = None
+        self.patient_view_rows = []
 
     def get_by_appointment(self, appointment_id):
         if self.prescription and self.prescription.appointment_id == appointment_id:
@@ -51,6 +52,9 @@ class FakePrescriptions:
         if self.authorization and self.authorization.appointment_id == appointment_id:
             return self.authorization
         return None
+
+    def list_for_patient_view(self, patient_user_id, professional_user_id=None):
+        return self.patient_view_rows
 
     def create(self, prescription):
         prescription.id = uuid.uuid4()
@@ -210,6 +214,34 @@ class PrescriptionServiceTests(unittest.TestCase):
 
         with self.assertRaises(PrescriptionAccessError):
             self.service.download_for_patient(self.appointment_id, SimpleNamespace(id=uuid.uuid4()))
+
+    def test_patient_prescription_view_includes_professional_and_appointment_details(self):
+        professional = SimpleNamespace(name="Dra. Ada Lovelace")
+        appointment = SimpleNamespace(start_time=self.now - timedelta(days=1))
+        prescription = SimpleNamespace(
+            id=uuid.uuid4(),
+            appointment_id=self.appointment_id,
+            patient_id=self.profiles.patient_profile.id,
+            professional_id=self.profiles.professional_profile.id,
+            file_url="prescriptions/example.pdf",
+            notas="Take daily",
+            created_at=self.now,
+        )
+        self.prescriptions.patient_view_rows = [(prescription, appointment, professional)]
+
+        result = self.service.list_for_patient_view(self.patient_id, self.patient, self.professional_id)
+
+        self.assertEqual(result[0]["professional_name"], "Dra. Ada Lovelace")
+        self.assertEqual(result[0]["appointment_date"], appointment.start_time)
+        self.assertEqual(result[0]["file_url"], "prescriptions/example.pdf")
+        self.assertEqual(
+            result[0]["download_url"],
+            f"/patients/me/appointments/{self.appointment_id}/prescription",
+        )
+
+    def test_patient_prescription_view_rejects_another_patient(self):
+        with self.assertRaises(PrescriptionAccessError):
+            self.service.list_for_patient_view(uuid.uuid4(), self.patient)
 
 
 if __name__ == "__main__":
