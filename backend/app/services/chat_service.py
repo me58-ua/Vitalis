@@ -68,6 +68,7 @@ class ChatService:
             raise ChatValidationError("Message content is too long")
         if self.messages is None:
             raise RuntimeError("Chat message repository is required")
+        # Extension point for Issue 25: enqueue a product email after persistence.
         return self.messages.create(
             ChatMessage(appointment_id=appointment.id, sender_id=sender.id, content=normalized)
         )

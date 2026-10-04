@@ -80,6 +80,12 @@ class VideoServiceTests(unittest.TestCase):
         with self.assertRaises(VideoForbiddenError):
             self.service.create_join_session(self.appointment.id, self.patient)
 
+    def test_join_outside_time_window_is_rejected(self):
+        self.appointment.start_time = datetime.now(timezone.utc) - timedelta(hours=2)
+        self.appointment.end_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        with self.assertRaises(VideoForbiddenError):
+            self.service.create_join_session(self.appointment.id, self.patient)
+
 
 if __name__ == "__main__":
     unittest.main()
