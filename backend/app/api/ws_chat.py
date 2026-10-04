@@ -1,5 +1,6 @@
 import asyncio
 from collections import deque
+from datetime import timedelta
 from time import monotonic
 from typing import Annotated
 from uuid import UUID
@@ -39,10 +40,14 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
         await websocket.close(code=4401)
         return
 
-    db = SessionLocal()
-    appointments = AppointmentRepository(db)
+    access_db = SessionLocal()
     try:
-        service = ChatService(appointments, ChatMessageRepository(db))
+        service = ChatService(
+            AppointmentRepository(access_db),
+            ChatMessageRepository(access_db),
+            timedelta(hours=settings.CHAT_WRITE_WINDOW_HOURS),
+            settings.CHAT_MESSAGE_MAX_LENGTH,
+        )
         try:
             service.get_room_access(appointment_id, user)
         except ChatNotFoundError:
@@ -53,6 +58,7 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
             return
 
         await manager.connect(appointment_id, websocket)
+        access_db.close()
         sent_times = deque()
         try:
             while True:
@@ -78,12 +84,21 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
                     await websocket.send_json({"type": "error", "detail": "Message rate limit exceeded"})
                     continue
                 try:
-                    message = service.save_message(appointment_id, user, str(payload.get("content", "")))
+                    message_db = SessionLocal()
+                    try:
+                        message = ChatService(
+                            AppointmentRepository(message_db),
+                            ChatMessageRepository(message_db),
+                            timedelta(hours=settings.CHAT_WRITE_WINDOW_HOURS),
+                            settings.CHAT_MESSAGE_MAX_LENGTH,
+                        ).save_message(appointment_id, user, str(payload.get("content", "")))
+                        message_db.commit()
+                    finally:
+                        message_db.close()
                 except (ChatForbiddenError, ChatValidationError) as error:
                     await websocket.send_json({"type": "error", "detail": str(error)})
                     continue
                 sent_times.append(now)
-                await db.commit()
                 await manager.broadcast(
                     appointment_id,
                     {
@@ -98,4 +113,4 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
             return
     finally:
         manager.disconnect(appointment_id, websocket)
-        db.close()
+        access_db.close()
