@@ -1,6 +1,8 @@
 import asyncio
 import unittest
 import uuid
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -9,6 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.main import app
 from app.services.auth_service import InvalidAccessTokenError
 from app.services.connection_manager import ConnectionManager
+from app.models import AppointmentStatus, UserRole
 
 
 class FakeWebSocket:
@@ -24,6 +27,22 @@ class FakeWebSocket:
 
 
 class WebSocketTests(unittest.TestCase):
+    def test_valid_connection_answers_ping(self):
+        user = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True, name="Patient")
+        appointment = SimpleNamespace(
+            id=uuid.uuid4(), patient_id=user.id, professional_id=uuid.uuid4(),
+            status=AppointmentStatus.CONFIRMED,
+            start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc),
+        )
+        repository = SimpleNamespace(get_appointment=lambda appointment_id: appointment)
+        session = SimpleNamespace(close=lambda: None)
+        with patch("app.api.ws_chat._authenticate", return_value=user), patch(
+            "app.api.ws_chat.SessionLocal", return_value=session
+        ), patch("app.api.ws_chat.AppointmentRepository", return_value=repository):
+            with TestClient(app).websocket_connect(f"/ws/chat/{appointment.id}?token=valid") as websocket:
+                websocket.send_json({"type": "ping"})
+                self.assertEqual(websocket.receive_json(), {"type": "pong"})
+
     def test_missing_token_is_rejected_before_accept(self):
         with self.assertRaises(WebSocketDisconnect) as error:
             with TestClient(app).websocket_connect(f"/ws/chat/{uuid.uuid4()}"):

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     CHAT_RATE_LIMIT_MESSAGES: int = 10
     CHAT_RATE_LIMIT_WINDOW_SECONDS: int = 5
     JITSI_DOMAIN: str = ""
+    JITSI_XMPP_DOMAIN: str = "meet.jitsi"
     JITSI_APP_ID: str = ""
     JITSI_APP_SECRET: str = ""
     JITSI_TOKEN_TTL_SECONDS: int = 3600

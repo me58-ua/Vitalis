@@ -39,7 +39,12 @@ class VideoService:
             raise VideoForbiddenError("User cannot join this appointment")
         if appointment.type != AppointmentType.VIDEO or appointment.status != AppointmentStatus.CONFIRMED:
             raise VideoForbiddenError("Video is unavailable for this appointment")
-        if not settings.JITSI_DOMAIN or not settings.JITSI_APP_ID or not settings.JITSI_APP_SECRET:
+        if (
+            not settings.JITSI_DOMAIN
+            or not settings.JITSI_XMPP_DOMAIN
+            or not settings.JITSI_APP_ID
+            or not settings.JITSI_APP_SECRET
+        ):
             raise VideoConfigurationError("Jitsi is not configured")
 
         now = datetime.now(timezone.utc)
@@ -62,7 +67,7 @@ class VideoService:
         payload = {
             "aud": "jitsi",
             "iss": settings.JITSI_APP_ID,
-            "sub": settings.JITSI_DOMAIN,
+            "sub": settings.JITSI_XMPP_DOMAIN,
             "room": appointment.room_id,
             "exp": int(expires_at.timestamp()),
             "nbf": int(now.timestamp()),

@@ -46,6 +46,7 @@ class VideoServiceTests(unittest.TestCase):
         self.config = patch.multiple(
             settings,
             JITSI_DOMAIN="video.example.com",
+            JITSI_XMPP_DOMAIN="meet.jitsi",
             JITSI_APP_ID="vitalis",
             JITSI_APP_SECRET="test-secret",
             JITSI_TOKEN_TTL_SECONDS=3600,
@@ -63,6 +64,7 @@ class VideoServiceTests(unittest.TestCase):
         claims = jwt.decode(first["jwt"], "test-secret", algorithms=["HS256"], audience="jitsi")
         self.assertEqual(first["room_name"], second["room_name"])
         self.assertEqual(claims["room"], first["room_name"])
+        self.assertEqual(claims["sub"], "meet.jitsi")
         self.assertEqual(claims["context"]["user"]["id"], str(self.patient.id))
         self.assertNotIn("moderator", claims)
         self.assertEqual(len(self.events.events), 2)
