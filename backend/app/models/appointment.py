@@ -1,4 +1,5 @@
 import enum
+import secrets
 import uuid
 from datetime import datetime
 
@@ -70,12 +71,11 @@ class Appointment(Base):
         server_default="video",
     )
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    room_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    room_id: Mapped[str] = mapped_column(
+        String(128),
         unique=True,
         nullable=False,
-        default=uuid.uuid4,
-        server_default=func.gen_random_uuid(),
+        default=lambda: secrets.token_urlsafe(24),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

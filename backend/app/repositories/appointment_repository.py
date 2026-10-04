@@ -143,6 +143,10 @@ class AppointmentRepository:
         self.session.flush()
         return appointment
 
+    def save(self, appointment: Appointment) -> Appointment:
+        self.session.flush()
+        return appointment
+
     def update_schedule(self, schedule: ProfessionalSchedule, values: dict) -> ProfessionalSchedule:
         for field, value in values.items():
             setattr(schedule, field, value)

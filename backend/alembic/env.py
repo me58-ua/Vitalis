@@ -18,6 +18,7 @@ from app.models import (
     RefreshToken,
     Prescription,
     PrescriptionAuthorization,
+    VideoSessionEvent,
 )
 
 
