@@ -86,3 +86,13 @@ def send_password_reset_email(email: str, name: str, token: str) -> None:
 def send_password_changed_email(email: str, name: str) -> None:
     html_content = _render_template("password_changed.html", name=name)
     _send_email(email, "Contrasena actualizada en Vitalis", html_content)
+
+
+def send_product_notification_email(email: str, title: str, message: str, link: str | None = None) -> bool:
+    """Send only generic product text; callers must not provide clinical content."""
+    safe_link = link or settings.FRONTEND_URL.rstrip("/")
+    html_content = (
+        f"<html><body><h2>{title}</h2><p>{message}</p>"
+        f'<p><a href="{safe_link}">Open Vitalis</a></p></body></html>'
+    )
+    return _send_email(email, title, html_content)

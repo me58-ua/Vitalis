@@ -19,6 +19,7 @@ from app.models import (
     Prescription,
     PrescriptionAuthorization,
     VideoSessionEvent,
+    Notification,
 )
 
 
