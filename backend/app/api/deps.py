@@ -86,7 +86,7 @@ def get_current_user(
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="INVALID_CREDENTIALS",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -97,13 +97,13 @@ def get_current_user(
 #para las funciones que solo el admin puede hacer
 def get_current_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ADMIN_REQUIRED")
     return current_user
 
 
 def get_current_patient(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     if current_user.role != UserRole.PATIENT:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Patient access required")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PATIENT_REQUIRED")
     return current_user
 
 
@@ -111,6 +111,6 @@ def get_current_professional(current_user: Annotated[User, Depends(get_current_u
     if current_user.role != UserRole.PROFESSIONAL:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Professional access required",
+            detail="PROFESSIONAL_REQUIRED",
         )
     return current_user

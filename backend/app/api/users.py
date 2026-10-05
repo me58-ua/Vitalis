@@ -83,7 +83,7 @@ def parse_role(value: str | None) -> UserRole | None:
 	except ValueError as error:
 		raise HTTPException(
 			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-			detail="role must be PATIENT, PROFESSIONAL, or ADMIN",
+			detail="ROLE_REQUIRED",
 		) from error
 
 

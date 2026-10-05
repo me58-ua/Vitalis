@@ -14,7 +14,7 @@ class PatientProfileBase(BaseModel):
     share_health_data: bool = False
     ai_processing_consent: bool = False
     ai_consent_required: bool = True
-    ai_consent_message: str | None = None
+    ai_consent_code: str | None = None
 
 
 class PatientProfileCreate(PatientProfileBase):

@@ -61,7 +61,7 @@ def login(
 	except (InvalidCredentialsError, InactiveUserError):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
-			detail="Incorrect email or password",
+			detail="INVALID_CREDENTIALS",
 			headers={"WWW-Authenticate": "Bearer"},
 		)
 	return TokenResponse(
@@ -80,7 +80,7 @@ def refresh(
 	except InvalidRefreshTokenError:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
-			detail="Invalid or expired refresh token",
+			detail="INVALID_REFRESH_TOKEN",
 			headers={"WWW-Authenticate": "Bearer"},
 		)
 	return TokenResponse(access_token=access_token, refresh_token=refresh_token)
@@ -93,13 +93,12 @@ def forgot_password(
 	users: Annotated[UserRepository, Depends(get_user_repository)],
 	background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
-	message = "Si el correo está registrado, recibirás instrucciones para restablecer la contraseña."
 	client_host = request.client.host if request.client else "unknown"
 	reset = PasswordResetService(users).request_reset(data.email, client_host)
 	if reset is not None:
 		user, token = reset
 		background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
-	return {"message": message}
+	return {"message_code": "PASSWORD_RESET_REQUEST_ACCEPTED"}
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)

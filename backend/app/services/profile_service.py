@@ -8,7 +8,6 @@ from app.schemas.profiles import (
     PatientProfileUpdate,
     ProfessionalProfileUpdate,
 )
-from app.services.ai_consent import AI_CONSENT_REQUIRED_MESSAGE
 
 
 class InvalidCurrentPasswordError(Exception):
@@ -58,9 +57,7 @@ class ProfileService:
         consent = getattr(profile, "ai_processing_consent", False)
         profile.ai_processing_consent = consent
         profile.ai_consent_required = not consent
-        profile.ai_consent_message = (
-            AI_CONSENT_REQUIRED_MESSAGE if not consent else None
-        )
+        profile.ai_consent_code = "AI_CONSENT_REQUIRED" if not consent else None
         return profile
 
     def update_professional_profile(self, user: User, data: ProfessionalProfileUpdate):

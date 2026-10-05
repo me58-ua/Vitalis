@@ -77,13 +77,13 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
                     await websocket.send_json({"type": "pong"})
                     continue
                 if message_type != "message":
-                    await websocket.send_json({"type": "error", "detail": "Unsupported message type"})
+                    await websocket.send_json({"type": "error", "code": "UNSUPPORTED_MESSAGE_TYPE"})
                     continue
                 now = monotonic()
                 while sent_times and now - sent_times[0] >= settings.CHAT_RATE_LIMIT_WINDOW_SECONDS:
                     sent_times.popleft()
                 if len(sent_times) >= settings.CHAT_RATE_LIMIT_MESSAGES:
-                    await websocket.send_json({"type": "error", "detail": "Message rate limit exceeded"})
+                    await websocket.send_json({"type": "error", "code": "MESSAGE_RATE_LIMITED"})
                     continue
                 try:
                     message_db = SessionLocal()
@@ -99,7 +99,12 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
                     finally:
                         message_db.close()
                 except (ChatForbiddenError, ChatValidationError) as error:
-                    await websocket.send_json({"type": "error", "detail": str(error)})
+                    code = (
+                        "CHAT_MESSAGE_INVALID"
+                        if isinstance(error, ChatValidationError)
+                        else "CHAT_FORBIDDEN"
+                    )
+                    await websocket.send_json({"type": "error", "code": code})
                     continue
                 sent_times.append(now)
                 await manager.broadcast(

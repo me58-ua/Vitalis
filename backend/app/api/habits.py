@@ -68,7 +68,7 @@ def list_patient_habits(
     params: tuple = Depends(_query_params),
 ):
     if professional_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Professional identity does not match the URL")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PROFESSIONAL_IDENTITY_MISMATCH")
     try:
         return _service(db, profiles, appointments).list_for_professional(patient_id, current_user.id, *params)
     except HabitAccessError as error:

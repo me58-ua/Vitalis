@@ -11,7 +11,6 @@ from app.repositories.profile_repository import ProfileRepository
 from app.repositories.audit_repository import AuditRepository
 from app.models import AuditAction, UserRole
 from app.services.audit_service import AuditService
-from app.services.ai_consent import AI_CONSENT_REQUIRED_MESSAGE
 
 
 class PatientHistoryAccessError(Exception):
@@ -36,7 +35,7 @@ class PatientHealthService:
     def snapshot(self, profile, professional_id=None):
         if self.appointments is None or self.prescriptions is None or professional_id is None:
             if not profile.share_health_data:
-                return {"consent_shared": False, "message": "El paciente no ha compartido sus datos de salud."}
+                return {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
             return {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
 
         if not self.appointments.has_shared_appointment(profile.user_id, professional_id):
@@ -48,7 +47,7 @@ class PatientHealthService:
         if profile.share_health_data:
             result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
         else:
-            result = {"consent_shared": False, "message": "El paciente no ha compartido sus datos de salud."}
+            result = {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
         result.update(
             appointments=self.appointments.list_patient_history(profile.user_id, professional_id),
             clinical_notes=self.appointments.list_patient_notes(profile.user_id, professional_id),
@@ -73,7 +72,7 @@ class PatientHealthService:
     def save_onboarding_message(self, profile, block: str, message: str):
         if getattr(profile, "ai_processing_consent", True) is False:
             self.skip(profile)
-            return True, False, AI_CONSENT_REQUIRED_MESSAGE
+            return True, False, "AI_CONSENT_REQUIRED"
         if block not in self.blocks:
             raise ValueError("Invalid onboarding block")
         extracted = self._extract(message, block)
@@ -140,10 +139,10 @@ class PatientHealthService:
 
     def _next_question(self, block: str, completed: bool) -> str:
         if completed:
-            return "Onboarding completado. Puedes actualizar tus datos desde tu perfil."
+            return "ONBOARDING_COMPLETED"
         return {
-            "alergias": "¿Tienes alguna enfermedad crónica?",
-            "enfermedades_cronicas": "¿Tomas actualmente alguna medicación?",
-            "medicacion": "¿Quieres registrar algún hábito de sueño, ejercicio, dieta, tabaco o alcohol?",
-            "habitos": "¿Tienes algún otro dato de salud que quieras registrar?",
+            "alergias": "ONBOARDING_NEXT_CHRONIC_CONDITION",
+            "enfermedades_cronicas": "ONBOARDING_NEXT_MEDICATION",
+            "medicacion": "ONBOARDING_NEXT_HABIT",
+            "habitos": "ONBOARDING_NEXT_OTHER",
         }[block]

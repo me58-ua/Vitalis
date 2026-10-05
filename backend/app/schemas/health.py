@@ -94,7 +94,7 @@ class PrescriptionHistoryResponse(BaseModel):
 
 class HealthSnapshot(BaseModel):
     consent_shared: bool
-    message: str | None = None
+    message_code: str | None = None
     allergies: list[AllergyResponse] = []
     chronic_conditions: list[ChronicConditionResponse] = []
     medications: list[MedicationResponse] = []
@@ -119,7 +119,7 @@ class OnboardingMessageRequest(BaseModel):
 
 class OnboardingMessageResponse(BaseModel):
     block: str
-    next_question: str
+    next_question_code: str
     saved: bool
     onboarding_completed: bool
 

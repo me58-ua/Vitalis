@@ -97,7 +97,7 @@ class PatientHealthTests(unittest.TestCase):
         self.assertTrue(completed)
         self.assertFalse(saved)
         self.assertEqual(repository.records, [])
-        self.assertIn("no podremos calcular riesgos", message)
+        self.assertEqual(message, "AI_CONSENT_REQUIRED")
         service._extract.assert_not_called()
 
     def test_onboarding_can_resume_after_ai_consent(self):

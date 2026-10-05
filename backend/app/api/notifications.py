@@ -61,5 +61,5 @@ def mark_read(
 ):
     notification = repository.get(notification_id, current_user.id)
     if notification is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NOTIFICATION_NOT_FOUND")
     return _response(repository.mark_read(notification))

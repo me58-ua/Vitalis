@@ -38,7 +38,7 @@ Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 def _profile(current_user: User, profiles: ProfileRepository):
     profile = profiles.get_patient(current_user.id)
     if profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=404, detail="PROFILE_NOT_FOUND")
     return profile
 
 
@@ -57,7 +57,7 @@ def update_consent(
     patient_id: UUID | None = None,
 ):
     if patient_id is not None and patient_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the patient can update this consent")
+        raise HTTPException(status_code=403, detail="PATIENT_REQUIRED")
     profile = _profile(current_user, profiles)
     profile.share_health_data = data.share_health_data
     profiles.session.flush()
@@ -95,8 +95,8 @@ def add_habit(data: HabitLogCreate, current_user: CurrentPatient, profiles: Prof
 @router.post("/onboarding/message", response_model=OnboardingMessageResponse)
 def onboarding_message(data: OnboardingMessageRequest, current_user: CurrentPatient, profiles: Profiles):
     profile = _profile(current_user, profiles)
-    completed, saved, next_question = PatientHealthService(profiles).save_onboarding_message(profile, data.block, data.message)
-    return OnboardingMessageResponse(block=data.block, next_question=next_question, saved=saved, onboarding_completed=completed)
+    completed, saved, next_question_code = PatientHealthService(profiles).save_onboarding_message(profile, data.block, data.message)
+    return OnboardingMessageResponse(block=data.block, next_question_code=next_question_code, saved=saved, onboarding_completed=completed)
 
 
 @router.post("/onboarding/skip", response_model=OnboardingSkipResponse)
@@ -123,7 +123,7 @@ def patient_health_snapshot(
     audits: Audits,
 ):
     if not appointments.has_shared_appointment(patient_id, current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No shared appointment with this patient")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NO_SHARED_APPOINTMENT")
     return PatientHealthService(profiles, appointments, prescriptions, audits).snapshot_by_user_id(
         patient_id, current_user.id
     )

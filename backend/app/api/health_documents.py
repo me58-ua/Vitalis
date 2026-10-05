@@ -85,7 +85,7 @@ def download_my_health_document(document_id: UUID, current_user: CurrentPatient,
 @router.get("/professionals/{professional_id}/patients/{patient_id}/health/documents", response_model=HealthDocumentListResponse)
 def list_patient_health_documents(professional_id: UUID, patient_id: UUID, current_user: CurrentProfessional, documents: Documents, profiles: Profiles, appointments: Appointments, storage: Storage):
     if professional_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Professional identity does not match the URL")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PROFESSIONAL_IDENTITY_MISMATCH")
     try:
         items = _service(documents, profiles, appointments, storage).list_for_professional(patient_id, current_user.id)
         return {"documents": items, "total": len(items)}
@@ -98,7 +98,7 @@ def list_patient_health_documents(professional_id: UUID, patient_id: UUID, curre
 @router.get("/professionals/{professional_id}/patients/{patient_id}/health/documents/{document_id}")
 def download_patient_health_document(professional_id: UUID, patient_id: UUID, document_id: UUID, current_user: CurrentProfessional, documents: Documents, profiles: Profiles, appointments: Appointments, storage: Storage):
     if professional_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Professional identity does not match the URL")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PROFESSIONAL_IDENTITY_MISMATCH")
     try:
         document, path = _service(documents, profiles, appointments, storage).download_for_professional(
             document_id, patient_id, current_user.id

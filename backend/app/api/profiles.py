@@ -70,7 +70,7 @@ def update_ai_consent(
 ):
     profile = profiles.get_patient(current_user.id)
     if profile is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PROFILE_NOT_FOUND")
     profile.ai_processing_consent = data.ai_processing_consent
     profile.ai_processing_consent_at = datetime.now(timezone.utc)
     profiles.session.flush()
@@ -97,7 +97,7 @@ def change_patient_password(data: ChangePasswordRequest, current_user: CurrentPa
     except InvalidCurrentPasswordError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
+            detail="INVALID_CURRENT_PASSWORD",
         ) from error
 
 
@@ -137,5 +137,5 @@ def change_professional_password(
     except InvalidCurrentPasswordError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
+            detail="INVALID_CURRENT_PASSWORD",
         ) from error
