@@ -1,0 +1,84 @@
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
+
+from sqlalchemy.exc import IntegrityError
+
+from app.models import EmailStatus, Notification
+from app.repositories.notification_repository import NotificationRepository
+
+
+GENERIC_MESSAGES = {
+    "new_message": ("Nuevo mensaje", "Tienes un nuevo mensaje sobre tu cita"),
+    "appointment_confirmed": ("Cita confirmada", "Tu cita ha sido confirmada"),
+    "appointment_cancelled": ("Cita cancelada", "Tu cita ha sido cancelada"),
+    "appointment_rescheduled": ("Cita actualizada", "La hora de tu cita ha sido actualizada"),
+    "appointment_reminder_24h": ("Recordatorio de cita", "Tienes una cita mañana"),
+    "appointment_reminder_1h": ("Recordatorio de cita", "Tienes una cita dentro de una hora"),
+}
+
+
+class NotificationService:
+    def __init__(self, repository: NotificationRepository, max_email_attempts: int = 3):
+        self.repository = repository
+        self.max_email_attempts = max_email_attempts
+
+    def notify(
+        self,
+        recipient_id: UUID,
+        notification_type: str,
+        *,
+        entity: str | None = None,
+        entity_id: UUID | None = None,
+        scheduled_for: datetime | None = None,
+        email_required: bool = False,
+    ) -> Notification:
+        scheduled_for = scheduled_for or datetime.now(timezone.utc)
+        existing = self.repository.find_duplicate(
+            recipient_id, notification_type, entity_id, scheduled_for
+        )
+        if existing is not None:
+            return existing
+        default_title, default_message = GENERIC_MESSAGES.get(
+            notification_type, ("Notification", "You have a new notification")
+        )
+        notification = Notification(
+            recipient_id=recipient_id,
+            type=notification_type,
+            title=default_title,
+            message=default_message,
+            entity=entity,
+            entity_id=entity_id,
+            scheduled_for=scheduled_for,
+            email_required=email_required,
+            email_status=EmailStatus.PENDING if email_required else EmailStatus.NOT_APPLICABLE,
+            email_attempts=0,
+        )
+        try:
+            return self.repository.create(notification)
+        except IntegrityError:
+            rollback = getattr(self.repository, "rollback", None)
+            if rollback is not None:
+                rollback()
+            duplicate = self.repository.find_duplicate(recipient_id, notification_type, entity_id, scheduled_for)
+            if duplicate is not None:
+                return duplicate
+            raise
+
+    def notify_chat_throttled(
+        self, recipient_id: UUID, appointment_id: UUID, now: datetime | None = None
+    ) -> Notification | None:
+        now = now or datetime.now(timezone.utc)
+        window_start = now - timedelta(minutes=10)
+        existing = self.repository.find_recent(
+            recipient_id, "new_message", appointment_id, window_start
+        )
+        if existing is not None:
+            return None
+        return self.notify(
+            recipient_id,
+            "new_message",
+            entity="appointment",
+            entity_id=appointment_id,
+            email_required=True,
+            scheduled_for=now,
+        )

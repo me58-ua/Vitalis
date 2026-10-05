@@ -63,6 +63,10 @@ class ContractTests(unittest.TestCase):
             "/appointments/{appointment_id}/chat",
             "/appointments/{appointment_id}/chat/messages",
             "/appointments/{appointment_id}/video/join",
+            "/notifications",
+            "/notifications/unread-count",
+            "/notifications/{notification_id}/read",
+            "/notifications/read-all",
         }
         self.assertTrue(expected.issubset(paths))
         self.assertTrue(

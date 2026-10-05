@@ -27,6 +27,7 @@ from app.schemas.appointments import (
 )
 from app.models import AuditAction
 from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
 
 
 class AppointmentNotFoundError(Exception):
@@ -56,12 +57,14 @@ class AppointmentService:
         professionals: ProfessionalRepository,
         note_edit_window: timedelta = DEFAULT_CONSULTATION_NOTE_EDIT_WINDOW,
         audits: AuditRepository | None = None,
+        notifications: NotificationService | None = None,
     ):
         self.appointments = appointments
         self.users = users
         self.professionals = professionals
         self.note_edit_window = note_edit_window
         self.audit = AuditService(audits)
+        self.notifications = notifications
 
     def create_appointment(self, data: AdminAppointmentCreate) -> Appointment:
         patient = self._get_user(data.patient_id, UserRole.PATIENT)
@@ -156,6 +159,10 @@ class AppointmentService:
         try:
             updated = self.appointments.update_appointment(appointment, values)
             if status_changed:
+                self._notify_status_change(appointment, values["status"])
+            elif "start_time" in values or "end_time" in values:
+                self._notify_participants(appointment, "appointment_rescheduled")
+            if status_changed:
                 self.appointments.create_status_history(
                     AppointmentStatusHistory(
                         appointment_id=appointment.id,
@@ -173,7 +180,8 @@ class AppointmentService:
                     appointment.id,
                     appointment.patient_id,
                 )
-            return updated
+                self._notify_status_change(appointment, data.status)
+                return updated
         except IntegrityError as error:
             self.appointments.rollback()
             raise AppointmentConflictError(
@@ -272,6 +280,16 @@ class AppointmentService:
                 "appointment",
                 appointment.id,
                 appointment.patient_id,
+            )
+            recipient_id = (
+                appointment.professional_id
+                if current_user.id == appointment.patient_id
+                else appointment.patient_id
+            )
+            self._notify(
+                recipient_id,
+                "appointment_cancelled",
+                appointment.id,
             )
             return updated
         except IntegrityError as error:
@@ -395,6 +413,29 @@ class AppointmentService:
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) >= created_at + self.note_edit_window
+
+    def _notify_status_change(self, appointment: Appointment, status: AppointmentStatus) -> None:
+        notification_type = {
+            AppointmentStatus.CONFIRMED: "appointment_confirmed",
+            AppointmentStatus.CANCELLED: "appointment_cancelled",
+        }.get(status)
+        if notification_type is not None:
+            self._notify_participants(appointment, notification_type)
+
+    def _notify_participants(self, appointment: Appointment, notification_type: str) -> None:
+        self._notify(appointment.patient_id, notification_type, appointment.id)
+        self._notify(appointment.professional_id, notification_type, appointment.id)
+
+    def _notify(self, recipient_id, notification_type: str, appointment_id) -> None:
+        if self.notifications is not None:
+            self.notifications.notify(
+                recipient_id,
+                notification_type,
+                entity="appointment",
+                entity_id=appointment_id,
+                email_required=True,
+                scheduled_for=datetime.now(timezone.utc),
+            )
 
     @staticmethod
     def _require_appointment_owner(appointment: Appointment, professional_id) -> None:

@@ -4,6 +4,7 @@ from uuid import UUID
 from app.models import Appointment, AppointmentStatus, ChatMessage, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.chat_message_repository import ChatMessageRepository
+from app.services.notification_service import NotificationService
 
 
 DEFAULT_CHAT_WRITE_WINDOW = timedelta(hours=24)
@@ -29,11 +30,13 @@ class ChatService:
         messages: ChatMessageRepository | None = None,
         write_window: timedelta = DEFAULT_CHAT_WRITE_WINDOW,
         max_message_length: int = MAX_CHAT_MESSAGE_LENGTH,
+        notifications: NotificationService | None = None,
     ):
         self.appointments = appointments
         self.messages = messages
         self.write_window = write_window
         self.max_message_length = max_message_length
+        self.notifications = notifications
 
     def get_room_access(self, appointment_id: UUID, user: User) -> Appointment:
         appointment = self.appointments.get_appointment(appointment_id)
@@ -68,10 +71,17 @@ class ChatService:
             raise ChatValidationError("Message content is too long")
         if self.messages is None:
             raise RuntimeError("Chat message repository is required")
-        # Extension point for Issue 25: enqueue a product email after persistence.
-        return self.messages.create(
+        message = self.messages.create(
             ChatMessage(appointment_id=appointment.id, sender_id=sender.id, content=normalized)
         )
+        if self.notifications is not None:
+            recipient_id = (
+                appointment.professional_id
+                if sender.id == appointment.patient_id
+                else appointment.patient_id
+            )
+            self.notifications.notify_chat_throttled(recipient_id, appointment.id)
+        return message
 
     def list_messages(
         self,

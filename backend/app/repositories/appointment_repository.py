@@ -53,6 +53,19 @@ class AppointmentRepository:
             )
         )
 
+    def list_upcoming(self, start: datetime, end: datetime) -> list[Appointment]:
+        return list(
+            self.session.scalars(
+                select(Appointment)
+                .where(
+                    Appointment.status == AppointmentStatus.CONFIRMED,
+                    Appointment.start_time >= start,
+                    Appointment.start_time <= end,
+                )
+                .order_by(Appointment.start_time)
+            )
+        )
+
     def get_note(self, note_id: UUID) -> AppointmentNote | None:
         return self.session.get(AppointmentNote, note_id)
 

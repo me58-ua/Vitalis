@@ -11,6 +11,7 @@ from app.api.deps import (
     get_audit_repository,
     get_professional_repository,
     get_user_repository,
+    get_notification_service,
 )
 from app.models import AppointmentType, User
 from app.repositories.appointment_repository import AppointmentRepository
@@ -36,6 +37,7 @@ from app.services.appointment_service import (
     AppointmentValidationError,
 )
 from app.services.schedule_service import ScheduleService
+from app.services.notification_service import NotificationService
 
 
 router = APIRouter(prefix="/admin", tags=["admin-appointments"])
@@ -46,6 +48,7 @@ Appointments = Annotated[AppointmentRepository, Depends(get_appointment_reposito
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
+Notifications = Annotated[NotificationService, Depends(get_notification_service)]
 
 
 @router.post("/schedules", response_model=AdminScheduleResponse, status_code=status.HTTP_201_CREATED)
@@ -93,9 +96,10 @@ def update_appointment(
     users: Users,
     professionals: Professionals,
     audits: Audits,
+    notifications: Notifications,
 ):
     try:
-        return AppointmentService(appointments, users, professionals, audits=audits).update_as_admin(
+        return AppointmentService(appointments, users, professionals, audits=audits, notifications=notifications).update_as_admin(
             appointment_id, data, current_admin
         )
     except AppointmentNotFoundError as error:
@@ -174,9 +178,10 @@ def cancel_patient_appointment(
     users: Users,
     professionals: Professionals,
     audits: Audits,
+    notifications: Notifications,
 ):
     try:
-        return AppointmentService(appointments, users, professionals, audits=audits).cancel_appointment(
+        return AppointmentService(appointments, users, professionals, audits=audits, notifications=notifications).cancel_appointment(
             patient_id,
             appointment_id,
             current_patient,

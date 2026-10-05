@@ -14,6 +14,7 @@ from app.models.health import Allergy, AllergySeverity, ChronicCondition, HabitL
 from app.models.health_document import HealthDocument, HealthDocumentType
 from app.models.audit_log import AuditAction, AuditLog
 from app.models.video_session_event import VideoSessionEvent
+from app.models.notification import EmailStatus, Notification
 
 __all__ = [
 	"PatientProfile",
@@ -44,4 +45,6 @@ __all__ = [
 	"AuditAction",
 	"AuditLog",
 	"VideoSessionEvent",
+	"EmailStatus",
+	"Notification",
 ]

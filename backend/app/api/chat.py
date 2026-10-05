@@ -8,6 +8,7 @@ from app.api.deps import (
     get_chat_message_repository,
     get_current_user,
     get_appointment_repository,
+    get_notification_service,
 )
 from app.config import settings
 from app.models import User
@@ -26,19 +27,24 @@ from app.services.chat_service import (
     ChatService,
     ChatValidationError,
 )
+from app.services.notification_service import NotificationService
 
 router = APIRouter(tags=["chat"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Messages = Annotated[ChatMessageRepository, Depends(get_chat_message_repository)]
+Notifications = Annotated[NotificationService, Depends(get_notification_service)]
 
 
-def get_chat_service(appointments: Appointments, messages: Messages) -> ChatService:
+def get_chat_service(
+    appointments: Appointments, messages: Messages, notifications: Notifications
+) -> ChatService:
     return ChatService(
         appointments,
         messages,
         timedelta(hours=settings.CHAT_WRITE_WINDOW_HOURS),
         settings.CHAT_MESSAGE_MAX_LENGTH,
+        notifications,
     )
 
 

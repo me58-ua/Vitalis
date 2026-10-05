@@ -14,9 +14,11 @@ from app.database import SessionLocal
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.chat_message_repository import ChatMessageRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.services.auth_service import AuthService, InvalidAccessTokenError
 from app.services.chat_service import ChatForbiddenError, ChatNotFoundError, ChatService, ChatValidationError
 from app.services.connection_manager import ConnectionManager
+from app.services.notification_service import NotificationService
 
 router = APIRouter(tags=["chat-websocket"])
 manager = ConnectionManager()
@@ -91,6 +93,7 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
                             ChatMessageRepository(message_db),
                             timedelta(hours=settings.CHAT_WRITE_WINDOW_HOURS),
                             settings.CHAT_MESSAGE_MAX_LENGTH,
+                            NotificationService(NotificationRepository(message_db)),
                         ).save_message(appointment_id, user, str(payload.get("content", "")))
                         message_db.commit()
                     finally:

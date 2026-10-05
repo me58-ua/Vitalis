@@ -12,6 +12,7 @@ from app.api.deps import (
     get_user_repository,
     get_prescription_repository,
     get_profile_repository,
+    get_notification_service,
 )
 from app.models import AppointmentStatus, User
 from app.repositories.appointment_repository import AppointmentRepository
@@ -43,6 +44,7 @@ from app.services.appointment_service import (
 from app.services.professional_service import ProfessionalNotFoundError, ProfessionalService
 from app.services.professional_follow_up_service import ProfessionalFollowUpService
 from app.services.schedule_service import ScheduleService
+from app.services.notification_service import NotificationService
 
 
 router = APIRouter(tags=["professionals"])
@@ -53,6 +55,7 @@ Users = Annotated[UserRepository, Depends(get_user_repository)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
+Notifications = Annotated[NotificationService, Depends(get_notification_service)]
 
 
 @router.get("/professionals/me/patients", response_model=PatientListResponse)
@@ -196,9 +199,10 @@ def update_professional_appointment_status(
     users: Users,
     professionals: Professionals,
     audits: Audits,
+    notifications: Notifications,
 ):
     try:
-        return AppointmentService(appointments, users, professionals, audits=audits).update_status_as_professional(
+        return AppointmentService(appointments, users, professionals, audits=audits, notifications=notifications).update_status_as_professional(
             professional_id, current_user, appointment_id, data
         )
     except AppointmentAccessError as error:
@@ -280,7 +284,7 @@ def cancel_professional_appointment(
     audits: Audits,
 ):
     try:
-        return AppointmentService(appointments, users, professionals, audits=audits).cancel_appointment(
+        return AppointmentService(appointments, users, professionals, audits=audits, notifications=notifications).cancel_appointment(
             professional_id,
             appointment_id,
             current_user,

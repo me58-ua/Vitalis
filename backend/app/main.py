@@ -1,9 +1,50 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api import appointments, auth, chat, habits, health_documents, patient_health, prescriptions, privacy, professionals, profiles, users, video, ws_chat
+from app.api import appointments, auth, chat, habits, health_documents, notifications, patient_health, prescriptions, privacy, professionals, profiles, users, video, ws_chat
 
-app = FastAPI(title=settings.APP_NAME)
+from app.database import SessionLocal
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.notification_repository import NotificationRepository
+from app.repositories.user_repository import UserRepository
+from app.services.notification_dispatcher import NotificationDispatcher
+
+
+async def _notification_loop() -> None:
+    while True:
+        db = SessionLocal()
+        try:
+            NotificationDispatcher(
+                NotificationRepository(db),
+                UserRepository(db),
+                AppointmentRepository(db),
+            ).run_once()
+            db.commit()
+        except Exception:
+            logging.exception("Notification dispatcher iteration failed")
+            db.rollback()
+        finally:
+            db.close()
+        await asyncio.sleep(60)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_notification_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
 # CORS 
 app.add_middleware(
@@ -29,6 +70,7 @@ app.include_router(privacy.router)
 app.include_router(chat.router)
 app.include_router(video.router)
 app.include_router(ws_chat.router)
+app.include_router(notifications.router)
 
 @app.get("/health")
 def health_check():
