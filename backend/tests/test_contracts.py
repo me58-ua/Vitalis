@@ -2,6 +2,7 @@ import unittest
 
 from app.database import Base
 from app.main import app
+from app.api import ws_chat
 from app.models import PatientProfile, ProfessionalPatient, ProfessionalProfile, User
 from app.schemas.profiles import PatientSummaryResponse
 
@@ -59,8 +60,17 @@ class ContractTests(unittest.TestCase):
             "/patients/me/appointments/{appointment_id}/prescription",
             "/professionals/{professional_id}/appointments/history",
             "/professionals/{professional_id}/prescriptions",
+            "/appointments/{appointment_id}/chat",
+            "/appointments/{appointment_id}/chat/messages",
+            "/appointments/{appointment_id}/video/join",
         }
         self.assertTrue(expected.issubset(paths))
+        self.assertTrue(
+            any(
+                getattr(route, "path", None) == "/ws/chat/{appointment_id}"
+                for route in ws_chat.router.routes
+            )
+        )
         self.assertIn("patch", paths["/admin/users/{user_id}"])
         self.assertIn("delete", paths["/admin/users/{user_id}"])
         self.assertIn("get", paths["/professionals"])

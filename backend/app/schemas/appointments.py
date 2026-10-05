@@ -54,7 +54,7 @@ class AdminAppointmentResponse(AdminAppointmentCreate):
 
     id: UUID
     status: AppointmentStatus
-    room_id: UUID
+    room_id: str | UUID
     created_at: datetime
     updated_at: datetime
 

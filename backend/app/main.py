@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api import appointments, auth, habits, health_documents, patient_health, prescriptions, privacy, professionals, profiles, users
+from app.api import appointments, auth, chat, habits, health_documents, patient_health, prescriptions, privacy, professionals, profiles, users, video, ws_chat
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -26,6 +26,9 @@ app.include_router(prescriptions.router)
 app.include_router(health_documents.router)
 app.include_router(habits.router)
 app.include_router(privacy.router)
+app.include_router(chat.router)
+app.include_router(video.router)
+app.include_router(ws_chat.router)
 
 @app.get("/health")
 def health_check():

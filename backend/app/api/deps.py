@@ -14,6 +14,8 @@ from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.health_document_repository import HealthDocumentRepository
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.privacy_repository import PrivacyRepository
+from app.repositories.chat_message_repository import ChatMessageRepository
+from app.repositories.video_session_repository import VideoSessionRepository
 from app.services.file_storage import LocalFileStorage
 from app.config import settings
 
@@ -52,6 +54,14 @@ def get_audit_repository(db: DbSession) -> AuditRepository:
 
 def get_privacy_repository(db: DbSession) -> PrivacyRepository:
     return PrivacyRepository(db)
+
+
+def get_chat_message_repository(db: DbSession) -> ChatMessageRepository:
+    return ChatMessageRepository(db)
+
+
+def get_video_session_repository(db: DbSession) -> VideoSessionRepository:
+    return VideoSessionRepository(db)
 
 
 def get_file_storage() -> LocalFileStorage:

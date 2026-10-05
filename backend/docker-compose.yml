@@ -1,3 +1,17 @@
+x-jitsi-env: &jitsi-env
+  ENABLE_AUTH: "1"
+  AUTH_TYPE: jwt
+  ENABLE_GUESTS: "0"
+  XMPP_DOMAIN: ${JITSI_XMPP_DOMAIN:?Set JITSI_XMPP_DOMAIN}
+  XMPP_AUTH_DOMAIN: auth.${JITSI_XMPP_DOMAIN:?Set JITSI_XMPP_DOMAIN}
+  XMPP_MUC_DOMAIN: muc.${JITSI_XMPP_DOMAIN:?Set JITSI_XMPP_DOMAIN}
+  XMPP_INTERNAL_MUC_DOMAIN: internal-muc.${JITSI_XMPP_DOMAIN:?Set JITSI_XMPP_DOMAIN}
+  XMPP_SERVER: prosody
+  JICOFO_AUTH_USER: focus
+  JICOFO_AUTH_PASSWORD: ${JICOFO_AUTH_PASSWORD:?Set JICOFO_AUTH_PASSWORD}
+  JVB_AUTH_USER: jvb
+  JVB_AUTH_PASSWORD: ${JVB_AUTH_PASSWORD:?Set JVB_AUTH_PASSWORD}
+
 services:
   db:
     image: postgres:17
@@ -10,7 +24,6 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - prescription_storage:/app/storage
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -28,11 +41,55 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    volumes:
+      - prescription_storage:/app/storage
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
+
+  jitsi-web:
+    image: jitsi/web:stable
+    profiles: ["video"]
+    environment:
+      <<: *jitsi-env
+      PUBLIC_URL: https://${JITSI_DOMAIN:?Set JITSI_DOMAIN}
+      XMPP_BOSH_URL_BASE: http://prosody:5280
+    depends_on:
+      - prosody
+    ports:
+      - "127.0.0.1:8443:443"
+
+  prosody:
+    image: jitsi/prosody:stable
+    profiles: ["video"]
+    environment:
+      <<: *jitsi-env
+      JWT_APP_ID: ${JITSI_APP_ID:?Set JITSI_APP_ID}
+      JWT_APP_SECRET: ${JITSI_APP_SECRET:?Set JITSI_APP_SECRET}
+      JWT_ACCEPTED_ISSUERS: ${JITSI_APP_ID}
+      JWT_ACCEPTED_AUDIENCES: jitsi
+
+  jicofo:
+    image: jitsi/jicofo:stable
+    profiles: ["video"]
+    environment:
+      <<: *jitsi-env
+    depends_on:
+      - prosody
+
+  jvb:
+    image: jitsi/jvb:stable
+    profiles: ["video"]
+    environment:
+      <<: *jitsi-env
+      JVB_BREWERY_MUC: jvbbrewery
+      JVB_PORT: 10000
+      DOCKER_HOST_ADDRESS: 127.0.0.1
+    depends_on: [prosody]
+    ports:
+      - "10000:10000/udp"
 
 volumes:
   postgres_data:
