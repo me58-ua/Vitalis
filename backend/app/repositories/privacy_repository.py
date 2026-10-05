@@ -26,6 +26,8 @@ class PrivacyRepository:
         profile.blood_type = None
         profile.onboarding_completed = False
         profile.share_health_data = False
+        profile.ai_processing_consent = False
+        profile.ai_processing_consent_at = None
         self.session.flush()
 
     def anonymize_professional_profile(self, profile) -> None:

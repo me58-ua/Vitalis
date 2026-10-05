@@ -12,6 +12,9 @@ class PatientProfileBase(BaseModel):
     timezone: str = Field(default="Europe/Madrid", max_length=50)
     onboarding_completed: bool = False
     share_health_data: bool = False
+    ai_processing_consent: bool = False
+    ai_consent_required: bool = True
+    ai_consent_message: str | None = None
 
 
 class PatientProfileCreate(PatientProfileBase):

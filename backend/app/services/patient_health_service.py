@@ -11,6 +11,7 @@ from app.repositories.profile_repository import ProfileRepository
 from app.repositories.audit_repository import AuditRepository
 from app.models import AuditAction, UserRole
 from app.services.audit_service import AuditService
+from app.services.ai_consent import AI_CONSENT_REQUIRED_MESSAGE
 
 
 class PatientHistoryAccessError(Exception):
@@ -70,6 +71,9 @@ class PatientHealthService:
         return self.snapshot(profile, professional_id)
 
     def save_onboarding_message(self, profile, block: str, message: str):
+        if getattr(profile, "ai_processing_consent", True) is False:
+            self.skip(profile)
+            return True, False, AI_CONSENT_REQUIRED_MESSAGE
         if block not in self.blocks:
             raise ValueError("Invalid onboarding block")
         extracted = self._extract(message, block)
@@ -91,6 +95,15 @@ class PatientHealthService:
 
     def skip(self, profile):
         profile.onboarding_completed = True
+        self.profiles.session.flush()
+        return True
+
+    def resume(self, profile) -> bool:
+        if getattr(profile, "ai_processing_consent", True) is False:
+            profile.onboarding_completed = True
+            self.profiles.session.flush()
+            return False
+        profile.onboarding_completed = False
         self.profiles.session.flush()
         return True
 

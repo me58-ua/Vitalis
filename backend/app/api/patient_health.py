@@ -108,9 +108,9 @@ def skip_onboarding(current_user: CurrentPatient, profiles: Profiles):
 @router.post("/onboarding/resume", response_model=OnboardingSkipResponse)
 def resume_onboarding(current_user: CurrentPatient, profiles: Profiles):
     profile = _profile(current_user, profiles)
-    profile.onboarding_completed = False
-    profiles.session.flush()
-    return OnboardingSkipResponse(onboarding_completed=False)
+    return OnboardingSkipResponse(
+        onboarding_completed=PatientHealthService(profiles).resume(profile)
+    )
 
 
 @router.get("/professionals/patients/{patient_id}/health-snapshot", response_model=HealthSnapshot)

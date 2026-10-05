@@ -8,6 +8,7 @@ from app.schemas.profiles import (
     PatientProfileUpdate,
     ProfessionalProfileUpdate,
 )
+from app.services.ai_consent import AI_CONSENT_REQUIRED_MESSAGE
 
 
 class InvalidCurrentPasswordError(Exception):
@@ -38,7 +39,7 @@ class ProfileService:
         profile = self.profiles.get_patient(user.id)
         if profile is None:
             raise ProfileNotFoundError("Profile not found")
-        return profile
+        return self.patient_profile_response(profile)
 
     def get_professional_profile(self, user: User):
         profile = self.profiles.get_professional(user.id)
@@ -48,7 +49,19 @@ class ProfileService:
 
     def update_patient_profile(self, user: User, data: PatientProfileUpdate):
         profile = self.get_patient_profile(user)
-        return self.profiles.update(profile, data.model_dump(exclude_unset=True))
+        return self.patient_profile_response(
+            self.profiles.update(profile, data.model_dump(exclude_unset=True))
+        )
+
+    @staticmethod
+    def patient_profile_response(profile):
+        consent = getattr(profile, "ai_processing_consent", False)
+        profile.ai_processing_consent = consent
+        profile.ai_consent_required = not consent
+        profile.ai_consent_message = (
+            AI_CONSENT_REQUIRED_MESSAGE if not consent else None
+        )
+        return profile
 
     def update_professional_profile(self, user: User, data: ProfessionalProfileUpdate):
         profile = self.get_professional_profile(user)

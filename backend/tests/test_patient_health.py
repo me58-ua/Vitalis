@@ -1,6 +1,7 @@
 import unittest
 import uuid
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from app.models import AllergySeverity, HabitType
 from app.services.patient_health_service import PatientHealthService, PatientHistoryAccessError
@@ -80,6 +81,36 @@ class PatientHealthTests(unittest.TestCase):
         self.assertEqual(repository.records[0].name, "Penicilina")
         self.assertEqual(repository.records[0].severity, AllergySeverity.MILD.value)
         self.assertFalse(hasattr(repository.records[0], "message"))
+
+    def test_onboarding_without_ai_consent_skips_without_calling_llm(self):
+        profile = SimpleNamespace(
+            id=uuid.uuid4(), onboarding_completed=False, ai_processing_consent=False
+        )
+        repository = FakeProfiles(profile)
+        service = PatientHealthService(repository)
+        service._extract = Mock(side_effect=AssertionError("LLM must not be called"))
+
+        completed, saved, message = service.save_onboarding_message(
+            profile, "alergias", "Penicilina"
+        )
+
+        self.assertTrue(completed)
+        self.assertFalse(saved)
+        self.assertEqual(repository.records, [])
+        self.assertIn("no podremos calcular riesgos", message)
+        service._extract.assert_not_called()
+
+    def test_onboarding_can_resume_after_ai_consent(self):
+        profile = SimpleNamespace(
+            id=uuid.uuid4(), onboarding_completed=True, ai_processing_consent=False
+        )
+        repository = FakeProfiles(profile)
+        service = PatientHealthService(repository)
+
+        self.assertFalse(service.resume(profile))
+        profile.ai_processing_consent = True
+        self.assertTrue(service.resume(profile))
+        self.assertFalse(profile.onboarding_completed)
 
     def test_onboarding_completes_after_habits_block(self):
         profile = SimpleNamespace(id=uuid.uuid4(), onboarding_completed=False)

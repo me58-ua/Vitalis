@@ -8,7 +8,11 @@ from app.api.deps import (
     get_profile_repository,
     get_user_repository,
 )
-from app.models import User
+from datetime import datetime, timezone
+
+from app.models import AuditAction, User
+from app.api.deps import get_audit_repository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import UserResponse
@@ -20,6 +24,8 @@ from app.schemas.profiles import (
     ProfessionalProfileResponse,
     ProfessionalProfileUpdate,
 )
+from app.schemas.health import AIConsentUpdate
+from app.services.audit_service import AuditService
 from app.services.profile_service import (
     InvalidCurrentPasswordError,
     ProfileNotFoundError,
@@ -32,6 +38,7 @@ CurrentPatient = Annotated[User, Depends(get_current_patient)]
 CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
+Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 
 
 @router.get("/patients/me/profile", response_model=PatientProfileResponse)
@@ -52,6 +59,30 @@ def update_patient_profile(
         return ProfileService(None, profiles).update_patient_profile(current_user, data)
     except ProfileNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.patch("/patients/me/ai-consent", response_model=PatientProfileResponse)
+def update_ai_consent(
+    data: AIConsentUpdate,
+    current_user: CurrentPatient,
+    profiles: Profiles,
+    audits: Audits,
+):
+    profile = profiles.get_patient(current_user.id)
+    if profile is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+    profile.ai_processing_consent = data.ai_processing_consent
+    profile.ai_processing_consent_at = datetime.now(timezone.utc)
+    profiles.session.flush()
+    AuditService(audits).record(
+        current_user.id,
+        current_user.role,
+        AuditAction.UPDATE,
+        "patient_profile",
+        profile.id,
+        profile.id,
+    )
+    return ProfileService(None, profiles).get_patient_profile(current_user)
 
 
 @router.patch("/patients/me", response_model=UserResponse)

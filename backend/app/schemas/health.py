@@ -108,6 +108,10 @@ class ConsentUpdate(BaseModel):
     share_health_data: bool
 
 
+class AIConsentUpdate(BaseModel):
+    ai_processing_consent: bool
+
+
 class OnboardingMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     block: str = Field(min_length=1, max_length=40)

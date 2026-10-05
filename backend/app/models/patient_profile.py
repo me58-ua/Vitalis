@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +24,12 @@ class PatientProfile(Base):
     timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="Europe/Madrid")
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     share_health_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    ai_processing_consent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    ai_processing_consent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     user = relationship("User", back_populates="patient_profile")
     allergies = relationship("Allergy", back_populates="patient_profile", cascade="all, delete-orphan")
