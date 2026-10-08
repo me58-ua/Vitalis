@@ -1,3 +1,4 @@
+# Servicio de auditoría: registra acciones relevantes de los usuarios mediante `record`.
 from uuid import UUID
 
 from app.models import AuditAction, AuditLog, UserRole

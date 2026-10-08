@@ -1,3 +1,4 @@
+# Servicio de horarios: crea, consulta y actualiza la disponibilidad de los profesionales.
 from sqlalchemy.exc import IntegrityError
 
 from app.models import ProfessionalSchedule, User, UserRole

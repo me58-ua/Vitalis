@@ -1,3 +1,4 @@
+# Servicio de correo: renderiza plantillas y envía mensajes de bienvenida, citas, contraseñas y notificaciones.
 import logging
 from email.message import EmailMessage
 from pathlib import Path

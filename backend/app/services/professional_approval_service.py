@@ -1,3 +1,4 @@
+# Servicio de aprobación profesional: lista solicitudes pendientes y decide su aprobación o rechazo.
 from datetime import datetime, timezone
 
 from app.models import ProfessionalApprovalStatus, User

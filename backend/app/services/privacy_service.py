@@ -1,3 +1,4 @@
+# Servicio de privacidad: elimina la cuenta y sus datos relacionados mediante `erase_account`.
 from pathlib import Path
 
 from app.models import AuditAction, User, UserRole

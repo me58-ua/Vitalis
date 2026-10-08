@@ -1,3 +1,4 @@
+# Servicio de perfiles: actualiza datos básicos, contraseñas y perfiles de pacientes o profesionales.
 from app.core.security import hash_password, verify_password
 from app.models import User
 from app.repositories.profile_repository import ProfileRepository

@@ -1,3 +1,4 @@
+# Servicio de notificaciones: crea notificaciones y limita mensajes repetidos del chat.
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 

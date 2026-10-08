@@ -1,3 +1,4 @@
+# Servicio de citas: crea, consulta, actualiza y cancela citas, validando acceso y conflictos.
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 

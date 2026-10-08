@@ -1,3 +1,4 @@
+# Servicio de hábitos: gestiona hábitos del paciente, su seguimiento y los registros asociados.
 from datetime import date
 from uuid import UUID
 

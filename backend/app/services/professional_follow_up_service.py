@@ -1,3 +1,4 @@
+# Servicio de seguimiento profesional: consulta pacientes, citas, historial y recetas para el seguimiento clínico.
 from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
 

@@ -1,3 +1,4 @@
+# Almacenamiento de archivos: define la interfaz y la implementación local para guardar y resolver rutas.
 from pathlib import Path
 from typing import BinaryIO, Protocol
 

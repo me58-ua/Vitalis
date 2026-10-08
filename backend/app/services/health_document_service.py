@@ -1,3 +1,4 @@
+# Servicio de documentos clínicos: valida, guarda, lista y descarga documentos según los permisos.
 from pathlib import Path
 from typing import BinaryIO
 from uuid import UUID, uuid4

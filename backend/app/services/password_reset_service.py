@@ -1,3 +1,4 @@
+# Servicio de recuperación de contraseña: genera, valida y aplica tokens de restablecimiento.
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings

@@ -1,3 +1,4 @@
+# Servicio de administración de usuarios: lista, consulta, crea, actualiza y elimina usuarios.
 from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password

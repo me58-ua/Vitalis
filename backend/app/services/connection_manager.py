@@ -1,3 +1,4 @@
+# Gestor de conexiones WebSocket: registra conexiones, desconexiones y envía mensajes a los usuarios.
 from collections import defaultdict
 from uuid import UUID
 

@@ -1,3 +1,4 @@
+# Servicio de autenticación: registra usuarios, valida credenciales y gestiona tokens de acceso y actualización.
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 

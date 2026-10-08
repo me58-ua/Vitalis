@@ -1,3 +1,4 @@
+# Dispatcher de notificaciones: crea recordatorios de citas y procesa el envío de correos pendientes.
 from datetime import datetime, timedelta, timezone
 from smtplib import SMTPException
 

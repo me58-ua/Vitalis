@@ -1,3 +1,4 @@
+# Servicio de recetas: crea, consulta, autoriza, descarga y gestiona recetas médicas.
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import BinaryIO

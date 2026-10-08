@@ -1,3 +1,4 @@
+# Servicio de videollamadas: crea, valida y finaliza sesiones de video para las citas.
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from zoneinfo import ZoneInfo

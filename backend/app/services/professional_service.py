@@ -1,3 +1,4 @@
+# Servicio profesional: consulta perfiles profesionales y pacientes para mostrar listados y resúmenes públicos.
 from app.repositories.professional_repository import ProfessionalRepository
 from app.schemas.profiles import (
     PatientListResponse,

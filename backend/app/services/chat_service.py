@@ -1,3 +1,4 @@
+# Servicio de chat: valida acceso a salas, permite enviar mensajes y lista el historial de conversaciones.
 from datetime import timedelta
 from uuid import UUID
 

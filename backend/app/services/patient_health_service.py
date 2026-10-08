@@ -1,3 +1,4 @@
+# Servicio de salud del paciente: recopila, guarda y actualiza información clínica y del onboarding.
 import json
 from datetime import datetime, timezone
 from urllib.error import URLError
