@@ -56,10 +56,17 @@ class PatientHealthService:
                     self.profiles.list_alcohol_logs(profile.id)
                     if hasattr(self.profiles, "list_alcohol_logs") else []
                 ),
+                "family_history_entries": self.profiles.list_health_records(profile.id).get(
+                    "family_history_entries", []
+                ),
             }
             self.audit.record(
                 professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
                 "alcohol_log", profile.id, profile.id,
+            )
+            self.audit.record(
+                professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
+                "family_history_entry", profile.id, profile.id,
             )
         else:
             result = {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}

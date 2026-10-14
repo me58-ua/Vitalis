@@ -3,7 +3,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AlcoholLog, Allergy, ChronicCondition, HabitLog, Medication, PatientProfile, ProfessionalProfile
+from app.models import (
+    AlcoholLog, Allergy, ChronicCondition, FamilyHistoryEntry, HabitLog, Medication,
+    PatientProfile, ProfessionalProfile,
+)
 
 
 class ProfileRepository:
@@ -35,6 +38,13 @@ class ProfileRepository:
             "chronic_conditions": list(self.session.scalars(select(ChronicCondition).where(ChronicCondition.patient_id == profile_id).order_by(ChronicCondition.id))),
             "medications": list(self.session.scalars(select(Medication).where(Medication.patient_id == profile_id).order_by(Medication.id))),
             "habit_logs": list(self.session.scalars(select(HabitLog).where(HabitLog.patient_id == profile_id).order_by(HabitLog.date, HabitLog.id))),
+            "family_history_entries": list(
+                self.session.scalars(
+                    select(FamilyHistoryEntry)
+                    .where(FamilyHistoryEntry.patient_id == profile_id)
+                    .order_by(FamilyHistoryEntry.recorded_date, FamilyHistoryEntry.id)
+                )
+            ),
         }
 
     def get_health_record(self, model, profile_id, record_id):

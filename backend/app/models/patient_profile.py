@@ -46,3 +46,6 @@ class PatientProfile(Base):
     habit_logs = relationship("HabitLog", back_populates="patient_profile", cascade="all, delete-orphan")
     health_documents = relationship("HealthDocument", back_populates="patient_profile", cascade="all, delete-orphan")
     alcohol_logs = relationship("AlcoholLog", back_populates="patient_profile", cascade="all, delete-orphan")
+    family_history_entries = relationship(
+        "FamilyHistoryEntry", back_populates="patient_profile", cascade="all, delete-orphan"
+    )

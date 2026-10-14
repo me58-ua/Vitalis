@@ -8,6 +8,7 @@ from app.api.deps import (
     get_audit_repository,
     get_current_patient,
     get_current_professional,
+    get_family_history_repository,
     get_prescription_repository,
     get_profile_repository,
 )
@@ -20,11 +21,14 @@ from app.schemas.health import (
     AllergyCreate, AllergyResponse, ChronicConditionCreate, ChronicConditionResponse,
     ConsentUpdate, HabitLogCreate, HabitLogResponse, HealthSnapshot, MedicationCreate,
     MedicationResponse, OnboardingMessageRequest, OnboardingMessageResponse, OnboardingSkipResponse,
+    FamilyHistoryResponse,
 )
 from app.services.patient_health_service import PatientHealthService
 from app.models import AuditAction
 from app.services.audit_service import AuditService
 from app.services.habit_units import canonical_unit
+from app.repositories.family_history_repository import FamilyHistoryRepository
+from app.services.family_history_service import FamilyHistoryNotFoundError, FamilyHistoryService
 
 
 router = APIRouter(tags=["patient-health"])
@@ -34,6 +38,7 @@ Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
+FamilyHistory = Annotated[FamilyHistoryRepository, Depends(get_family_history_repository)]
 
 
 def _profile(current_user: User, profiles: ProfileRepository):
@@ -95,6 +100,28 @@ def add_habit(data: HabitLogCreate, current_user: CurrentPatient, profiles: Prof
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return profiles.add_health_record(HabitLog(patient_id=_profile(current_user, profiles).id, **data.model_dump()))
+
+
+@router.get("/patients/me/family-history", response_model=list[FamilyHistoryResponse])
+def list_my_family_history(current_user: CurrentPatient, profiles: Profiles, entries: FamilyHistory):
+    try:
+        return FamilyHistoryService(entries, profiles).list_for_patient(current_user)
+    except FamilyHistoryNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.delete("/patients/me/family-history/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_family_history(
+    entry_id: int,
+    current_user: CurrentPatient,
+    profiles: Profiles,
+    entries: FamilyHistory,
+    audits: Audits,
+) -> None:
+    try:
+        FamilyHistoryService(entries, profiles, audits).delete_for_patient(current_user, entry_id)
+    except FamilyHistoryNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.post("/onboarding/message", response_model=OnboardingMessageResponse)
