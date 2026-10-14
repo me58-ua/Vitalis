@@ -46,7 +46,21 @@ class PatientHealthService:
             raise PatientHistoryAccessError("Professional profile not found")
 
         if profile.share_health_data:
-            result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+            result = {
+                "consent_shared": True,
+                "height_cm": getattr(profile, "height_cm", None),
+                "weight_kg": getattr(profile, "weight_kg", None),
+                "sex_at_birth": getattr(profile, "sex_at_birth", None),
+                **self.profiles.list_health_records(profile.id),
+                "alcohol_logs": (
+                    self.profiles.list_alcohol_logs(profile.id)
+                    if hasattr(self.profiles, "list_alcohol_logs") else []
+                ),
+            }
+            self.audit.record(
+                professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
+                "alcohol_log", profile.id, profile.id,
+            )
         else:
             result = {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
         result.update(
@@ -110,6 +124,7 @@ class PatientHealthService:
     def _extract(self, message: str, block: str) -> list[dict]:
         if settings.AI_API_URL:
             try:
+                #llama a IA
                 request = Request(
                     settings.AI_API_URL,
                     data=json.dumps({"block": block, "message": message}).encode(),

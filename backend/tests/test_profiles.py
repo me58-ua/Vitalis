@@ -1,5 +1,6 @@
 import unittest
 import uuid
+from datetime import datetime
 from types import SimpleNamespace
 
 from fastapi import HTTPException
@@ -8,6 +9,7 @@ from app.api.deps import get_current_patient, get_current_professional
 from app.api.profiles import (
     change_patient_password,
     get_patient_profile,
+    update_ai_consent,
     update_patient_profile,
 )
 from app.core.security import hash_password, verify_password
@@ -18,6 +20,7 @@ from app.schemas.profiles import (
     PatientProfileUpdate,
     ProfessionalProfileUpdate,
 )
+from app.schemas.health import AIConsentUpdate
 from app.services.profile_service import InvalidCurrentPasswordError, ProfileService
 
 
@@ -46,6 +49,7 @@ class FakeProfileRepository:
         self.patient = patient
         self.professional = professional
         self.updated = None
+        self.session = FakeSession()
 
     def get_patient(self, user_id):
         return self.patient if self.patient and self.patient.user_id == user_id else None
@@ -75,6 +79,7 @@ class ProfileTests(unittest.TestCase):
         self.patient_profile = SimpleNamespace(
             id=uuid.uuid4(), user_id=self.user.id, address=None, blood_type=None,
             allergies_summary=None, chronic_conditions_summary=None, timezone="Europe/Madrid",
+            ai_processing_consent=False, ai_processing_consent_at=None,
         )
         self.profiles = FakeProfileRepository(patient=self.patient_profile)
         self.users = FakeUserRepository(self.user)
@@ -89,6 +94,24 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(result.timezone, "UTC")
         self.assertIsNone(result.address)
         self.assertEqual(result.timezone, "UTC")
+
+    def test_ai_consent_update_is_owned_by_profile_service_and_records_timestamp(self):
+        result = self.service.update_ai_consent(self.user, True)
+
+        self.assertTrue(result.ai_processing_consent)
+        self.assertIsInstance(result.ai_processing_consent_at, datetime)
+        self.assertFalse(result.ai_consent_required)
+        self.assertIsNone(result.ai_consent_code)
+
+    def test_ai_consent_endpoint_returns_not_found_without_profile(self):
+        with self.assertRaises(HTTPException) as error:
+            update_ai_consent(
+                AIConsentUpdate(ai_processing_consent=True),
+                self.user,
+                FakeProfileRepository(),
+                SimpleNamespace(record=lambda *args: None),
+            )
+        self.assertEqual(error.exception.status_code, 404)
 
     def test_basic_user_update_cannot_accept_email_or_role(self):
         update = BasicUserUpdate(name="Updated Patient", tel="+34222222222")

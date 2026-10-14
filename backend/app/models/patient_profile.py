@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,6 +30,12 @@ class PatientProfile(Base):
     ai_processing_consent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    sex_at_birth: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    height_cm: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    weight_kg: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
+    body_measured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    family_history_reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     user = relationship("User", back_populates="patient_profile")
     allergies = relationship("Allergy", back_populates="patient_profile", cascade="all, delete-orphan")
@@ -39,3 +45,4 @@ class PatientProfile(Base):
     medications = relationship("Medication", back_populates="patient_profile", cascade="all, delete-orphan")
     habit_logs = relationship("HabitLog", back_populates="patient_profile", cascade="all, delete-orphan")
     health_documents = relationship("HealthDocument", back_populates="patient_profile", cascade="all, delete-orphan")
+    alcohol_logs = relationship("AlcoholLog", back_populates="patient_profile", cascade="all, delete-orphan")

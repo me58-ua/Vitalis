@@ -8,8 +8,6 @@ from app.api.deps import (
     get_profile_repository,
     get_user_repository,
 )
-from datetime import datetime, timezone
-
 from app.models import AuditAction, User
 from app.api.deps import get_audit_repository
 from app.repositories.audit_repository import AuditRepository
@@ -68,12 +66,11 @@ def update_ai_consent(
     profiles: Profiles,
     audits: Audits,
 ):
-    profile = profiles.get_patient(current_user.id)
-    if profile is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PROFILE_NOT_FOUND")
-    profile.ai_processing_consent = data.ai_processing_consent
-    profile.ai_processing_consent_at = datetime.now(timezone.utc)
-    profiles.session.flush()
+    service = ProfileService(None, profiles)
+    try:
+        profile = service.update_ai_consent(current_user, data.ai_processing_consent)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     AuditService(audits).record(
         current_user.id,
         current_user.role,
@@ -82,7 +79,7 @@ def update_ai_consent(
         profile.id,
         profile.id,
     )
-    return ProfileService(None, profiles).get_patient_profile(current_user)
+    return profile
 
 
 @router.patch("/patients/me", response_model=UserResponse)

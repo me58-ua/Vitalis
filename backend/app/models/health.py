@@ -1,7 +1,8 @@
 import enum
+import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,7 +21,6 @@ class HabitType(str, enum.Enum):
     EXERCISE = "ejercicio"
     DIET = "dieta"
     TOBACCO = "tabaco"
-    ALCOHOL = "alcohol"
 
 
 class Allergy(Base):
@@ -75,3 +75,29 @@ class HabitLog(Base):
     unit: Mapped[str] = mapped_column("unidad", String(50), nullable=False)
     date: Mapped[date] = mapped_column("fecha", Date, nullable=False)
     patient_profile = relationship("PatientProfile", back_populates="habit_logs")
+
+
+class AlcoholLog(Base):
+    __tablename__ = "alcohol_logs"
+    __table_args__ = (
+        CheckConstraint("frequency BETWEEN 0 AND 4", name="ck_alcohol_frequency_range"),
+        CheckConstraint("quantity IS NULL OR quantity BETWEEN 0 AND 4", name="ck_alcohol_quantity_range"),
+        CheckConstraint("binge IS NULL OR binge BETWEEN 0 AND 4", name="ck_alcohol_binge_range"),
+        CheckConstraint(
+            "(frequency = 0 AND quantity IS NULL AND binge IS NULL) OR "
+            "(frequency > 0 AND quantity IS NOT NULL AND binge IS NOT NULL)",
+            name="ck_alcohol_response_coherence",
+        ),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("patient_profiles.id", ondelete="CASCADE"), index=True
+    )
+    frequency: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    binge: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    patient_profile = relationship("PatientProfile", back_populates="alcohol_logs")

@@ -17,6 +17,7 @@ from app.repositories.privacy_repository import PrivacyRepository
 from app.repositories.chat_message_repository import ChatMessageRepository
 from app.repositories.video_session_repository import VideoSessionRepository
 from app.repositories.notification_repository import NotificationRepository
+from app.repositories.alcohol_repository import AlcoholLogRepository
 from app.services.notification_service import NotificationService
 from app.services.file_storage import LocalFileStorage
 from app.config import settings
@@ -68,6 +69,10 @@ def get_video_session_repository(db: DbSession) -> VideoSessionRepository:
 
 def get_notification_repository(db: DbSession) -> NotificationRepository:
     return NotificationRepository(db)
+
+
+def get_alcohol_repository(db: DbSession) -> AlcoholLogRepository:
+    return AlcoholLogRepository(db)
 
 
 def get_notification_service(

@@ -92,13 +92,28 @@ class PrescriptionHistoryResponse(BaseModel):
     created_at: datetime
 
 
+class AlcoholLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    patient_id: UUID
+    frequency: int
+    quantity: int | None
+    binge: int | None
+    date: date
+    recorded_at: datetime
+
+
 class HealthSnapshot(BaseModel):
     consent_shared: bool
     message_code: str | None = None
+    height_cm: float | None = None
+    weight_kg: float | None = None
+    sex_at_birth: str | None = None
     allergies: list[AllergyResponse] = []
     chronic_conditions: list[ChronicConditionResponse] = []
     medications: list[MedicationResponse] = []
     habit_logs: list[HabitLogResponse] = []
+    alcohol_logs: list[AlcoholLogResponse] = []
     appointments: list[AppointmentHistoryResponse] = []
     clinical_notes: list[ClinicalNoteHistoryResponse] = []
     prescriptions: list[PrescriptionHistoryResponse] = []
@@ -110,6 +125,11 @@ class ConsentUpdate(BaseModel):
 
 class AIConsentUpdate(BaseModel):
     ai_processing_consent: bool
+
+
+class AlcoholLogHistoryResponse(BaseModel):
+    alcohol_logs: list[AlcoholLogResponse]
+    next_cursor: int | None = None
 
 
 class OnboardingMessageRequest(BaseModel):

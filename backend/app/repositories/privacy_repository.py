@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Allergy, ChronicCondition, HabitLog, HealthDocument, Medication, PatientProfile, User
+from app.models import AlcoholLog, Allergy, ChronicCondition, HabitLog, HealthDocument, Medication, PatientProfile, User
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 
@@ -16,7 +16,7 @@ class PrivacyRepository:
         documents = list(
             self.session.scalars(select(HealthDocument).where(HealthDocument.patient_id == patient_id))
         )
-        for model in (Allergy, ChronicCondition, Medication, HabitLog, HealthDocument):
+        for model in (Allergy, ChronicCondition, Medication, HabitLog, AlcoholLog, HealthDocument):
             self.session.execute(delete(model).where(model.patient_id == patient_id))
         self.session.flush()
         return [document.file_url for document in documents]
@@ -28,6 +28,12 @@ class PrivacyRepository:
         profile.share_health_data = False
         profile.ai_processing_consent = False
         profile.ai_processing_consent_at = None
+        profile.birth_date = None
+        profile.sex_at_birth = None
+        profile.height_cm = None
+        profile.weight_kg = None
+        profile.body_measured_at = None
+        profile.family_history_reviewed = False
         self.session.flush()
 
     def anonymize_professional_profile(self, profile) -> None:

@@ -7,12 +7,19 @@ from app.models import ProfessionalApprovalStatus
 
 
 class PatientProfileBase(BaseModel):
+    birth_date: date | None = None
+    sex_at_birth: str | None = Field(default=None, max_length=30)
+    height_cm: float | None = Field(default=None, ge=100, le=250)
+    weight_kg: float | None = Field(default=None, ge=25, le=400)
+    body_measured_at: datetime | None = None
+    family_history_reviewed: bool = False
     address: str | None = Field(default=None, max_length=255)
     blood_type: str | None = Field(default=None, max_length=10)
     timezone: str = Field(default="Europe/Madrid", max_length=50)
     onboarding_completed: bool = False
     share_health_data: bool = False
     ai_processing_consent: bool = False
+    ai_processing_consent_at: datetime | None = None
     ai_consent_required: bool = True
     ai_consent_code: str | None = None
 
@@ -27,6 +34,11 @@ class PatientProfileUpdate(BaseModel):
     timezone: str | None = Field(default=None, max_length=50)
     onboarding_completed: bool | None = None
     share_health_data: bool | None = None
+    birth_date: date | None = None
+    sex_at_birth: str | None = Field(default=None, max_length=30)
+    height_cm: float | None = Field(default=None, ge=100, le=250)
+    weight_kg: float | None = Field(default=None, ge=25, le=400)
+    body_measured_at: datetime | None = None
 
 
 class PatientProfileResponse(PatientProfileBase):

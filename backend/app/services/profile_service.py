@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 # Servicio de perfiles: actualiza datos básicos, contraseñas y perfiles de pacientes o profesionales.
 from app.core.security import hash_password, verify_password
 from app.models import User
@@ -52,6 +54,15 @@ class ProfileService:
         return self.patient_profile_response(
             self.profiles.update(profile, data.model_dump(exclude_unset=True))
         )
+
+    def update_ai_consent(self, user: User, enabled: bool):
+        profile = self.profiles.get_patient(user.id)
+        if profile is None:
+            raise ProfileNotFoundError("Profile not found")
+        profile.ai_processing_consent = enabled
+        profile.ai_processing_consent_at = datetime.now(timezone.utc)
+        self.profiles.session.flush()
+        return self.patient_profile_response(profile)
 
     @staticmethod
     def patient_profile_response(profile):

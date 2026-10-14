@@ -9,6 +9,7 @@ from app.api.deps import (
     get_current_patient,
     get_current_professional,
     get_profile_repository,
+    get_alcohol_repository,
 )
 from app.models import HabitType, User
 from app.repositories.appointment_repository import AppointmentRepository
@@ -16,6 +17,10 @@ from app.repositories.habit_repository import HabitRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.schemas.habits import HabitHistoryListResponse
 from app.services.habit_service import HabitAccessError, HabitService, HabitValidationError
+from app.services.habit_units import canonical_unit
+from app.repositories.alcohol_repository import AlcoholLogRepository
+from app.services.alcohol_service import AlcoholService
+from app.schemas.health import AlcoholLogHistoryResponse
 from app.database import get_db
 from sqlalchemy.orm import Session
 
@@ -26,6 +31,7 @@ CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 DbSession = Annotated[Session, Depends(get_db)]
+AlcoholLogs = Annotated[AlcoholLogRepository, Depends(get_alcohol_repository)]
 
 
 def _service(db: Session, profiles: ProfileRepository, appointments: AppointmentRepository) -> HabitService:
@@ -55,6 +61,21 @@ def list_my_habits(
         return _service(db, profiles, appointments).list_for_patient(current_user, *params)
     except HabitValidationError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+
+
+@router.get("/patients/me/alcohol-logs", response_model=AlcoholLogHistoryResponse)
+def list_my_alcohol_logs(
+    current_user: CurrentPatient,
+    profiles: Profiles,
+    alcohol_logs: AlcoholLogs,
+    cursor: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=50, ge=1, le=100),
+):
+    try:
+        logs, next_cursor = AlcoholService(alcohol_logs, profiles).list_history(current_user, cursor, limit)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return {"alcohol_logs": logs, "next_cursor": next_cursor}
 
 
 @router.get("/professionals/{professional_id}/patients/{patient_id}/health/habits", response_model=HabitHistoryListResponse)

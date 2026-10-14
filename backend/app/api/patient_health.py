@@ -24,6 +24,7 @@ from app.schemas.health import (
 from app.services.patient_health_service import PatientHealthService
 from app.models import AuditAction
 from app.services.audit_service import AuditService
+from app.services.habit_units import canonical_unit
 
 
 router = APIRouter(tags=["patient-health"])
@@ -89,6 +90,10 @@ def add_medication(data: MedicationCreate, current_user: CurrentPatient, profile
 
 @router.post("/patients/me/health/habits", response_model=HabitLogResponse, status_code=201)
 def add_habit(data: HabitLogCreate, current_user: CurrentPatient, profiles: Profiles):
+    try:
+        canonical_unit(data.habit_type, data.unit)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     return profiles.add_health_record(HabitLog(patient_id=_profile(current_user, profiles).id, **data.model_dump()))
 
 

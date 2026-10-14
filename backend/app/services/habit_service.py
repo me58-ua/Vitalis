@@ -63,6 +63,8 @@ class HabitService:
         return self._list(profile.id, habit_type, search, start_date, end_date, page, page_size)
 
     def _list(self, patient_id, habit_type, search, start_date, end_date, page, page_size):
+        if habit_type == "alcohol" or getattr(habit_type, "value", None) == "alcohol":
+            raise HabitValidationError("Alcohol is stored in alcohol_logs")
         if start_date and end_date and start_date > end_date:
             raise HabitValidationError("start_date cannot be later than end_date")
         offset = (page - 1) * page_size
