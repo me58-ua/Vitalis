@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from app.models import AlcoholLog, HabitType
 from app.services.alcohol_service import AlcoholService
-from app.services.habit_units import canonical_unit, exercise_minutes_per_week
+from app.services.habit_units import canonical_unit, exercise_minutes_per_week, normalize_habit_value
 
 
 class FakeAlcoholRepository:
@@ -42,6 +42,32 @@ class AlcoholAndHabitUnitTests(unittest.TestCase):
         self.assertEqual(exercise_minutes_per_week(30, "min/dia"), 210)
         with self.assertRaises(ValueError):
             canonical_unit(HabitType.TOBACCO, "cigarrillos/semana")
+
+    def test_all_habit_types_validate_ranges_and_normalize_units(self):
+        cases = [
+            (HabitType.TOBACCO, 100, "cigarrillos/dia", 100, "cigarrillos/dia"),
+            (HabitType.EXERCISE, 360, "min/dia", 2520, "min/semana"),
+            (HabitType.SLEEP, 120, "min/noche", 2, "horas/noche"),
+            (HabitType.DIET, 20, "raciones_fruta_verdura/dia", 20, "raciones_fruta_verdura/dia"),
+        ]
+        for habit_type, value, unit, expected_value, expected_unit in cases:
+            with self.subTest(habit_type=habit_type):
+                normalized, canonical = normalize_habit_value(habit_type, value, unit)
+                self.assertEqual(normalized, expected_value)
+                self.assertEqual(canonical, expected_unit)
+
+    def test_habit_values_outside_ranges_and_unknown_units_are_rejected(self):
+        invalid = [
+            (HabitType.TOBACCO, 101, "cigarrillos/dia"),
+            (HabitType.EXERCISE, 2521, "min/semana"),
+            (HabitType.SLEEP, 1441, "min/noche"),
+            (HabitType.DIET, 21, "raciones_fruta_verdura/dia"),
+            (HabitType.SLEEP, 8, "horas/dia"),
+        ]
+        for habit_type, value, unit in invalid:
+            with self.subTest(habit_type=habit_type, value=value, unit=unit):
+                with self.assertRaises(ValueError):
+                    normalize_habit_value(habit_type, value, unit)
 
     def test_alcohol_service_enforces_response_coherence_and_ranges(self):
         patient_id = uuid.uuid4()
