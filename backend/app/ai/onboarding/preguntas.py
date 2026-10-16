@@ -1,4 +1,4 @@
-"""Preguntas fijas del onboarding conversacional en español.
+"""Preguntas fijas del onboarding conversacional 
 
 El LLM interpreta las respuestas, pero nunca redacta las preguntas ni decide
 su orden. Los IDs son estables para que el frontend pueda renderizar cada
@@ -94,9 +94,6 @@ PREGUNTAS: Final[dict[str, Pregunta]] = {
         "medicacion",
     ),
 }
-
-# English localization is intentionally not supported by the current app.
-QUESTIONS = PREGUNTAS
 
 
 def get_question(question_id: str) -> Pregunta:

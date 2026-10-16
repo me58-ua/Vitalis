@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.family_history import HeredataryConditions, FamilyRelationship
+from app.models.family_history import HereditaryConditions, FamilyRelationship
 from app.models.health import AllergySeverity, HabitType
 
 
@@ -106,7 +106,7 @@ class AlcoholLogResponse(BaseModel):
 
 class FamilyHistoryCreate(BaseModel):
     relationship: FamilyRelationship
-    condition_category: HeredataryConditions
+    condition_category: HereditaryConditions
     detail: str | None = Field(default=None, max_length=150)
     age_at_diagnosis: int | None = Field(default=None, ge=0, le=120)
     recorded_date: date
@@ -153,6 +153,7 @@ class AlcoholLogHistoryResponse(BaseModel):
 class OnboardingMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     block: str = Field(min_length=1, max_length=40)
+    question_id: str | None = Field(default=None, max_length=60)
 
 
 class OnboardingMessageResponse(BaseModel):

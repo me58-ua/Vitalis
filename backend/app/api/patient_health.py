@@ -135,7 +135,9 @@ def delete_my_family_history(
 @router.post("/onboarding/message", response_model=OnboardingMessageResponse)
 def onboarding_message(data: OnboardingMessageRequest, current_user: CurrentPatient, profiles: Profiles):
     profile = _profile(current_user, profiles)
-    completed, saved, next_question_code = PatientHealthService(profiles).save_onboarding_message(profile, data.block, data.message)
+    completed, saved, next_question_code = PatientHealthService(profiles).save_onboarding_message(
+        profile, data.block, data.message, data.question_id
+    )
     return OnboardingMessageResponse(block=data.block, next_question_code=next_question_code, saved=saved, onboarding_completed=completed)
 
 

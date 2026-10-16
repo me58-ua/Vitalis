@@ -7,7 +7,7 @@ from app.models import (
     AuditAction,
     FamilyHistoryEntry,
     FamilyRelationship,
-    HeredataryConditions,
+    HereditaryConditions,
     UserRole,
 )
 from app.services.family_history_service import (
@@ -98,7 +98,7 @@ class FamilyHistoryServiceTests(unittest.TestCase):
         entry = self.service.create_from_onboarding(
             self.user,
             FamilyRelationship.MOTHER,
-            HeredataryConditions.DIABETES,
+            HereditaryConditions.DIABETES,
             "Type 2",
             54,
             date(2026, 1, 2),
@@ -121,7 +121,7 @@ class FamilyHistoryServiceTests(unittest.TestCase):
         entry = self.service.create_from_onboarding(
             self.user,
             FamilyRelationship.FATHER,
-            HeredataryConditions.CANCER,
+            HereditaryConditions.CANCER,
             None,
             None,
         )
@@ -139,7 +139,7 @@ class FamilyHistoryServiceTests(unittest.TestCase):
             self.service.create_from_onboarding(
                 self.user,
                 FamilyRelationship.OTHER,
-                HeredataryConditions.OTHER,
+                HereditaryConditions.OTHER,
                 "x" * 151,
                 20,
             )
@@ -147,7 +147,7 @@ class FamilyHistoryServiceTests(unittest.TestCase):
             self.service.create_from_onboarding(
                 self.user,
                 FamilyRelationship.OTHER,
-                HeredataryConditions.OTHER,
+                HereditaryConditions.OTHER,
                 None,
                 121,
             )
@@ -160,7 +160,7 @@ class FamilyHistoryServiceTests(unittest.TestCase):
         self.service.create_from_onboarding(
             self.user,
             FamilyRelationship.SIBLING,
-            HeredataryConditions.CARDIOVASCULAR,
+            HereditaryConditions.CARDIOVASCULAR,
             None,
             60,
         )

@@ -5,7 +5,7 @@ from app.models import (
     AuditAction,
     FamilyHistoryEntry,
     FamilyRelationship,
-    HeredataryConditions,
+    HereditaryConditions,
     User,
     UserRole,
 )
@@ -44,7 +44,7 @@ class FamilyHistoryService:
         self,
         user: User,
         relationship: FamilyRelationship,
-        condition_category: HeredataryConditions,
+        condition_category: HereditaryConditions,
         detail: str | None,
         age_at_diagnosis: int | None,
         recorded_date: date | None = None,

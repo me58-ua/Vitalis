@@ -68,19 +68,16 @@ class PatientHealthTests(unittest.TestCase):
         self.assertFalse(result["consent_shared"])
         self.assertNotIn("allergies", result)
 
-    def test_onboarding_fallback_saves_structured_allergy_without_raw_message(self):
+    def test_onboarding_without_ai_provider_skips_block_without_saving(self):
         profile = SimpleNamespace(id=uuid.uuid4(), onboarding_completed=False)
         repository = FakeProfiles(profile)
         completed, saved, question = PatientHealthService(repository).save_onboarding_message(
             profile, "alergias", "Penicilina"
         )
-        self.assertTrue(saved)
+        self.assertFalse(saved)
         self.assertFalse(completed)
         self.assertTrue(question)
-        self.assertEqual(len(repository.records), 1)
-        self.assertEqual(repository.records[0].name, "Penicilina")
-        self.assertEqual(repository.records[0].severity, AllergySeverity.MILD.value)
-        self.assertFalse(hasattr(repository.records[0], "message"))
+        self.assertEqual(repository.records, [])
 
     def test_onboarding_without_ai_consent_skips_without_calling_llm(self):
         profile = SimpleNamespace(
@@ -119,8 +116,8 @@ class PatientHealthTests(unittest.TestCase):
             profile, "habitos", "7 horas"
         )
         self.assertTrue(completed)
-        self.assertTrue(saved)
-        self.assertEqual(repository.records[0].habit_type, HabitType.DIET.value)
+        self.assertFalse(saved)
+        self.assertEqual(repository.records, [])
 
     def test_professional_snapshot_includes_authorized_history(self):
         patient_user_id = uuid.uuid4()

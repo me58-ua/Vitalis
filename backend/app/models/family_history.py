@@ -18,8 +18,8 @@ class FamilyRelationship(str, enum.Enum):
     UNCLE = "tio"
     OTHER = "otro"
 
-# i will extend this enum with additional hereditary conditions
-class HeredataryConditions(str, enum.Enum):
+# Ampliable cuando se incorporen nuevas condiciones hereditarias.
+class HereditaryConditions(str, enum.Enum):
     DIABETES = "diabetes"
     CANCER = "cancer"
     CARDIOVASCULAR = "cardiovascular"
@@ -47,9 +47,9 @@ class FamilyHistoryEntry(Base):
         ),
         nullable=False,
     )
-    condition_category: Mapped[HeredataryConditions] = mapped_column(
+    condition_category: Mapped[HereditaryConditions] = mapped_column(
         Enum(
-            HeredataryConditions,
+            HereditaryConditions,
             name="family_condition_category",
             native_enum=False,
             create_constraint=True,
