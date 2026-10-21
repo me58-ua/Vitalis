@@ -3,7 +3,7 @@ import json
 from datetime import date, datetime, timezone
 from urllib.request import Request, urlopen
 
-from app.ai.onboarding.family_history_parser import parse_family_history
+from app.ai.onboarding.family_history_parser import FamilyHistoryParseResult, parse_family_history
 from app.ai.onboarding.preguntas import PREGUNTAS
 from app.ai.onboarding.prompts import parse_json_object, prompt_for
 from app.config import settings
@@ -39,12 +39,16 @@ class PatientHealthService:
         prescriptions: PrescriptionRepository | None = None,
         audits: AuditRepository | None = None,
         llm_client=None,
+        risk_service=None,
+        family_history_service=None,
     ):
         self.profiles = profiles
         self.appointments = appointments
         self.prescriptions = prescriptions
         self.audit = AuditService(audits)
         self.llm_client = llm_client
+        self.risk_service = risk_service
+        self.family_history_service = family_history_service
 
     def snapshot(self, profile, professional_id=None):
         if self.appointments is None or self.prescriptions is None or professional_id is None:
@@ -102,7 +106,9 @@ class PatientHealthService:
     def save_onboarding_message(
         self, profile, block: str, message: str, question_id: str | None = None
     ):
-        if getattr(profile, "ai_processing_consent", True) is False:
+        if question_id == "ai_processing_consent" or block == "consentimiento_ia":
+            return self._save_consent(profile, message)
+        if getattr(profile, "ai_processing_consent", False) is False:
             self.skip(profile)
             return True, False, "AI_CONSENT_REQUIRED"
         if block not in self.blocks:
@@ -114,11 +120,37 @@ class PatientHealthService:
             self._save_body(profile, extracted)
             saved = True
         elif block == "alcohol" and isinstance(extracted, dict):
-            self._save_alcohol(profile, extracted)
-            saved = True
+            extracted = self._merge_audit_c_answer(profile, extracted)
+            if self._audit_c_complete(extracted):
+                self._save_alcohol(profile, extracted)
+                profile.onboarding_state = {
+                    key: value
+                    for key, value in (getattr(profile, "onboarding_state", {}) or {}).items()
+                    if key != "audit_c"
+                }
+                saved = True
         elif block == "antecedentes_familiares":
-            # Family drafts require explicit confirmation before persistence.
-            saved = False
+            if isinstance(extracted, FamilyHistoryParseResult):
+                profile.onboarding_state = {
+                    **getattr(profile, "onboarding_state", {}),
+                    "family_history": {
+                        "status": extracted.status,
+                        "entries": [
+                            {
+                                "relationship": entry.relationship,
+                                "category": entry.category,
+                                "detail": entry.detail,
+                                "age": entry.age,
+                            }
+                            for entry in extracted.entries
+                        ],
+                    },
+                }
+                self.profiles.session.flush()
+                if extracted.status == "none":
+                    profile.family_history_reviewed = True
+                    self._record_risk(profile.id)
+                saved = extracted.status == "none"
         else:
             model = {
                 "alergias": Allergy,
@@ -135,11 +167,43 @@ class PatientHealthService:
                         saved = True
                     except (KeyError, TypeError, ValueError):
                         continue
+        if saved:
+            self._record_risk(profile.id)
 
         completed = self._is_last_question(question_id, block)
+        profile.onboarding_state = {
+            **(getattr(profile, "onboarding_state", {}) or {}),
+            "last_question_id": question_id or block,
+        }
         profile.onboarding_completed = completed
         self.profiles.session.flush()
         return completed, saved, self._next_question(question_id, block, completed, extracted)
+
+    def confirm_family_history(self, profile, user, confirmed: bool) -> bool:
+        state = getattr(profile, "onboarding_state", {}) or {}
+        pending = state.get("family_history")
+        if not isinstance(pending, dict) or pending.get("status") != "entries":
+            raise ValueError("No family history entries await confirmation")
+        if confirmed:
+            if self.family_history_service is None:
+                raise ValueError("Family history service is unavailable")
+            for entry in pending.get("entries", []):
+                from app.models import FamilyRelationship, HereditaryConditions
+
+                self.family_history_service.create_from_onboarding(
+                    user,
+                    FamilyRelationship(entry["relationship"]),
+                    HereditaryConditions(entry["category"]),
+                    entry.get("detail"),
+                    entry.get("age"),
+                )
+            profile.family_history_reviewed = True
+            self._record_risk(profile.id)
+        else:
+            profile.family_history_reviewed = False
+        profile.onboarding_state = {key: value for key, value in state.items() if key != "family_history"}
+        self.profiles.session.flush()
+        return confirmed
 
     def skip(self, profile):
         profile.onboarding_completed = True
@@ -183,6 +247,25 @@ class PatientHealthService:
             return payload
         records = payload.get("records")
         return records if isinstance(records, list) else []
+
+    def _save_consent(self, profile, message: str):
+        answer = message.strip().casefold()
+        accepted = answer in {"sí", "si", "sí, acepto", "si, acepto", "1", "true"}
+        profile.ai_processing_consent = accepted
+        profile.ai_processing_consent_at = datetime.now(timezone.utc)
+        profile.onboarding_state = {
+            **(getattr(profile, "onboarding_state", {}) or {}),
+            "consent_answered": True,
+        }
+        profile.onboarding_completed = not accepted
+        self.profiles.session.flush()
+        return profile.onboarding_completed, True, (
+            "AI_CONSENT_REQUIRED" if not accepted else "allergies"
+        )
+
+    def _record_risk(self, patient_id):
+        if self.risk_service is not None:
+            self.risk_service.evaluate_and_record(patient_id, trigger="onboarding")
 
     @staticmethod
     def _normalize_habit(item):
@@ -232,6 +315,38 @@ class PatientHealthService:
                 date=date.today(),
             )
         )
+
+    @staticmethod
+    def _audit_c_complete(payload):
+        return (
+            isinstance(payload.get("frequency"), int)
+            and 0 <= payload["frequency"] <= 4
+            and (
+                payload["frequency"] == 0
+                or (
+                    isinstance(payload.get("quantity"), int)
+                    and isinstance(payload.get("binge"), int)
+                )
+            )
+        )
+
+    @staticmethod
+    def _merge_audit_c_answer(profile, payload):
+        state = getattr(profile, "onboarding_state", {}) or {}
+        previous = state.get("audit_c", {})
+        merged = {
+            key: value
+            for key, value in {**previous, **payload}.items()
+            if key in {"frequency", "quantity", "binge"} and value is not None
+        }
+        if merged.get("frequency") == 0:
+            merged["quantity"] = None
+            merged["binge"] = None
+        profile.onboarding_state = {
+            **state,
+            "audit_c": merged,
+        }
+        return {**payload, **merged}
 
     @staticmethod
     def _is_last_question(question_id, block):

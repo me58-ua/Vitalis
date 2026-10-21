@@ -156,6 +156,10 @@ class OnboardingMessageRequest(BaseModel):
     question_id: str | None = Field(default=None, max_length=60)
 
 
+class OnboardingFamilyHistoryConfirmation(BaseModel):
+    confirmed: bool
+
+
 class OnboardingMessageResponse(BaseModel):
     block: str
     next_question_code: str

@@ -159,9 +159,7 @@ class AppointmentService:
         status_changed = "status" in values and values["status"] != old_status
         try:
             updated = self.appointments.update_appointment(appointment, values)
-            if status_changed:
-                self._notify_status_change(appointment, values["status"])
-            elif "start_time" in values or "end_time" in values:
+            if "start_time" in values or "end_time" in values:
                 self._notify_participants(appointment, "appointment_rescheduled")
             if status_changed:
                 self.appointments.create_status_history(
@@ -182,7 +180,7 @@ class AppointmentService:
                     appointment.patient_id,
                 )
                 self._notify_status_change(appointment, data.status)
-                return updated
+            return updated
         except IntegrityError as error:
             self.appointments.rollback()
             raise AppointmentConflictError(
@@ -282,16 +280,7 @@ class AppointmentService:
                 appointment.id,
                 appointment.patient_id,
             )
-            recipient_id = (
-                appointment.professional_id
-                if current_user.id == appointment.patient_id
-                else appointment.patient_id
-            )
-            self._notify(
-                recipient_id,
-                "appointment_cancelled",
-                appointment.id,
-            )
+            self._notify_status_change(appointment, data.status)
             return updated
         except IntegrityError as error:
             self.appointments.rollback()

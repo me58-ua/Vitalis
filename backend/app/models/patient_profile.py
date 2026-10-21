@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, JSON, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +36,7 @@ class PatientProfile(Base):
     weight_kg: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
     body_measured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     family_history_reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    onboarding_state: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
 
     user = relationship("User", back_populates="patient_profile")
     allergies = relationship("Allergy", back_populates="patient_profile", cascade="all, delete-orphan")

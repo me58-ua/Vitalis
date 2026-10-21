@@ -21,7 +21,7 @@ from app.schemas.health import (
     AllergyCreate, AllergyResponse, ChronicConditionCreate, ChronicConditionResponse,
     ConsentUpdate, HabitLogCreate, HabitLogResponse, HealthSnapshot, MedicationCreate,
     MedicationResponse, OnboardingMessageRequest, OnboardingMessageResponse, OnboardingSkipResponse,
-    FamilyHistoryResponse,
+    FamilyHistoryResponse, OnboardingFamilyHistoryConfirmation,
 )
 from app.services.patient_health_service import PatientHealthService
 from app.models import AuditAction
@@ -139,6 +139,24 @@ def onboarding_message(data: OnboardingMessageRequest, current_user: CurrentPati
         profile, data.block, data.message, data.question_id
     )
     return OnboardingMessageResponse(block=data.block, next_question_code=next_question_code, saved=saved, onboarding_completed=completed)
+
+
+@router.post("/onboarding/family-history/confirm", response_model=OnboardingSkipResponse)
+def confirm_onboarding_family_history(
+    data: OnboardingFamilyHistoryConfirmation,
+    current_user: CurrentPatient,
+    profiles: Profiles,
+    entries: FamilyHistory,
+):
+    profile = _profile(current_user, profiles)
+    try:
+        family_history = FamilyHistoryService(entries, profiles)
+        PatientHealthService(
+            profiles, family_history_service=family_history
+        ).confirm_family_history(profile, current_user, data.confirmed)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return OnboardingSkipResponse(onboarding_completed=profile.onboarding_completed)
 
 
 @router.post("/onboarding/skip", response_model=OnboardingSkipResponse)

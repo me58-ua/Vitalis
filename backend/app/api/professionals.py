@@ -282,6 +282,7 @@ def cancel_professional_appointment(
     users: Users,
     professionals: Professionals,
     audits: Audits,
+    notifications: Notifications,
 ):
     try:
         return AppointmentService(appointments, users, professionals, audits=audits, notifications=notifications).cancel_appointment(
