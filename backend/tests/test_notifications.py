@@ -41,6 +41,17 @@ class FakeNotificationRepository:
             None,
         )
 
+    def find_recent_by_type(self, recipient_id, notification_type, since):
+        return next(
+            (
+                item for item in self.items
+                if item.recipient_id == recipient_id
+                and item.type == notification_type
+                and item.created_at >= since
+            ),
+            None,
+        )
+
     def due_for_email(self, now, max_attempts=3):
         return [
             item for item in self.items
@@ -127,6 +138,32 @@ class NotificationTests(unittest.TestCase):
         dispatcher = NotificationDispatcher(self.repository, users, appointments)
         dispatcher.run_once(datetime(2026, 10, 5, 12, tzinfo=timezone.utc))
         self.assertEqual(len(self.repository.items), 2)
+
+    def test_risk_notifications_are_private_and_deduplicated_for_thirty_days(self):
+        first = self.service.notify_risk(
+            self.recipient_id, "family_huntington", "recommend_appointment",
+            datetime(2026, 10, 1, tzinfo=timezone.utc),
+        )
+        second = self.service.notify_risk(
+            self.recipient_id, "family_huntington", "recommend_appointment",
+            datetime(2026, 10, 30, tzinfo=timezone.utc),
+        )
+        third = self.service.notify_risk(
+            self.recipient_id, "family_huntington", "recommend_appointment",
+            datetime(2026, 11, 1, tzinfo=timezone.utc),
+        )
+        self.assertIsNotNone(first)
+        self.assertIsNone(second)
+        self.assertIsNotNone(third)
+        self.assertTrue(first.email_required)
+        self.assertNotIn("Huntington", first.message)
+
+    def test_info_risk_notification_does_not_require_email(self):
+        notification = self.service.notify_risk(
+            self.recipient_id, "bmi", "info",
+            datetime(2026, 10, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(notification.email_required)
 
 
 if __name__ == "__main__":

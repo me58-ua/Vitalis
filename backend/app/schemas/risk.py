@@ -45,3 +45,14 @@ class RiskHistoryResponse(BaseModel):
     trend: str
     ai_consent_required: bool = False
     message_code: str | None = None
+
+
+class RiskSummaryItem(RiskResult):
+    trend: str
+
+
+class RiskSummaryResponse(BaseModel):
+    results: list[RiskSummaryItem]
+    ai_consent_required: bool = False
+    message_code: str | None = None
+    sources: dict[str, str]

@@ -83,6 +83,20 @@ class NotificationRepository:
             .limit(1)
         )
 
+    def find_recent_by_type(
+        self, recipient_id: UUID, notification_type: str, since: datetime
+    ) -> Notification | None:
+        return self.session.scalar(
+            select(Notification)
+            .where(
+                Notification.recipient_id == recipient_id,
+                Notification.type == notification_type,
+                Notification.created_at >= since,
+            )
+            .order_by(Notification.created_at.desc())
+            .limit(1)
+        )
+
     def mark_read(self, notification: Notification, read_at: datetime | None = None) -> Notification:
         notification.read_at = read_at or datetime.now(timezone.utc)
         self.session.flush()

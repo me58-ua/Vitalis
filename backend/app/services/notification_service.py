@@ -17,6 +17,12 @@ GENERIC_MESSAGES = {
     "appointment_reminder_1h": ("Recordatorio de cita", "Tienes una cita dentro de una hora"),
 }
 
+RISK_MESSAGE = (
+    "Según tu perfil te recomendamos reservar una revisión. "
+    "Este resultado podría beneficiarte de una consulta. "
+    "Entra en Vitalis para ver el detalle. Esto no es un diagnóstico."
+)
+
 
 class NotificationService:
     def __init__(self, repository: NotificationRepository, max_email_attempts: int = 3):
@@ -32,6 +38,8 @@ class NotificationService:
         entity_id: UUID | None = None,
         scheduled_for: datetime | None = None,
         email_required: bool = False,
+        title: str | None = None,
+        message: str | None = None,
     ) -> Notification:
         scheduled_for = scheduled_for or datetime.now(timezone.utc)
         existing = self.repository.find_duplicate(
@@ -45,8 +53,8 @@ class NotificationService:
         notification = Notification(
             recipient_id=recipient_id,
             type=notification_type,
-            title=default_title,
-            message=default_message,
+            title=title or default_title,
+            message=message or default_message,
             entity=entity,
             entity_id=entity_id,
             scheduled_for=scheduled_for,
@@ -82,4 +90,33 @@ class NotificationService:
             entity_id=appointment_id,
             email_required=True,
             scheduled_for=now,
+        )
+
+    def notify_risk(self, recipient_id: UUID, model: str, alert_level: str, now: datetime | None = None):
+        if alert_level == "none":
+            return None
+        now = now or datetime.now(timezone.utc)
+        notification_type = f"risk_{model}"
+        find_recent = getattr(self.repository, "find_recent_by_type", None)
+        if find_recent is not None and find_recent(
+            recipient_id, notification_type, now - timedelta(days=30)
+        ) is not None:
+            return None
+        if model == "family_huntington":
+            message = (
+                "Según tu perfil te recomendamos reservar una revisión. "
+                "Podría beneficiarte de una consulta. "
+                "Entra en Vitalis para ver el detalle. Esto no es un diagnóstico."
+            )
+        else:
+            message = RISK_MESSAGE
+        return self.notify(
+            recipient_id,
+            notification_type,
+            entity="risk_assessment",
+            entity_id=recipient_id,
+            scheduled_for=now,
+            email_required=alert_level == "recommend_appointment",
+            title="Revisión recomendada",
+            message=message,
         )

@@ -12,6 +12,7 @@ from app.api.deps import (
     get_family_history_repository,
     get_prescription_repository,
     get_profile_repository,
+    get_notification_service,
 )
 from app.models import Allergy, ChronicCondition, HabitLog, HabitType, Medication, User
 from app.repositories.appointment_repository import AppointmentRepository
@@ -33,6 +34,7 @@ from app.repositories.risk_repository import RiskRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.services.family_history_service import FamilyHistoryNotFoundError, FamilyHistoryService
 from app.services.risk_service import RiskService
+from app.services.notification_service import NotificationService
 
 
 router = APIRouter(tags=["patient-health"])
@@ -43,10 +45,11 @@ Appointments = Annotated[AppointmentRepository, Depends(get_appointment_reposito
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 FamilyHistory = Annotated[FamilyHistoryRepository, Depends(get_family_history_repository)]
+Notifications = Annotated[NotificationService, Depends(get_notification_service)]
 
 
-def _risk_service(db):
-    return RiskService(RiskRepository(db), RiskSnapshotRepository(db))
+def _risk_service(db, notifications=None):
+    return RiskService(RiskRepository(db), RiskSnapshotRepository(db), notifications)
 
 
 def _profile(current_user: User, profiles: ProfileRepository):
@@ -102,7 +105,10 @@ def add_medication(data: MedicationCreate, current_user: CurrentPatient, profile
 
 
 @router.post("/patients/me/health/habits", response_model=HabitLogResponse, status_code=201)
-def add_habit(data: HabitLogCreate, current_user: CurrentPatient, profiles: Profiles, db: DbSession):
+def add_habit(
+    data: HabitLogCreate, current_user: CurrentPatient, profiles: Profiles,
+    db: DbSession, notifications: Notifications,
+):
     try:
         value, unit = normalize_habit_value(data.habit_type, data.value, data.unit)
     except ValueError as error:
@@ -117,7 +123,9 @@ def add_habit(data: HabitLogCreate, current_user: CurrentPatient, profiles: Prof
         )
     )
     if data.habit_type in {HabitType.TOBACCO, HabitType.EXERCISE}:
-        _risk_service(db).evaluate_and_record(_profile(current_user, profiles).id, "habit_change")
+        _risk_service(db, notifications).evaluate_and_record(
+            _profile(current_user, profiles).id, "habit_change"
+        )
     return record
 
 
@@ -137,18 +145,24 @@ def delete_my_family_history(
     entries: FamilyHistory,
     audits: Audits,
     db: DbSession,
+    notifications: Notifications,
 ) -> None:
     try:
-        FamilyHistoryService(entries, profiles, audits, _risk_service(db)).delete_for_patient(current_user, entry_id)
+        FamilyHistoryService(
+            entries, profiles, audits, _risk_service(db, notifications)
+        ).delete_for_patient(current_user, entry_id)
     except FamilyHistoryNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.post("/onboarding/message", response_model=OnboardingMessageResponse)
-def onboarding_message(data: OnboardingMessageRequest, current_user: CurrentPatient, profiles: Profiles, db: DbSession):
+def onboarding_message(
+    data: OnboardingMessageRequest, current_user: CurrentPatient, profiles: Profiles,
+    db: DbSession, notifications: Notifications,
+):
     profile = _profile(current_user, profiles)
     completed, saved, next_question_code = PatientHealthService(
-        profiles, risk_service=_risk_service(db)
+        profiles, risk_service=_risk_service(db, notifications)
     ).save_onboarding_message(
         profile, data.block, data.message, data.question_id
     )
@@ -162,12 +176,16 @@ def confirm_onboarding_family_history(
     profiles: Profiles,
     entries: FamilyHistory,
     db: DbSession,
+    notifications: Notifications,
 ):
     profile = _profile(current_user, profiles)
     try:
-        family_history = FamilyHistoryService(entries, profiles, risk_service=_risk_service(db))
+        family_history = FamilyHistoryService(
+            entries, profiles, risk_service=_risk_service(db, notifications)
+        )
         PatientHealthService(
-            profiles, risk_service=_risk_service(db), family_history_service=family_history
+            profiles, risk_service=_risk_service(db, notifications),
+            family_history_service=family_history,
         ).confirm_family_history(profile, current_user, data.confirmed)
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error

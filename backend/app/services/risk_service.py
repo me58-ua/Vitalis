@@ -9,6 +9,7 @@ from typing import Callable, Iterable
 from app.repositories.risk_repository import RiskInputs, RiskRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.models import RiskSnapshot, RiskSnapshotTrigger
+from app.services.notification_service import NotificationService
 from app.schemas.risk import RiskResult
 
 
@@ -269,9 +270,15 @@ def calc_trend(model: str, snapshots: Iterable[object]) -> str:
 
 
 class RiskService:
-    def __init__(self, repository: RiskRepository, snapshots: RiskSnapshotRepository | None = None):
+    def __init__(
+        self,
+        repository: RiskRepository,
+        snapshots: RiskSnapshotRepository | None = None,
+        notifications: NotificationService | None = None,
+    ):
         self.repository = repository
         self.snapshots = snapshots
+        self.notifications = notifications
 
     def evaluate(self, patient_id, today: date | None = None) -> list[RiskResult]:
         """Evaluate all available models without writing results to the database."""
@@ -335,4 +342,10 @@ class RiskService:
                 alert_level=result.alert_level or "none",
                 trigger=trigger_value,
             )))
+            if self.notifications is not None and result.alert_level not in {None, "none"}:
+                self.notifications.notify_risk(
+                    inputs.profile.user_id,
+                    result.model,
+                    result.alert_level,
+                )
         return recorded

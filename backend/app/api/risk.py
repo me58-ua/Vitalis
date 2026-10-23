@@ -14,7 +14,13 @@ from app.repositories.audit_repository import AuditRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.schemas.risk import RiskHistoryResponse
+from app.schemas.risk import RiskSummaryResponse
+from app.repositories.risk_repository import RiskRepository
 from app.services.risk_history_service import RiskHistoryAccessError, RiskHistoryService
+from app.services.risk_summary_service import RiskSummaryAccessError, RiskSummaryService
+from app.services.risk_service import RiskService
+from app.api.deps import get_notification_service
+from app.services.notification_service import NotificationService
 
 
 router = APIRouter(tags=["risk"])
@@ -23,6 +29,7 @@ CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
+Notifications = Annotated[NotificationService, Depends(get_notification_service)]
 
 
 def _history(
@@ -71,3 +78,39 @@ def professional_risk_history(
     limit: int = Query(default=50, ge=1, le=100),
 ):
     return _history(patient_id, current_user, db, profiles, appointments, audits, model, from_date, to_date, cursor, limit)
+
+
+def _summary(patient_id, current_user, db, profiles, appointments, audits, notifications):
+    try:
+        risk = RiskService(RiskRepository(db), RiskSnapshotRepository(db), notifications)
+        return RiskSummaryService(
+            risk, RiskSnapshotRepository(db), profiles, appointments, audits
+        ).get(patient_id, current_user)
+    except RiskSummaryAccessError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+
+
+@router.get("/patients/{patient_id}/risk-summary", response_model=RiskSummaryResponse)
+def patient_risk_summary(
+    patient_id: UUID,
+    current_user: CurrentPatient,
+    db: DbSession,
+    profiles: Profiles,
+    appointments: Appointments,
+    audits: Audits,
+    notifications: Notifications,
+):
+    return _summary(patient_id, current_user, db, profiles, appointments, audits, notifications)
+
+
+@router.get("/professionals/patients/{patient_id}/risk-summary", response_model=RiskSummaryResponse)
+def professional_risk_summary(
+    patient_id: UUID,
+    current_user: CurrentProfessional,
+    db: DbSession,
+    profiles: Profiles,
+    appointments: Appointments,
+    audits: Audits,
+    notifications: Notifications,
+):
+    return _summary(patient_id, current_user, db, profiles, appointments, audits, notifications)
