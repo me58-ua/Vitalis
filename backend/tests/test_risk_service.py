@@ -1,5 +1,5 @@
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -9,8 +9,10 @@ from app.services.risk_service import (
     calc_family_history,
     calc_sedentary,
     calc_tobacco,
+    calc_trend,
     RiskService,
 )
+from app.schemas.risk import RiskResult
 
 
 class RiskCalculatorTests(unittest.TestCase):
@@ -77,6 +79,31 @@ class RiskCalculatorTests(unittest.TestCase):
         )
         self.assertTrue(any(result.model == "bmi" for result in results))
         self.assertTrue(any(result.model == "tobacco" for result in results))
+
+    def test_trend_uses_model_direction_and_requires_history(self):
+        now = datetime.now(timezone.utc)
+        snapshots = [
+            SimpleNamespace(computed_at=now - timedelta(days=1), metric_value=30),
+            SimpleNamespace(computed_at=now, metric_value=25),
+        ]
+        self.assertEqual(calc_trend("bmi", snapshots), "improving")
+        self.assertEqual(calc_trend("family_diabetes", snapshots), "insufficient_history")
+        self.assertEqual(calc_trend("tobacco", snapshots[:1]), "insufficient_history")
+
+    def test_evaluate_and_record_skips_insufficient_and_duplicate_results(self):
+        repository = Mock()
+        snapshots = Mock()
+        snapshots.latest_by_model.return_value = SimpleNamespace(
+            metric_value=24.22, category="healthy", alert_level="info"
+        )
+        service = RiskService(repository, snapshots)
+        service.evaluate = Mock(return_value=[RiskResult(
+            model="bmi", status="ok", metric_value=24.22, category="healthy",
+            alert_level="info", explanation="", source="", disclaimer="",
+        )])
+        recorded = service.evaluate_and_record("patient-id", "onboarding")
+        self.assertEqual(recorded, [])
+        snapshots.create.assert_not_called()
 
 
 if __name__ == "__main__":

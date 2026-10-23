@@ -7,6 +7,8 @@ from statistics import mean
 from typing import Callable, Iterable
 
 from app.repositories.risk_repository import RiskInputs, RiskRepository
+from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
+from app.models import RiskSnapshot, RiskSnapshotTrigger
 from app.schemas.risk import RiskResult
 
 
@@ -226,9 +228,50 @@ CALCULATORS: dict[str, Calculator] = {
 }
 
 
+def calc_trend(model: str, snapshots: Iterable[object]) -> str:
+    """Classify the two most recent snapshots without inferring missing data."""
+    if model.startswith("family_"):
+        return "insufficient_history"
+    ordered = sorted(
+        snapshots,
+        key=lambda item: getattr(item, "computed_at", date.min),
+    )
+    if len(ordered) < 2:
+        return "insufficient_history"
+    previous, current = ordered[-2], ordered[-1]
+    if previous.metric_value is None or current.metric_value is None:
+        return "insufficient_history"
+    previous_value = float(previous.metric_value)
+    current_value = float(current.metric_value)
+    if model == "bmi":
+        def distance(value: float) -> float:
+            if value < BMI_UNDERWEIGHT:
+                return BMI_UNDERWEIGHT - value
+            if value > BMI_HEALTHY_MAX:
+                return value - BMI_HEALTHY_MAX
+            return 0
+        old_distance, new_distance = distance(previous_value), distance(current_value)
+        better = new_distance < old_distance
+        worse = new_distance > old_distance
+    elif model in {"audit_c", "tobacco"}:
+        better = current_value < previous_value
+        worse = current_value > previous_value
+    elif model == "sedentary":
+        better = current_value > previous_value
+        worse = current_value < previous_value
+    else:
+        return "insufficient_history"
+    if better:
+        return "improving"
+    if worse:
+        return "worsening"
+    return "stable"
+
+
 class RiskService:
-    def __init__(self, repository: RiskRepository):
+    def __init__(self, repository: RiskRepository, snapshots: RiskSnapshotRepository | None = None):
         self.repository = repository
+        self.snapshots = snapshots
 
     def evaluate(self, patient_id, today: date | None = None) -> list[RiskResult]:
         """Evaluate all available models without writing results to the database."""
@@ -265,3 +308,31 @@ class RiskService:
         except (TypeError, ValueError, AttributeError):
             logger.exception("Risk calculator failed for model=family_history")
         return results
+
+    def evaluate_and_record(self, patient_id, trigger: str) -> list[RiskSnapshot]:
+        """Evaluate and persist only successful changes in the caller's transaction."""
+        if self.snapshots is None:
+            raise RuntimeError("RiskSnapshotRepository is required to record risk evaluations")
+        try:
+            trigger_value = RiskSnapshotTrigger(trigger)
+        except ValueError as error:
+            raise ValueError("Invalid risk snapshot trigger") from error
+        results = self.evaluate(patient_id)
+        recorded: list[RiskSnapshot] = []
+        for result in results:
+            if result.status != "ok":
+                continue
+            latest = self.snapshots.latest_by_model(patient_id, result.model)
+            if latest is not None and (
+                float(latest.metric_value) if latest.metric_value is not None else None
+            ) == result.metric_value and latest.category == result.category and latest.alert_level == result.alert_level:
+                continue
+            recorded.append(self.snapshots.create(RiskSnapshot(
+                patient_id=patient_id,
+                model=result.model,
+                metric_value=result.metric_value,
+                category=result.category or "",
+                alert_level=result.alert_level or "none",
+                trigger=trigger_value,
+            )))
+        return recorded

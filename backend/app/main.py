@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api import appointments, auth, chat, habits, health_documents, notifications, patient_health, prescriptions, privacy, professionals, profiles, users, video, ws_chat
+from app.api import appointments, auth, chat, habits, health_documents, notifications, patient_health, prescriptions, privacy, professionals, profiles, risk, users, video, ws_chat
 
 from app.database import SessionLocal
 from app.repositories.appointment_repository import AppointmentRepository
@@ -71,6 +71,7 @@ app.include_router(chat.router)
 app.include_router(video.router)
 app.include_router(ws_chat.router)
 app.include_router(notifications.router)
+app.include_router(risk.router)
 
 @app.get("/health")
 def health_check():

@@ -116,9 +116,11 @@ class PatientHealthService:
 
         extracted = self._extract(message, block)
         saved = False
+        risk_trigger = None
         if block == "cuerpo" and isinstance(extracted, dict):
             self._save_body(profile, extracted)
             saved = True
+            risk_trigger = "body_change"
         elif block == "alcohol" and isinstance(extracted, dict):
             extracted = self._merge_audit_c_answer(profile, extracted)
             if self._audit_c_complete(extracted):
@@ -129,6 +131,7 @@ class PatientHealthService:
                     if key != "audit_c"
                 }
                 saved = True
+                risk_trigger = "habit_change"
         elif block == "antecedentes_familiares":
             if isinstance(extracted, FamilyHistoryParseResult):
                 profile.onboarding_state = {
@@ -149,7 +152,7 @@ class PatientHealthService:
                 self.profiles.session.flush()
                 if extracted.status == "none":
                     profile.family_history_reviewed = True
-                    self._record_risk(profile.id)
+                    self._record_risk(profile.id, "family_change")
                 saved = extracted.status == "none"
         else:
             model = {
@@ -165,10 +168,13 @@ class PatientHealthService:
                             item = self._normalize_habit(item)
                         self.profiles.add_health_record(model(patient_id=profile.id, **item))
                         saved = True
+                        if block == "habitos" and item["habit_type"] in {"tabaco", "ejercicio"}:
+                            risk_trigger = "habit_change"
                     except (KeyError, TypeError, ValueError):
                         continue
         if saved:
-            self._record_risk(profile.id)
+            if risk_trigger is not None:
+                self._record_risk(profile.id, risk_trigger)
 
         completed = self._is_last_question(question_id, block)
         profile.onboarding_state = {
@@ -198,7 +204,7 @@ class PatientHealthService:
                     entry.get("age"),
                 )
             profile.family_history_reviewed = True
-            self._record_risk(profile.id)
+            self._record_risk(profile.id, "family_change")
         else:
             profile.family_history_reviewed = False
         profile.onboarding_state = {key: value for key, value in state.items() if key != "family_history"}
@@ -263,9 +269,9 @@ class PatientHealthService:
             "AI_CONSENT_REQUIRED" if not accepted else "allergies"
         )
 
-    def _record_risk(self, patient_id):
+    def _record_risk(self, patient_id, trigger):
         if self.risk_service is not None:
-            self.risk_service.evaluate_and_record(patient_id, trigger="onboarding")
+            self.risk_service.evaluate_and_record(patient_id, trigger=trigger)
 
     @staticmethod
     def _normalize_habit(item):

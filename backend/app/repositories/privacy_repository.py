@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     AlcoholLog, Allergy, ChronicCondition, FamilyHistoryEntry, HabitLog, HealthDocument,
     Medication, PatientProfile, User,
+    RiskSnapshot,
 )
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
@@ -19,7 +20,7 @@ class PrivacyRepository:
         documents = list(
             self.session.scalars(select(HealthDocument).where(HealthDocument.patient_id == patient_id))
         )
-        for model in (Allergy, ChronicCondition, Medication, HabitLog, AlcoholLog, FamilyHistoryEntry, HealthDocument):
+        for model in (Allergy, ChronicCondition, Medication, HabitLog, AlcoholLog, FamilyHistoryEntry, HealthDocument, RiskSnapshot):
             self.session.execute(delete(model).where(model.patient_id == patient_id))
         self.session.flush()
         return [document.file_url for document in documents]
