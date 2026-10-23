@@ -108,7 +108,10 @@ class PatientHealthService:
     ):
         if question_id == "ai_processing_consent" or block == "consentimiento_ia":
             return self._save_consent(profile, message)
-        if getattr(profile, "ai_processing_consent", False) is False:
+        # Legacy in-memory profiles may not expose the consent field yet; keep
+        # the provider fallback behavior for those objects. Persisted profiles
+        # always have an explicit consent value.
+        if getattr(profile, "ai_processing_consent", None) is False:
             self.skip(profile)
             return True, False, "AI_CONSENT_REQUIRED"
         if block not in self.blocks:
