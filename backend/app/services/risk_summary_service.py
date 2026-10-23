@@ -54,7 +54,7 @@ class RiskSummaryService:
             raise RiskSummaryAccessError("Not authorized to access risk summary")
         if professional:
             if self.appointments is None or not self.appointments.has_shared_appointment(
-                patient_id, current_user.id
+                profile.user_id, current_user.id
             ):
                 raise RiskSummaryAccessError("No shared appointment with this patient")
             if not profile.share_health_data:
