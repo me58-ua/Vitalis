@@ -13,6 +13,7 @@ from app.api.deps import (
     get_prescription_repository,
     get_profile_repository,
     get_notification_service,
+    get_health_document_repository,
 )
 from app.models import Allergy, ChronicCondition, HabitLog, HabitType, Medication, User
 from app.repositories.appointment_repository import AppointmentRepository
@@ -30,6 +31,7 @@ from app.models import AuditAction
 from app.services.audit_service import AuditService
 from app.services.habit_units import normalize_habit_value
 from app.repositories.family_history_repository import FamilyHistoryRepository
+from app.repositories.health_document_repository import HealthDocumentRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.services.family_history_service import FamilyHistoryNotFoundError, FamilyHistoryService
@@ -46,6 +48,7 @@ Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repos
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 FamilyHistory = Annotated[FamilyHistoryRepository, Depends(get_family_history_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
+HealthDocuments = Annotated[HealthDocumentRepository, Depends(get_health_document_repository)]
 
 
 def _risk_service(db, notifications=None):
@@ -201,8 +204,14 @@ def skip_onboarding(current_user: CurrentPatient, profiles: Profiles):
 @router.post("/onboarding/resume", response_model=OnboardingSkipResponse)
 def resume_onboarding(current_user: CurrentPatient, profiles: Profiles):
     profile = _profile(current_user, profiles)
+    resumed, next_question, last_question, pending_family = PatientHealthService(
+        profiles
+    ).resume_state(profile)
     return OnboardingSkipResponse(
-        onboarding_completed=PatientHealthService(profiles).resume(profile)
+        onboarding_completed=not resumed,
+        next_question_code=next_question,
+        last_question_id=last_question,
+        family_history_confirmation_pending=pending_family,
     )
 
 
@@ -214,9 +223,10 @@ def patient_health_snapshot(
     appointments: Appointments,
     prescriptions: Prescriptions,
     audits: Audits,
+    documents: HealthDocuments,
 ):
     if not appointments.has_shared_appointment(patient_id, current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NO_SHARED_APPOINTMENT")
-    return PatientHealthService(profiles, appointments, prescriptions, audits).snapshot_by_user_id(
-        patient_id, current_user.id
-    )
+    return PatientHealthService(
+        profiles, appointments, prescriptions, audits, health_documents=documents
+    ).snapshot_by_user_id(patient_id, current_user.id)

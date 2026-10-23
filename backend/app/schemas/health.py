@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.family_history import HereditaryConditions, FamilyRelationship
 from app.models.health import AllergySeverity, HabitType
+from app.schemas.health_documents import HealthDocumentResponse
 
 
 class HealthRecordBase(BaseModel):
@@ -132,6 +133,7 @@ class HealthSnapshot(BaseModel):
     habit_logs: list[HabitLogResponse] = []
     alcohol_logs: list[AlcoholLogResponse] = []
     family_history_entries: list[FamilyHistoryResponse] = []
+    health_documents: list[HealthDocumentResponse] = []
     appointments: list[AppointmentHistoryResponse] = []
     clinical_notes: list[ClinicalNoteHistoryResponse] = []
     prescriptions: list[PrescriptionHistoryResponse] = []
@@ -169,3 +171,6 @@ class OnboardingMessageResponse(BaseModel):
 
 class OnboardingSkipResponse(BaseModel):
     onboarding_completed: bool
+    next_question_code: str | None = None
+    last_question_id: str | None = None
+    family_history_confirmation_pending: bool = False

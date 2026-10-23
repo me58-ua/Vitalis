@@ -41,6 +41,7 @@ class PatientHealthService:
         llm_client=None,
         risk_service=None,
         family_history_service=None,
+        health_documents=None,
     ):
         self.profiles = profiles
         self.appointments = appointments
@@ -49,12 +50,16 @@ class PatientHealthService:
         self.llm_client = llm_client
         self.risk_service = risk_service
         self.family_history_service = family_history_service
+        self.health_documents = health_documents
 
     def snapshot(self, profile, professional_id=None):
         if self.appointments is None or self.prescriptions is None or professional_id is None:
             if not profile.share_health_data:
                 return {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
-            return {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+            result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+            if self.health_documents is not None:
+                result["health_documents"] = self.health_documents.list_for_patient(profile.id)
+            return result
 
         if not self.appointments.has_shared_appointment(profile.user_id, professional_id):
             raise PatientHistoryAccessError("No shared appointment with this patient")
@@ -74,6 +79,8 @@ class PatientHealthService:
                 if hasattr(self.profiles, "list_alcohol_logs") else [],
                 "family_history_entries": records.get("family_history_entries", []),
             }
+            if self.health_documents is not None:
+                result["health_documents"] = self.health_documents.list_for_patient(profile.id)
             self.audit.record(
                 professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
                 "alcohol_log", profile.id, profile.id,
@@ -220,13 +227,31 @@ class PatientHealthService:
         return True
 
     def resume(self, profile) -> bool:
+        resumed, _, _, _ = self.resume_state(profile)
+        return resumed
+
+    def resume_state(self, profile) -> tuple[bool, str | None, str | None, bool]:
         if getattr(profile, "ai_processing_consent", False) is False:
             profile.onboarding_completed = True
             self.profiles.session.flush()
-            return False
+            return False, "AI_CONSENT_REQUIRED", None, False
         profile.onboarding_completed = False
         self.profiles.session.flush()
-        return True
+        state = getattr(profile, "onboarding_state", {}) or {}
+        last_question_id = state.get("last_question_id")
+        pending_family = isinstance(state.get("family_history"), dict) and state["family_history"].get("status") == "entries"
+        if pending_family:
+            next_question = "family_history_confirmation"
+        elif last_question_id in PREGUNTAS:
+            next_question = self._next_question(
+                last_question_id,
+                PREGUNTAS[last_question_id].block,
+                False,
+                state.get("audit_c", {}),
+            )
+        else:
+            next_question = "allergies"
+        return True, next_question, last_question_id, pending_family
 
     def _extract(self, message: str, block: str):
         if block == "antecedentes_familiares":

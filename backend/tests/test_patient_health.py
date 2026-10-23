@@ -109,6 +109,80 @@ class PatientHealthTests(unittest.TestCase):
         self.assertTrue(service.resume(profile))
         self.assertFalse(profile.onboarding_completed)
 
+    def test_resume_exposes_persisted_question_and_pending_family_confirmation(self):
+        profile = SimpleNamespace(
+            id=uuid.uuid4(),
+            onboarding_completed=True,
+            ai_processing_consent=True,
+            onboarding_state={
+                "last_question_id": "family_history",
+                "family_history": {"status": "entries", "entries": []},
+            },
+        )
+        resumed, next_question, last_question, pending = PatientHealthService(
+            FakeProfiles(profile)
+        ).resume_state(profile)
+
+        self.assertTrue(resumed)
+        self.assertEqual(next_question, "family_history_confirmation")
+        self.assertEqual(last_question, "family_history")
+        self.assertTrue(pending)
+
+    def test_audit_c_answers_persist_until_complete(self):
+        profile = SimpleNamespace(
+            id=uuid.uuid4(), onboarding_completed=False, ai_processing_consent=True
+        )
+        repository = FakeProfiles(profile)
+        service = PatientHealthService(repository)
+        service._extract = Mock(
+            side_effect=[
+                {"frequency": 2},
+                {"quantity": 1},
+                {"binge": 0},
+            ]
+        )
+
+        service.save_onboarding_message(profile, "alcohol", "dos", "auditc_frequency")
+        service.save_onboarding_message(profile, "alcohol", "uno", "auditc_quantity")
+        _, saved, _ = service.save_onboarding_message(
+            profile, "alcohol", "nunca", "auditc_binge"
+        )
+
+        self.assertTrue(saved)
+        self.assertEqual(len(repository.records), 1)
+        self.assertEqual(repository.records[0].frequency, 2)
+        self.assertNotIn("audit_c", profile.onboarding_state)
+
+    def test_family_history_confirmation_persists_only_after_confirmation(self):
+        profile = SimpleNamespace(
+            id=uuid.uuid4(),
+            onboarding_state={
+                "family_history": {
+                    "status": "entries",
+                    "entries": [
+                        {
+                            "relationship": "madre",
+                            "category": "diabetes",
+                            "detail": None,
+                            "age": 60,
+                        }
+                    ],
+                }
+            },
+            family_history_reviewed=False,
+        )
+        repository = FakeProfiles(profile)
+        family_service = Mock()
+
+        confirmed = PatientHealthService(
+            repository, family_history_service=family_service
+        ).confirm_family_history(profile, SimpleNamespace(), True)
+
+        self.assertTrue(confirmed)
+        self.assertTrue(profile.family_history_reviewed)
+        family_service.create_from_onboarding.assert_called_once()
+        self.assertNotIn("family_history", profile.onboarding_state)
+
     def test_onboarding_completes_after_habits_block(self):
         profile = SimpleNamespace(id=uuid.uuid4(), onboarding_completed=False)
         repository = FakeProfiles(profile)
@@ -131,15 +205,19 @@ class PatientHealthTests(unittest.TestCase):
         )
         appointments = FakeHistoryAppointments(["appointment"], ["note"])
         prescriptions = FakeHistoryPrescriptions(["prescription"])
+        documents = Mock()
+        documents.list_for_patient.return_value = ["document"]
 
-        result = PatientHealthService(repository, appointments, prescriptions).snapshot_by_user_id(
-            patient_user_id, professional_user_id
-        )
+        result = PatientHealthService(
+            repository, appointments, prescriptions, health_documents=documents
+        ).snapshot_by_user_id(patient_user_id, professional_user_id)
 
         self.assertTrue(result["consent_shared"])
         self.assertEqual(result["appointments"], ["appointment"])
         self.assertEqual(result["clinical_notes"], ["note"])
         self.assertEqual(result["prescriptions"], ["prescription"])
+        self.assertEqual(result["health_documents"], ["document"])
+        documents.list_for_patient.assert_called_once_with(profile.id)
         self.assertEqual(appointments.calls[0][1:], (patient_user_id, professional_user_id))
         self.assertEqual(
             prescriptions.calls[0], (profile.id, repository.professional_profile.id)
@@ -164,6 +242,7 @@ class PatientHealthTests(unittest.TestCase):
         self.assertEqual(result["clinical_notes"], ["note"])
         self.assertEqual(result["prescriptions"], ["prescription"])
         self.assertNotIn("allergies", result)
+        self.assertNotIn("health_documents", result)
 
     def test_professional_without_shared_appointment_cannot_access_history(self):
         patient_user_id = uuid.uuid4()
