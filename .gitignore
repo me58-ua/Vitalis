@@ -179,6 +179,10 @@ docker-compose.local.yml
 
 # Frontend dependencies and build output
 node_modules/
+.eslintcache
+/frontend/openapi.json
+/frontend/test-results/
+/frontend/playwright-report/
 .next/
 .vite/
 *.tsbuildinfo
