@@ -133,6 +133,16 @@ h3 { font-size: 24px; line-height: 1.33; font-weight: 600; margin-bottom: 12px; 
 .modal-heading h2 { font-size: 25px; margin-bottom: 0; }
 .muted { color: var(--muted); line-height: 1.6; margin-block: 20px; font-size: 14px; }
 .form-grid { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; min-width: 0; }
+.form-grid[hidden] { display: none; }
+.registration-step { background: #b0f0d6; color: #003527; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+.form-grid h3 { margin: 12px 0 0; font-size: 20px; }
+.registration-roles { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; }
+.registration-roles legend { margin-bottom: 12px; font-size: 14px; }
+.registration-roles label { display: block; border: 1px solid #d9e3f6; border-radius: 10px; padding: 16px; cursor: pointer; }
+.registration-roles label:has(input:checked) { background: #eff4ff; border-color: #006c49; }
+.registration-roles input { width: auto; margin-right: 8px; }
+.registration-roles span { display: block; font-size: 12px; font-weight: 400; margin-top: 8px; line-height: 1.5; }
+@media (max-width: 420px) { .registration-roles { grid-template-columns: 1fr; } }
 .full { grid-column: 1 / -1; }
 label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 500; min-width: 0; }
 input, textarea { border: 1px solid #bac8bf; border-radius: 10px; background: #fff; color: #121c2a; padding: 12px; min-width: 0; width: 100%; }

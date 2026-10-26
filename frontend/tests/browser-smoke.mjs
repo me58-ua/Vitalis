@@ -129,8 +129,11 @@ try {
   await until(`document.querySelector('dialog') === null`);
   results.push({ check: 'native dialog focus and Escape' });
   await click('.hero-actions .secondary');
+  await until(`document.querySelector('[name="confirm_password"]') !== null`);
+  for (const [name, value] of Object.entries({ name: 'Registro sintético', dni: 'TEST-12345', username: 'test_professional', email: 'professional@example.invalid', tel: '000000000', birth_date: '1980-01-01', password: 'TestPassword!', confirm_password: 'TestPassword!' })) await fill(name, value);
+  await click('button[type="submit"]');
   await until(`document.querySelector('[name="specialty"]') !== null`);
-  for (const [name, value] of Object.entries({ name: 'Registro sintético', dni: 'TEST-12345', username: 'test_professional', email: 'professional@example.invalid', tel: '000000000', birth_date: '1980-01-01', password: 'TestPassword!', specialty: 'Pruebas', license_number: 'TEST-COL', bio: 'Cuenta exclusiva de pruebas', practice_address: 'Dirección sintética', practice_phone: '000000000', duration: '30' })) await fill(name, value);
+  for (const [name, value] of Object.entries({ specialty: 'Pruebas', license_number: 'TEST-COL', bio: 'Cuenta exclusiva de pruebas', practice_address: 'Test address', practice_phone: '000000000', duration: '30' })) await fill(name, value);
   await click('[name="terms_accepted"]');
   await click('button[type="submit"]');
   await until(`document.querySelector('.success-state') !== null`);
@@ -143,6 +146,12 @@ try {
   await until(`location.pathname === '/login' && !document.querySelector('dialog')`);
   results.push({ check: 'login mobile geometry and local icons', assets: await checkGeometry() });
   await screenshot('login-mobile');
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('a,button')).filter(el => el.textContent.includes('Crear cuenta')).length`), 1);
+  await click('.login-registration button');
+  await until(`document.querySelector('dialog[open]') !== null`);
+  await click('[name="role"][value="professional"]');
+  assert.equal(await evaluate(`document.querySelector('[name="role"]:checked').value`), 'professional');
+  await click('dialog .modal-heading button');
   await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 960, deviceScaleFactor: 1, mobile: false });
   results.push({ check: 'login desktop geometry and local icons', assets: await checkGeometry() });
   await screenshot('login-desktop');

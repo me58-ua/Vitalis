@@ -24,7 +24,7 @@ export function PublicLayout() {
               {logoutError && <p role="alert" className="error-state">{logoutError}</p>}
               <button className="text-button" disabled={busy} onClick={() => { void logout(); }}>{busy ? 'Cerrando sesión…' : 'Cerrar todas las sesiones'}</button></div>
           </details>
-        </> : <Link className="button header-login" to={isLogin ? '/?acceso=patient' : '/login'}>{isLogin ? 'Crear cuenta' : 'Iniciar sesión'}</Link>}
+        </> : !isLogin && <Link className="button header-login" to="/login">Iniciar sesión</Link>}
       </div>
     </div></header>
     <Outlet />

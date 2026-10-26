@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { destination } from '../auth/destination';
+import { AuthDialog } from '../auth/AuthDialog';
 import { apiConfigured } from '../api/client';
 import { errorMessage } from '../api/errors';
 import identifierIcon from '../assets/figma/login/identifier.svg';
@@ -17,6 +18,7 @@ export function LoginPage() {
   const [visible, setVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [registerOpen, setRegisterOpen] = useState(false);
   const locked = useRef(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
   if (user) return <Navigate to={destination(user.role)} replace />;
@@ -65,9 +67,10 @@ export function LoginPage() {
           {error && <p ref={errorRef} tabIndex={-1} className="error-state" role="alert">{error}</p>}
         </form>
         <p className="login-recovery-note">La recuperación de contraseña todavía no está disponible en esta aplicación.</p>
-        <div className="login-registration"><p><img src={registerIcon} alt="" />¿Aún no tienes cuenta?</p><Link to="/?acceso=patient">Crear cuenta de paciente →</Link><Link to="/?acceso=professional">Crear cuenta de profesional →</Link></div>
+        <div className="login-registration"><p><img src={registerIcon} alt="" />¿Aún no tienes cuenta?</p><button className="text-button" onClick={() => setRegisterOpen(true)}>Crear cuenta →</button></div>
         <Link className="login-back" to="/">Volver al inicio</Link>
       </section>
     </div>
+    {registerOpen && <AuthDialog mode="patient" onClose={() => setRegisterOpen(false)} onModeChange={() => { setRegisterOpen(false); }} />}
   </main>;
 }
