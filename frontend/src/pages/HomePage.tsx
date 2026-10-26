@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { AuthDialog, type AuthMode } from '../auth/AuthDialog';
 import { useAuth } from '../auth/AuthContext';
 import { BenefitCards } from '../components/BenefitCards';
@@ -22,6 +22,7 @@ export function HomePage() {
     if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
   }, [location.hash]);
   function open(mode: AuthMode) { setParams({ acceso: mode }); }
+  if (mode === 'login') return <Navigate to="/login" replace />;
   return <main id="contenido">
     <section className="hero section-container" aria-labelledby="hero-heading">
       <div className="hero-copy"><span className="eyebrow"><span />SALUD Y ATENCIÓN CONECTADAS</span>

@@ -100,7 +100,7 @@ try {
     const roots = await evaluate(`Array.from(document.images).filter(img => img.getClientRects().length && img.currentSrc.endsWith('.svg')).map(img => ({ src: img.currentSrc, width: img.getBoundingClientRect().width, height: img.getBoundingClientRect().height }))`);
     for (const asset of roots) {
       const file = new URL(asset.src).pathname.split('/').at(-1);
-      const svg = await readFile(path.join(root, 'src/assets/figma', file), 'utf8');
+      const svg = await readFile(path.join(root, new URL(asset.src).pathname.slice(1)), 'utf8');
       assert.ok(Math.abs(Number(svg.match(/width="([\d.]+)"/)[1]) - asset.width) < 1, `SVG width: ${file}`);
       assert.ok(Math.abs(Number(svg.match(/height="([\d.]+)"/)[1]) - asset.height) < 1, `SVG height: ${file}`);
     }
@@ -140,12 +140,27 @@ try {
   results.push({ check: 'professional registration schema and approval notice' });
   await click('.success-state button');
   await until(`document.querySelector('[name="identifier"]') !== null`);
+  await until(`location.pathname === '/login' && !document.querySelector('dialog')`);
+  results.push({ check: 'login mobile geometry and local icons', assets: await checkGeometry() });
+  await screenshot('login-mobile');
+  await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 960, deviceScaleFactor: 1, mobile: false });
+  results.push({ check: 'login desktop geometry and local icons', assets: await checkGeometry() });
+  await screenshot('login-desktop');
+  const beforeEmpty = fixture.state.logins;
+  await click('button[type="submit"]');
+  assert.equal(fixture.state.logins, beforeEmpty);
   await fill('identifier', 'test_user'); await fill('password', 'incorrect');
+  await click('.login-visibility');
+  assert.equal(await evaluate(`document.querySelector('[name="password"]').type`), 'text');
+  await click('.login-visibility');
   await click('button[type="submit"]');
   await until(`document.querySelector('form [role="alert"]') !== null`);
   await fill('password', 'TestPassword!');
   await click('button[type="submit"]');
-  await until(`document.querySelector('.signed-in-state') !== null && !document.querySelector('dialog')`);
+  await until(`location.pathname === '/patientPanel' && document.querySelector('main h1')?.textContent === 'Página de paciente'`);
+  results.push({ check: 'patient login redirects to patientPanel' });
+  await click('.brand');
+  await until(`document.querySelector('.signed-in-state') !== null`);
   results.push({ check: 'authenticated header geometry and local icons', assets: await checkGeometry() });
   await click('.notifications > button');
   await until(`document.querySelector('.notification-list li') !== null`);
@@ -196,6 +211,23 @@ try {
   assert.equal(await evaluate(`document.body.textContent.includes('Cuenta de pruebas')`), false);
   assert.equal(fixture.state.logouts, 1);
   results.push({ check: 'server logout error, retry and clearing account data after success' });
+  fixture.account.role = 'professional';
+  await click('.header-login');
+  await until(`location.pathname === '/login'`);
+  await fill('identifier', 'test_user'); await fill('password', 'TestPassword!');
+  await click('button[type="submit"]');
+  await until(`location.pathname === '/professionalDashboard' && document.querySelector('main h1')?.textContent === 'Página de profesional'`);
+  // Exercise SPA navigation without losing the in-memory session.
+  await evaluate(`history.pushState(null, '', '/patientPanel'); window.dispatchEvent(new PopStateEvent('popstate'))`);
+  await until(`location.pathname === '/professionalDashboard'`);
+  assert.equal(await evaluate(`document.querySelector('main h1').textContent`), 'Página de profesional');
+  await evaluate(`history.pushState(null, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate'))`);
+  await until(`location.pathname === '/professionalDashboard'`);
+  await command('Page.reload');
+  await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
+  await command('Page.navigate', { url: 'http://localhost:3000/patientPanel' });
+  await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
+  results.push({ check: 'professional destination, role guard, authenticated login redirect and reload session clearing' });
   assert.deepEqual(runtimeErrors, []);
   await writeFile(path.join(output, 'browser-report.json'), JSON.stringify({ results, runtimeErrors }, null, 2));
   console.log(JSON.stringify({ passed: results.length, results, runtimeErrors }, null, 2));

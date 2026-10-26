@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useRef, useState, type FormEvent } from 'react';
 import { useAuth } from './AuthContext';
 import { register } from '../api/auth';
@@ -12,6 +13,7 @@ export function AuthDialog({ mode, onClose, onModeChange }: {
   mode: AuthMode; onClose: () => void; onModeChange: (mode: AuthMode) => void;
 }) {
   const { signIn } = useAuth();
+  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const locked = useRef(false);
   const [error, setError] = useState('');
@@ -56,7 +58,7 @@ export function AuthDialog({ mode, onClose, onModeChange }: {
 
   return <Modal title={title} onClose={onClose} busy={submitting}>
     {success ? <div className="success-state" role="status"><p>{success}</p>
-      <button className="button primary" onClick={() => onModeChange('login')}>Ir a iniciar sesión</button></div>
+      <button className="button primary" onClick={() => navigate('/login')}>Ir a iniciar sesión</button></div>
       : <>
         <p className="muted">{isLogin ? 'Accede con tu correo electrónico o nombre de usuario.' : 'Los campos marcados con * son obligatorios.'}</p>
         {!apiConfigured && <p className="error-state" role="alert">La conexión con el servidor no está configurada. Consulta la guía de instalación.</p>}
@@ -91,7 +93,7 @@ export function AuthDialog({ mode, onClose, onModeChange }: {
           {isLogin && <p className="field-help">La sesión se conserva mientras esta página permanezca abierta. Al recargar tendrás que volver a identificarte.</p>}
         </form>
         <div className="dialog-footer">{isLogin ? <button className="text-button" disabled={submitting} onClick={() => onModeChange('patient')}>¿No tienes cuenta? Regístrate</button>
-          : <button className="text-button" disabled={submitting} onClick={() => onModeChange('login')}>Ya tengo una cuenta</button>}</div>
+          : <button className="text-button" disabled={submitting} onClick={() => navigate('/login')}>Ya tengo una cuenta</button>}</div>
       </>}
   </Modal>;
 }

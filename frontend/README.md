@@ -47,7 +47,18 @@ Las pruebas HTTP usan únicamente fixtures dentro de `tests/`, nunca como fallba
 5. Probar credenciales incorrectas, desconexión del backend y «Reintentar». Un 403 no debe convertirse en una renovación de sesión.
 6. Abrir «Buscar documentos médicos», buscar una descripción o tipo (`informe`, `analitica`, `otro`) y descargar un resultado. Se admiten filtros por tipo y paginación. Solo se consultan documentos permitidos para la cuenta; no se busca dentro de PDFs o imágenes. Un usuario sin documentos verá un estado vacío.
 7. Pulsar «Cerrar todas las sesiones» y comprobar que desaparecen nombre, documentos y notificaciones. Los access/refresh tokens anteriores deben quedar invalidados en el backend. Recargar solo elimina el acceso local, no sustituye al logout del servidor.
-7. Si se prueba el registro, hacerlo solo en un entorno de desarrollo autorizado. Las cuentas profesionales necesitan aprobación del administrador.
-8. Revisar a 375 px de ancho, navegar con Tab, abrir/cerrar diálogos con Escape y comprobar que no hay desbordamiento horizontal.
+8. Si se prueba el registro, hacerlo solo en un entorno de desarrollo autorizado. Las cuentas profesionales necesitan aprobación del administrador.
+9. Revisar a 375 px de ancho, navegar con Tab, abrir/cerrar diálogos con Escape y comprobar que no hay desbordamiento horizontal.
 
 No se afirma que exista integración validada con usuarios reales hasta realizar estos pasos. La búsqueda se limita a documentos; la reserva, las consultas y la búsqueda dentro del contenido de archivos pertenecen a tareas futuras. El contrato ampliado está documentado en `../backend/docs/homepage-contract.md`.
+
+
+## LoginPage y destinos por rol
+
+La ruta `/login` implementa el frame Figma `15:2`, adaptado al contrato real. Envía formulario URL-encoded a `POST /auth/login` y obtiene la cuenta mediante `GET /auth/me`. Se conservan Axios, los tipos OpenAPI y los tokens en memoria existentes; no se añaden dependencias ni cambios de backend.
+
+Después del acceso, `patient` navega a `/patientPanel` («Página de paciente») y `professional` a `/professionalDashboard` («Página de profesional»). Son pantallas provisionales sin datos clínicos. `admin` vuelve a `/`. Las rutas de panel requieren sesión y el rol correspondiente. Recargar elimina la sesión local y vuelve a `/login`.
+
+Para probar: iniciar backend y Vite, abrir `http://localhost:3000/login` e introducir una cuenta real de paciente; comprobar `/patientPanel`. Cerrar todas las sesiones y repetir con un profesional activo/aprobado; comprobar `/professionalDashboard`. Probar credenciales incorrectas, campos vacíos, mostrar/ocultar contraseña, backend desconectado y anchos de 375 y 1280 px. Intentar el panel del otro rol y recargar para comprobar las redirecciones.
+
+Los registros siguen disponibles desde la portada. La recuperación completa de contraseña aún no tiene pantalla; LoginPage informa de ello. No se muestran acceso social, recuerdo de dispositivo ni afirmaciones de certificación o precisión clínica. Las pruebas de navegador usan fixtures sintéticos y no acreditan integración con cuentas reales.
