@@ -18,6 +18,8 @@ class UserRegisterRequest(BaseModel):
     gender: str | None = Field(default=None, max_length=50)
     address: str | None = Field(default=None, max_length=255)
     blood_type: str | None = Field(default=None, max_length=10)
+    height_cm: float | None = Field(default=None, ge=100, le=250, allow_inf_nan=False)
+    weight_kg: float | None = Field(default=None, ge=25, le=400, allow_inf_nan=False)
     timezone: str = Field(default="Europe/Madrid", max_length=50)
     specialty: str | None = Field(default=None, max_length=150)
     bio: str | None = Field(default=None, max_length=500)

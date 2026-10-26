@@ -70,6 +70,9 @@ class AuthService:
         )
         if data.role == UserRole.PATIENT:
             user.patient_profile = PatientProfile(
+                birth_date=data.birth_date,
+                height_cm=data.height_cm,
+                weight_kg=data.weight_kg,
                 address=data.address,
                 blood_type=data.blood_type,
                 timezone=data.timezone,

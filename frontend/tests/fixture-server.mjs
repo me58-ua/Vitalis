@@ -1,7 +1,7 @@
 // Synthetic fixtures are restricted to test code. Never imported by src/.
 import http from 'node:http';
 
-export async function fixtureServer() {
+export async function fixtureServer(origin = 'http://localhost:3000') {
   const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0, logouts: 0, failLogout: false, failSearch: false, searchEmpty: false, downloads: 0 };
   const account = {
     id: '00000000-0000-4000-8000-000000000001', name: 'Cuenta de pruebas', dni: 'TEST-0001',
@@ -13,7 +13,7 @@ export async function fixtureServer() {
     entity: null, entity_id: null, scheduled_for: null, read_at: null, email_required: false, email_status: 'not_required', created_at: '2026-10-25T09:00:00Z',
   };
   const server = http.createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }

@@ -3038,6 +3038,10 @@ export interface components {
             address?: string | null;
             /** Blood Type */
             blood_type?: string | null;
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Weight Kg */
+            weight_kg?: number | null;
             /**
              * Timezone
              * @default Europe/Madrid

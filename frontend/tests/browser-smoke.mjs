@@ -11,11 +11,13 @@ import { fixtureServer } from './fixture-server.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'test-results');
 await mkdir(output, { recursive: true });
-const fixture = await fixtureServer();
+const testPort = Number(process.env.VITALIS_TEST_PORT || 3000);
+const testOrigin = `http://localhost:${testPort}`;
+const fixture = await fixtureServer(testOrigin);
 const vite = await createServer({
   root, configFile: path.join(root, 'vite.config.ts'),
   define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(fixture.url) },
-  server: { host: 'localhost', port: 3000, strictPort: true },
+  server: { host: 'localhost', port: testPort, strictPort: true },
 });
 let browser;
 let socket;
@@ -79,7 +81,7 @@ try {
   }
   async function fill(name, value) {
     await evaluate(`(() => {
-      const input = document.querySelector('[name="${name}"]');
+      const input = (document.querySelector('dialog[open]') || document).querySelector('[name="${name}"]');
       Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value').set.call(input, ${JSON.stringify(value)});
       input.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
@@ -113,7 +115,7 @@ try {
   await mkdir(downloadPath, { recursive: true });
   await command('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath }, null);
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
-  await command('Page.navigate', { url: 'http://localhost:3000' });
+  await command('Page.navigate', { url: testOrigin });
   await until(`document.querySelector('.hero-photo') && Array.from(document.images).every(img => img.complete && img.naturalWidth > 0)`);
   results.push({ check: 'desktop geometry and local assets', assets: await checkGeometry() });
   await screenshot('homepage-desktop');
@@ -151,6 +153,32 @@ try {
   await until(`document.querySelector('dialog[open]') !== null`);
   await click('[name="role"][value="professional"]');
   assert.equal(await evaluate(`document.querySelector('[name="role"]:checked').value`), 'professional');
+  await click('[name="role"][value="patient"]');
+  for (const [name, value] of Object.entries({ name: 'Synthetic patient', dni: 'TEST-54321', username: 'test_patient', email: 'patient@example.invalid', tel: '000000000', birth_date: '1990-01-01', password: 'TestPassword!', confirm_password: 'TestPassword!' })) await fill(name, value);
+  await click('dialog button[type="submit"]');
+  await until(`document.querySelector('.patient-registration:not([hidden])') !== null`);
+  await fill('weight_kg', '68.2'); await fill('height_cm', '172.5');
+  await fill('address', 'Synthetic address');
+  await evaluate(`document.querySelector('select[name="timezone"]').value = 'Atlantic/Canary'`);
+  assert.equal(await evaluate(`document.querySelector('[name="weight_kg"]').compareDocumentPosition(document.querySelector('[name="timezone"]')) & Node.DOCUMENT_POSITION_FOLLOWING`), 4);
+  await fill('height_cm', '99');
+  assert.equal(await evaluate(`document.querySelector('[name="height_cm"]').checkValidity()`), false);
+  await fill('height_cm', '172.5');
+  await click('dialog button[type="button"].full');
+  await click('dialog button[type="submit"]');
+  assert.equal(await evaluate(`document.querySelector('[name="height_cm"]').value`), '172.5');
+  assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true);
+  await screenshot('patient-registration-mobile');
+  await click('dialog [name="terms_accepted"]');
+  await click('dialog button[type="submit"]');
+  await until(`document.querySelector('.success-state') !== null`);
+  assert.equal(fixture.state.registrations.length, 2);
+  assert.equal(fixture.state.registrations[1].role, 'patient');
+  assert.equal(fixture.state.registrations[1].weight_kg, 68.2);
+  assert.equal(fixture.state.registrations[1].height_cm, 172.5);
+  assert.equal(fixture.state.registrations[1].timezone, 'Atlantic/Canary');
+  assert.equal(fixture.state.registrations[1].address, 'Synthetic address');
+  results.push({ check: 'patient step 2 measurements, validation, back navigation and registration payload' });
   await click('dialog .modal-heading button');
   await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 960, deviceScaleFactor: 1, mobile: false });
   results.push({ check: 'login desktop geometry and local icons', assets: await checkGeometry() });
@@ -234,7 +262,7 @@ try {
   await until(`location.pathname === '/professionalDashboard'`);
   await command('Page.reload');
   await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
-  await command('Page.navigate', { url: 'http://localhost:3000/patientPanel' });
+  await command('Page.navigate', { url: `${testOrigin}/patientPanel` });
   await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
   results.push({ check: 'professional destination, role guard, authenticated login redirect and reload session clearing' });
   assert.deepEqual(runtimeErrors, []);

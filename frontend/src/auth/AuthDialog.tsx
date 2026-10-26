@@ -45,14 +45,19 @@ export function AuthDialog({ mode, onClose, onModeChange }: {
           role: professional ? 'professional' : 'patient',
           name: text('name'), dni: text('dni'), username: text('username'),
           email: text('email'), password: text('password'), tel: text('tel'),
-          birth_date: text('birth_date'), gender: text('gender') || null, timezone: 'Europe/Madrid', terms_accepted: form.has('terms_accepted'),
+          birth_date: text('birth_date'), gender: text('gender') || null,
+          timezone: professional ? 'Europe/Madrid' : text('timezone'), terms_accepted: form.has('terms_accepted'),
           ...(professional ? {
             specialty: text('specialty'), bio: text('bio'), practice_address: text('practice_address'),
             practice_phone: text('practice_phone'), license_number: text('license_number'),
             default_consultation_duration_minutes: Number(text('duration')),
             telehealth_enabled: form.has('telehealth_enabled'),
             is_accepting_new_patients: form.has('is_accepting_new_patients'),
-          } : {}),
+          } : {
+            address: text('address') || null,
+            weight_kg: text('weight_kg') === '' ? null : Number(text('weight_kg')),
+            height_cm: text('height_cm') === '' ? null : Number(text('height_cm')),
+          }),
         };
         await register(payload);
         setSuccess(professional
@@ -96,7 +101,15 @@ export function AuthDialog({ mode, onClose, onModeChange }: {
               </fieldset>
             </>}
             </div>
-            {!isLogin && step === 2 && !professional && <p className="full">Crearás una cuenta de paciente. Puedes volver para revisar tus datos antes de confirmar.</p>}
+            {!isLogin && <fieldset className="form-grid full patient-registration" hidden={step !== 2 || professional} disabled={step !== 2 || professional}>
+              <div className="full"><h3>Completa tu perfil</h3><p className="muted">Añade algunos detalles a tu perfil de paciente. Peso, altura y dirección son opcionales.</p></div>
+              <p className="registration-step full">Rol seleccionado: Paciente</p>
+              <label>Peso (kg)<input name="weight_kg" type="number" inputMode="decimal" min={25} max={400} step="any" aria-describedby="weight-help" /><span id="weight-help" className="field-help">Entre 25 y 400 kg.</span></label>
+              <label>Altura (cm)<input name="height_cm" type="number" inputMode="decimal" min={100} max={250} step="any" aria-describedby="height-help" /><span id="height-help" className="field-help">Entre 100 y 250 cm.</span></label>
+              <label className="full">Zona horaria<select name="timezone" defaultValue="Europe/Madrid" required><option value="Europe/Madrid">Europe/Madrid — España peninsular</option><option value="Atlantic/Canary">Atlantic/Canary — Islas Canarias</option><option value="UTC">UTC</option></select><span className="field-help">Se utiliza para mostrar las fechas y horas de tus citas.</span></label>
+              <label className="full">Dirección de residencia (opcional)<input name="address" autoComplete="street-address" maxLength={255} placeholder="Calle, número, ciudad, código postal" /></label>
+              <div className="registration-privacy full"><strong>Tu salud, mejor comprendida. Tus datos, protegidos.</strong><p>Conoce mejor tu salud e identifica posibles riesgos a partir de tu información y tus hábitos, con la tranquilidad de que tus datos se tratan de forma segura y confidencial.</p></div>
+            </fieldset>}
             {!isLogin && step === 2 && professional && <>
               <label>Especialidad *<input name="specialty" required maxLength={150} /></label>
               <label>Número de colegiación *<input name="license_number" required maxLength={50} /></label>

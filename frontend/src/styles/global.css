@@ -134,6 +134,9 @@ h3 { font-size: 24px; line-height: 1.33; font-weight: 600; margin-bottom: 12px; 
 .muted { color: var(--muted); line-height: 1.6; margin-block: 20px; font-size: 14px; }
 .form-grid { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; min-width: 0; }
 .form-grid[hidden] { display: none; }
+.registration-privacy { padding: 16px; background: #eff4ff; border-radius: 12px; font-size: 13px; line-height: 1.6; }
+.registration-privacy p { margin: 8px 0 0; }
+.patient-registration .field-help { display: block; margin-top: 6px; font-weight: 400; font-size: 12px; line-height: 1.5; }
 .registration-step { background: #b0f0d6; color: #003527; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
 .form-grid h3 { margin: 12px 0 0; font-size: 20px; }
 .registration-roles { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; }

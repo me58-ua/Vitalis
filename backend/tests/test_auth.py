@@ -97,6 +97,40 @@ class AuthTests(unittest.TestCase):
         self.assertIsNotNone(user.patient_profile)
         self.assertIsNone(user.patient_profile.address)
 
+    def test_registration_populates_patient_profile(self):
+        data = self.data.model_copy(update={
+            "height_cm": 172.5, "weight_kg": 68.2,
+            "address": "Synthetic test address", "timezone": "Atlantic/Canary",
+        })
+        user = self.service.register_user(data)
+        profile = user.patient_profile
+        self.assertEqual(profile.birth_date, data.birth_date)
+        self.assertEqual(profile.height_cm, 172.5)
+        self.assertEqual(profile.weight_kg, 68.2)
+        self.assertEqual(profile.address, data.address)
+        self.assertEqual(profile.timezone, "Atlantic/Canary")
+
+    def test_registration_measurements_are_optional_and_validated(self):
+        from pydantic import ValidationError
+
+        user = self.service.register_user(self.data)
+        self.assertIsNone(user.patient_profile.height_cm)
+        self.assertIsNone(user.patient_profile.weight_kg)
+        for field, values in {
+            "height_cm": [99, 251, float("nan"), float("inf")],
+            "weight_kg": [24, 401, float("nan"), float("inf")],
+        }.items():
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    with self.assertRaises(ValidationError):
+                        UserRegisterRequest.model_validate({**self.data.model_dump(), field: value})
+        for height, weight in [(100, 25), (250, 400)]:
+            data = UserRegisterRequest.model_validate({
+                **self.data.model_dump(), "height_cm": height, "weight_kg": weight,
+            })
+            self.assertEqual(data.height_cm, height)
+            self.assertEqual(data.weight_kg, weight)
+
     def test_registers_professional_as_inactive_with_professional_profile(self):
         data = UserRegisterRequest(
             role=UserRole.PROFESSIONAL,
