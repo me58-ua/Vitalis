@@ -325,7 +325,6 @@ class PatientHealthService:
             profile.height_cm = height
         if weight is not None:
             profile.weight_kg = weight
-        profile.body_measured_at = datetime.now(timezone.utc)
 
     def _save_alcohol(self, profile, payload):
         frequency = payload.get("frequency")

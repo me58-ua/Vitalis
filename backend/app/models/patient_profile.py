@@ -34,7 +34,6 @@ class PatientProfile(Base):
     sex_at_birth: Mapped[str | None] = mapped_column(String(30), nullable=True)
     height_cm: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     weight_kg: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
-    body_measured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     family_history_reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     onboarding_state: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
 

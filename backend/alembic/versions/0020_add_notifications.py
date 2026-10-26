@@ -21,6 +21,7 @@ def upgrade() -> None:
     email_status = postgresql.ENUM(
         "pendiente", "enviada", "fallida", "no_aplica",
         name="notification_email_status",
+        create_type=False,
     )
     email_status.create(op.get_bind(), checkfirst=True)
     op.create_table(

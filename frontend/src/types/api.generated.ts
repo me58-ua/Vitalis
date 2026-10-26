@@ -2367,8 +2367,6 @@ export interface components {
             height_cm?: number | null;
             /** Weight Kg */
             weight_kg?: number | null;
-            /** Body Measured At */
-            body_measured_at?: string | null;
             /**
              * Family History Reviewed
              * @default false
@@ -2438,8 +2436,6 @@ export interface components {
             height_cm?: number | null;
             /** Weight Kg */
             weight_kg?: number | null;
-            /** Body Measured At */
-            body_measured_at?: string | null;
         };
         /** PatientSummaryResponse */
         PatientSummaryResponse: {

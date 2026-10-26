@@ -36,7 +36,6 @@ class PrivacyRepository:
         profile.sex_at_birth = None
         profile.height_cm = None
         profile.weight_kg = None
-        profile.body_measured_at = None
         profile.family_history_reviewed = False
         self.session.flush()
 
