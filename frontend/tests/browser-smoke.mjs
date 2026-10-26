@@ -78,13 +78,17 @@ try {
     await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   }
   async function fill(name, value) {
-    await evaluate(`document.querySelector('[name="${name}"]').value = ${JSON.stringify(value)}`);
+    await evaluate(`(() => {
+      const input = document.querySelector('[name="${name}"]');
+      Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value').set.call(input, ${JSON.stringify(value)});
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
   }
-  async function screenshot(name) {
+  async function screenshot(name, full = true) {
     const { cssContentSize } = await command('Page.getLayoutMetrics');
     const shot = await command('Page.captureScreenshot', {
       format: 'png', captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width: cssContentSize.width, height: cssContentSize.height, scale: 1 },
+      ...(full ? { clip: { x: 0, y: 0, width: cssContentSize.width, height: cssContentSize.height, scale: 1 } } : {}),
     });
     await writeFile(path.join(output, `${name}.png`), Buffer.from(shot.data, 'base64'));
   }
@@ -105,6 +109,9 @@ try {
   const { targetId } = await command('Target.createTarget', { url: 'about:blank' }, null);
   targetSession = (await command('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
   await command('Page.enable'); await command('Runtime.enable');
+  const downloadPath = path.join(output, 'downloads');
+  await mkdir(downloadPath, { recursive: true });
+  await command('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath }, null);
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
   await command('Page.navigate', { url: 'http://localhost:3000' });
   await until(`document.querySelector('.hero-photo') && Array.from(document.images).every(img => img.complete && img.naturalWidth > 0)`);
@@ -156,10 +163,39 @@ try {
   await click('.notification-panel [role="alert"] button');
   await until(`!document.querySelector('.notification-panel [role="alert"]') && document.querySelector('.notification-panel').textContent.includes('No tienes notificaciones.')`);
   results.push({ check: 'notification empty, error and retry states' });
+  await click('.notification-panel .icon-button');
+  await click('.search-trigger');
+  await until(`document.querySelector('[name="q"]') !== null`);
+  await fill('q', 'informe');
+  await click('.document-search-form button');
+  await until(`document.querySelector('.document-results li') !== null`);
+  await screenshot('document-search-mobile', false);
+  await click('.document-results .text-button');
+  await until(`document.querySelector('.document-results .text-button').textContent === 'Descargar'`);
+  assert.equal(fixture.state.downloads, 1);
+  assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true);
+  fixture.state.searchEmpty = true;
+  await click('.document-search-form button');
+  await until(`document.querySelector('dialog').textContent.includes('No se han encontrado documentos.')`);
+  fixture.state.failSearch = true;
+  await click('.document-search-form button');
+  await until(`document.querySelector('dialog [role="alert"]') !== null`);
+  fixture.state.failSearch = false;
+  await click('dialog [role="alert"] button');
+  await until(`!document.querySelector('dialog [role="alert"]') && document.querySelector('dialog').textContent.includes('No se han encontrado documentos.')`);
+  await click('dialog .modal-heading button');
+  results.push({ check: 'document search, authenticated download, empty, error, retry and mobile layout' });
+  fixture.state.failLogout = true;
   await click('.account-menu summary'); await click('.account-panel button');
+  await until(`document.querySelector('.account-panel [role="alert"]') !== null`);
+  assert.equal(fixture.state.logouts, 0);
+  assert.ok(await evaluate(`document.querySelector('.signed-in-state') !== null`));
+  fixture.state.failLogout = false;
+  await click('.account-panel button');
   await until(`document.querySelector('.signed-in-state') === null && document.querySelector('.notifications') === null`);
   assert.equal(await evaluate(`document.body.textContent.includes('Cuenta de pruebas')`), false);
-  results.push({ check: 'local logout removes account and notifications' });
+  assert.equal(fixture.state.logouts, 1);
+  results.push({ check: 'server logout error, retry and clearing account data after success' });
   assert.deepEqual(runtimeErrors, []);
   await writeFile(path.join(output, 'browser-report.json'), JSON.stringify({ results, runtimeErrors }, null, 2));
   console.log(JSON.stringify({ passed: results.length, results, runtimeErrors }, null, 2));

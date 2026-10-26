@@ -106,6 +106,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Close all account sessions, invalidating access and refresh tokens.
+         */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;
@@ -903,6 +923,26 @@ export interface paths {
         };
         /** List Professional Prescriptions */
         get: operations["list_professional_prescriptions_professionals__professional_id__prescriptions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/documents/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Health Documents
+         * @description Search document descriptions/types; never file contents or storage paths.
+         */
+        get: operations["search_health_documents_health_documents_search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2079,6 +2119,38 @@ export interface components {
              */
             fecha_subida: string;
         };
+        /** HealthDocumentSearchItem */
+        HealthDocumentSearchItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Patient User Id
+             * Format: uuid
+             */
+            patient_user_id: string;
+            tipo: components["schemas"]["HealthDocumentType"];
+            /** Descripcion */
+            descripcion: string | null;
+            /**
+             * Fecha Subida
+             * Format: date-time
+             */
+            fecha_subida: string;
+        };
+        /** HealthDocumentSearchResponse */
+        HealthDocumentSearchResponse: {
+            /** Documents */
+            documents: components["schemas"]["HealthDocumentSearchItem"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /**
          * HealthDocumentType
          * @enum {string}
@@ -3254,6 +3326,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
                 };
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4932,6 +5022,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PrescriptionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_health_documents_health_documents_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                tipo?: components["schemas"]["HealthDocumentType"] | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthDocumentSearchResponse"];
                 };
             };
             /** @description Validation Error */

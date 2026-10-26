@@ -128,6 +128,10 @@ class AuthService:
     def issue_access_token(self, user: User) -> str:
         return create_access_token(str(user.id), user.role.value, getattr(user, "session_version", 0) or 0)
 
+    def logout(self, current_user: User) -> None:
+        """Revoke all previously issued access/refresh tokens for this account."""
+        self.users.invalidate_sessions(current_user.id)
+
     def issue_refresh_token(self, user: User) -> str:
         raw_token = create_refresh_token()
         refresh_token = RefreshToken(

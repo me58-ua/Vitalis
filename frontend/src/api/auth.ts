@@ -14,3 +14,7 @@ export async function currentUser(signal?: AbortSignal) {
   const { data } = await api.get<User>('/auth/me', { signal });
   return data;
 }
+
+export async function endSession() {
+  await api.post('/auth/logout');
+}

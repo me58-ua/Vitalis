@@ -27,6 +27,23 @@ class FakeWebSocket:
 
 
 class WebSocketTests(unittest.TestCase):
+    def test_revoked_token_closes_existing_socket_on_next_event(self):
+        user = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True)
+        appointment = SimpleNamespace(
+            id=uuid.uuid4(), patient_id=user.id, professional_id=uuid.uuid4(),
+            status=AppointmentStatus.CONFIRMED,
+        )
+        repository = SimpleNamespace(get_appointment=lambda _: appointment)
+        session = SimpleNamespace(close=lambda: None)
+        with patch("app.api.ws_chat._authenticate", side_effect=[user, InvalidAccessTokenError()]), patch(
+            "app.api.ws_chat.SessionLocal", return_value=session
+        ), patch("app.api.ws_chat.AppointmentRepository", return_value=repository):
+            with TestClient(app).websocket_connect(f"/ws/chat/{appointment.id}?token=revoked") as websocket:
+                websocket.send_json({"type": "ping"})
+                with self.assertRaises(WebSocketDisconnect) as error:
+                    websocket.receive_json()
+                self.assertEqual(error.exception.code, 4401)
+
     def test_valid_connection_answers_ping(self):
         user = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True, name="Patient")
         appointment = SimpleNamespace(

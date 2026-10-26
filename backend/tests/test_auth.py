@@ -46,6 +46,8 @@ class FakeUserRepository:
         user.updated_at = user.created_at
         if user.is_active is None:
             user.is_active = True
+        if user.session_version is None:
+            user.session_version = 0
         self.users[user.email] = user
         return user
 
@@ -58,6 +60,9 @@ class FakeUserRepository:
         if refresh_token is None or refresh_token.revoked_at is not None:
             return None
         return refresh_token
+
+    def invalidate_sessions(self, user_id):
+        self.get_by_id(user_id).session_version += 1
 
 
 class AuthTests(unittest.TestCase):
@@ -202,6 +207,21 @@ class AuthTests(unittest.TestCase):
     def test_me_endpoint_returns_current_user(self):
         user = self.service.register_patient(self.data)
         self.assertIs(me(user), user)
+
+    def test_logout_invalidates_access_and_refresh_and_allows_new_login(self):
+        from app.services.auth_service import InvalidAccessTokenError, InvalidRefreshTokenError
+        from app.api.auth import logout
+        user = self.service.register_patient(self.data)
+        access = self.service.issue_access_token(user)
+        refresh = self.service.issue_refresh_token(user)
+        self.assertIs(self.service.get_current_user(access), user)
+        logout(user, self.repository)
+        with self.assertRaises(InvalidAccessTokenError):
+            self.service.get_current_user(access)
+        with self.assertRaises(InvalidRefreshTokenError):
+            self.service.refresh_tokens(refresh)
+        self.assertIs(self.service.get_current_user(self.service.issue_access_token(user)), user)
+        self.assertTrue(self.service.refresh_tokens(self.service.issue_refresh_token(user)))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 import http from 'node:http';
 
 export async function fixtureServer() {
-  const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0 };
+  const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0, logouts: 0, failLogout: false, failSearch: false, searchEmpty: false, downloads: 0 };
   const account = {
     id: '00000000-0000-4000-8000-000000000001', name: 'Cuenta de pruebas', dni: 'TEST-0001',
     username: 'test_user', email: 'test@example.invalid', tel: '000000000', birth_date: '1995-01-01',
@@ -41,6 +41,25 @@ export async function fixtureServer() {
     }
     if (req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return send(200, account);
+    if (path === '/auth/logout' && req.method === 'POST') {
+      if (state.failLogout) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      state.logouts += 1;
+      state.access = 'revoked-test-token';
+      res.writeHead(204); res.end(); return;
+    }
+    if (path === '/health/documents/search') {
+      if (state.failSearch) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      return send(200, {
+        documents: state.searchEmpty ? [] : [{ id: notification.id, patient_user_id: account.id, tipo: 'informe', descripcion: 'Documento sintético de prueba', fecha_subida: '2026-10-26T09:00:00Z' }],
+        total: state.searchEmpty ? 0 : 1, page: Number(params.get('page')), page_size: Number(params.get('page_size')),
+      });
+    }
+    if (path === `/patients/me/health/documents/${notification.id}`) {
+      state.downloads += 1;
+      res.writeHead(200, { 'Content-Type': 'application/pdf' });
+      res.end('Synthetic test-only file'); return;
+    }
     if (state.forbidden) return send(403, { detail: 'PATIENT_REQUIRED' });
     if (state.failNotifications) return send(503, { detail: 'TEST_UNAVAILABLE' });
     if (path === '/notifications/unread-count') return send(200, { count: state.empty || notification.read_at ? 0 : 1 });

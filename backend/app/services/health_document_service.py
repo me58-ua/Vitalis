@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import BinaryIO
 from uuid import UUID, uuid4
 
-from app.models import HealthDocument, HealthDocumentType, User
+from app.models import HealthDocument, HealthDocumentType, User, UserRole
+from app.schemas.health_documents import HealthDocumentSearchItem, HealthDocumentSearchResponse
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.health_document_repository import HealthDocumentRepository
 from app.repositories.profile_repository import ProfileRepository
@@ -78,6 +79,26 @@ class HealthDocumentService:
         if profile is None:
             raise HealthDocumentValidationError("Patient profile not found")
         return self.documents.list_for_patient(profile.id)
+
+    def search(self, current_user: User, query: str, document_type=None, page=1, page_size=20):
+        """Search metadata within the same access scope as document downloads."""
+        if current_user.role not in (UserRole.PATIENT, UserRole.PROFESSIONAL):
+            raise HealthDocumentAccessError("HEALTH_DOCUMENT_SEARCH_FORBIDDEN")
+        query = query.strip()
+        if not query or len(query) > 100 or page < 1 or not 1 <= page_size <= 100:
+            raise HealthDocumentValidationError("INVALID_DOCUMENT_SEARCH")
+        search = (
+            self.documents.search_for_patient if current_user.role == UserRole.PATIENT
+            else self.documents.search_for_professional
+        )
+        rows, total = search(current_user.id, query, document_type, (page - 1) * page_size, page_size)
+        return HealthDocumentSearchResponse(
+            documents=[HealthDocumentSearchItem(
+                id=document.id, patient_user_id=patient_user_id, tipo=document.tipo,
+                descripcion=document.descripcion, fecha_subida=document.fecha_subida,
+            ) for document, patient_user_id in rows],
+            total=total, page=page, page_size=page_size,
+        )
 
     def list_for_professional(self, patient_id: UUID, professional_id: UUID) -> list[HealthDocument]:
         profile = self.profiles.get_patient(patient_id)

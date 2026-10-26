@@ -117,3 +117,12 @@ def reset_password(
 @router.get("/me", response_model=UserResponse)
 def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
 	return current_user
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+	current_user: Annotated[User, Depends(get_current_user)],
+	users: Annotated[UserRepository, Depends(get_user_repository)],
+) -> None:
+	"""Close all account sessions, invalidating access and refresh tokens."""
+	AuthService(users).logout(current_user)

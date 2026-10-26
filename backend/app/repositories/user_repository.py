@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models import User, UserRole
@@ -66,6 +66,15 @@ class UserRepository:
 
     def rollback(self) -> None:
         self.session.rollback()
+
+    def invalidate_sessions(self, user_id: UUID) -> None:
+        # Atomic increment: concurrent logout requests must not lose revocations.
+        # Both access and refresh validation already check this version.
+        self.session.execute(
+            update(User).where(User.id == user_id)
+            .values(session_version=User.session_version + 1)
+        )
+        self.session.flush()
 
     def invalidate_password_reset_tokens(self, user_id) -> None:
         self.session.query(PasswordResetToken).filter(
