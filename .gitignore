@@ -263,3 +263,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+seguimiento.md
+seguimientoFrontend.md
+frontend/README.md
+database_schema.dbml
