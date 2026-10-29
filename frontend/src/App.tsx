@@ -12,6 +12,7 @@ export function App() {
     <Route path="/login" element={<LoginPage />} />
     <Route path="/patientPanel" element={<RolePage role="patient" />} />
     <Route path="/professionalDashboard" element={<RolePage role="professional" />} />
+    <Route path="/adminPanel" element={<RolePage role="admin" />} />
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />
   </Route><Route path="/register" element={<RegisterPage />} /></Routes></AuthProvider></BrowserRouter>;
 }

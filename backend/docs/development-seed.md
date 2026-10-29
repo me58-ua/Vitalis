@@ -23,6 +23,6 @@ docker compose exec api python -m app.scripts.seed_users
 
 ## Probar el acceso
 
-Abrir el frontend en `http://localhost:3000`, pulsar «Iniciar sesión» y utilizar una de las cuentas anteriores. Se puede entrar por correo o por nombre de usuario. Paciente y profesional navegan a sus paneles provisionales; administrador vuelve a la portada. `GET /patients/me/profile`, autenticado como paciente, devuelve el perfil del seed.
+Abrir el frontend en `http://localhost:3000`, pulsar «Iniciar sesión» y utilizar una de las cuentas anteriores. Se puede entrar por correo o por nombre de usuario. Paciente y profesional navegan a sus paneles provisionales; administrador navega a `/adminPanel`, que muestra «Página de admin». `GET /patients/me/profile`, autenticado como paciente, devuelve el perfil del seed.
 
 Las credenciales son públicas y sintéticas; este seeder no está destinado a producción.
