@@ -15,6 +15,7 @@ export function errorMessage(error: unknown): string {
 }
 
 const fields: Record<string, string> = {
+  from_date: 'fecha inicial', to_date: 'fecha final', actor_id: 'identificador del actor', patient_id: 'identificador del perfil de paciente', entidad: 'entidad', entidad_id: 'identificador de entidad', accion: 'acción', actor_role: 'rol del actor',
   name: 'nombre', dni: 'DNI/NIE', username: 'nombre de usuario', email: 'correo electrónico',
   password: 'contraseña', tel: 'teléfono', birth_date: 'fecha de nacimiento', role: 'tipo de cuenta',
   specialty: 'especialidad', bio: 'presentación', practice_address: 'dirección de consulta',

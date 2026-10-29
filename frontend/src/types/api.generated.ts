@@ -126,6 +126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Audit Logs */
+        get: operations["list_audit_logs_admin_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;
@@ -1685,6 +1702,48 @@ export interface components {
          * @enum {string}
          */
         AppointmentType: "video" | "in_person";
+        /**
+         * AuditAction
+         * @enum {string}
+         */
+        AuditAction: "lectura" | "creacion" | "modificacion" | "eliminacion";
+        /** AuditLogListResponse */
+        AuditLogListResponse: {
+            /** Items */
+            items: components["schemas"]["AuditLogResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /** AuditLogResponse */
+        AuditLogResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            actor_role: components["schemas"]["UserRole"];
+            /** Patient Id */
+            patient_id: string | null;
+            accion: components["schemas"]["AuditAction"];
+            /** Entidad */
+            entidad: string;
+            /** Entidad Id */
+            entidad_id: string | null;
+            /**
+             * Fecha Hora
+             * Format: date-time
+             */
+            fecha_hora: string;
+        };
         /** AvailabilityResponse */
         AvailabilityResponse: {
             /**
@@ -3348,6 +3407,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_audit_logs_admin_audit_logs_get: {
+        parameters: {
+            query?: {
+                actor_id?: string | null;
+                actor_role?: components["schemas"]["UserRole"] | null;
+                accion?: components["schemas"]["AuditAction"] | null;
+                entidad?: string | null;
+                entidad_id?: string | null;
+                patient_id?: string | null;
+                from_date?: string | null;
+                to_date?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

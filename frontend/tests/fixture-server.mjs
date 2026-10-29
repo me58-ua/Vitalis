@@ -2,7 +2,7 @@
 import http from 'node:http';
 
 export async function fixtureServer(origin = 'http://localhost:3000') {
-  const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0, logouts: 0, failLogout: false, failSearch: false, searchEmpty: false, downloads: 0 };
+  const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0, logouts: 0, failLogout: false, failSearch: false, searchEmpty: false, downloads: 0, failTotals: false, failAudits: false, auditEmpty: false, auditQueries: [] };
   const account = {
     id: '00000000-0000-4000-8000-000000000001', name: 'Cuenta de pruebas', dni: 'TEST-0001',
     username: 'test_user', email: 'test@example.invalid', tel: '000000000', birth_date: '1995-01-01',
@@ -41,6 +41,26 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     }
     if (req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return send(200, account);
+    if (path === '/admin/users') {
+      if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
+      if (state.failTotals) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      return send(200, { users: [account], total: params.get('role') === 'patient' ? 5 : params.get('role') === 'professional' ? 2 : 8, page: 1, page_size: 1 });
+    }
+    if (path === '/admin/audit-logs') {
+      if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
+      if (req.method !== 'GET') return send(405, { detail: 'METHOD_NOT_ALLOWED' });
+      if (state.failAudits) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      state.auditQueries.push(Object.fromEntries(params));
+      let rows = Array.from({ length: 21 }, (_, index) => ({ id: `00000000-0000-4000-8000-${String(index + 100).padStart(12, '0')}`, actor_id: account.id, actor_role: 'admin', patient_id: null, accion: index % 2 ? 'lectura' : 'modificacion', entidad: 'user_role', entidad_id: null, fecha_hora: '2026-10-30T12:00:00Z' }));
+      for (const key of ['actor_id', 'actor_role', 'patient_id', 'accion', 'entidad', 'entidad_id']) {
+        if (params.has(key)) rows = rows.filter(row => row[key] === params.get(key));
+      }
+      if (state.auditEmpty) rows = [];
+      const page = Number(params.get('page') || 1), pageSize = Number(params.get('page_size') || 20);
+      return send(200, { items: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize });
+    }
     if (path === '/auth/logout' && req.method === 'POST') {
       if (state.failLogout) return send(503, { detail: 'TEST_UNAVAILABLE' });
       state.logouts += 1;

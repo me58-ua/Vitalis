@@ -6,3 +6,6 @@ export type Registration = components['schemas']['UserRegisterRequest'];
 export type Notification = components['schemas']['NotificationResponse'];
 export type NotificationPage = components['schemas']['NotificationListResponse'];
 export type UnreadCount = components['schemas']['UnreadCountResponse'];
+export type AdminUserPage = components['schemas']['AdminUserListResponse'];
+export type AuditPage = components['schemas']['AuditLogListResponse'];
+export type AuditQuery = NonNullable<import('./api.generated').operations['list_audit_logs_admin_audit_logs_get']['parameters']['query']>;
