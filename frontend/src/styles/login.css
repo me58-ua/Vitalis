@@ -1,15 +1,4 @@
-.login-page { padding: 40px 0; min-height: calc(100vh - 180px); background: radial-gradient(ellipse at 0 0, #6ffbbe4d, transparent 40%), radial-gradient(ellipse at 100% 100%, #b0f0d633, transparent 40%), #f8f9ff; }
-.login-grid { width: min(1152px, calc(100% - 128px)); margin: auto; display: grid; grid-template-columns: 5fr 7fr; gap: 24px; align-items: stretch; }
-.login-branding { display: flex; flex-direction: column; align-items: flex-start; background: radial-gradient(circle at top right, #064e3b66, transparent 70%), #003527; color: white; padding: 40px; border-radius: 12px; box-shadow: 0 16px 25px #00000018; }
-.login-kicker { padding: 5px 16px; border-radius: 30px; background: #ffffff26; color: #b0f0d6; font-size: 12px; font-weight: 600; letter-spacing: .6px; }
-.login-wordmark { color: #b0f0d6; font-size: 26px; font-weight: 600; text-decoration: none; margin: 24px 0; }
-.login-branding h2 { font-size: 32px; line-height: 1.25; letter-spacing: -.8px; font-weight: 600; margin-bottom: 16px; }
-.login-branding > p { color: #95d3ba; line-height: 1.65; }
-.login-branding-note { background: #ffffff1a; border-radius: 8px; padding: 16px; margin: 12px 0 40px; width: 100%; }
-.login-branding-note strong { color: #b0f0d6; }
-.login-branding-note p { margin: 8px 0 0; line-height: 1.5; font-size: 14px; }
-.login-privacy-link { color: #b0f0d6; font-size: 13px; margin-top: auto; line-height: 1.6; }
-.login-card { padding: 40px; background: white; border-radius: 12px; box-shadow: 0 4px 12px #064e3b0f; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.login-card { padding: 24px 0 0; background: white; border-radius: 12px;  display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .login-eyebrow { color: #006c49; font-size: 12px; font-weight: 600; letter-spacing: .6px; margin: 0 0 4px; }
 .login-card h1 { font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -.8px; margin: 0; }
 .login-card fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
@@ -29,8 +18,3 @@
 .login-registration a { font-size: 14px; font-weight: 600; text-decoration: none; line-height: 1.5; }
 .login-back { align-self: center; font-size: 13px; }
 .role-page { padding-block: 64px; min-height: 60vh; }
-.login-header .brand { gap: 12px; color: #003527; font-size: 24px; font-weight: 600; text-decoration: none; }
-.login-header .brand img { width: 32px; height: 32px; }
-.login-header .header-login { background: #003527; color: white; }
-@media (max-width: 1000px) { .login-grid { width: calc(100% - 48px); } .login-branding, .login-card { padding: 28px; } }
-@media (max-width: 760px) { .login-grid { width: calc(100% - 32px); grid-template-columns: 1fr; } .login-card { order: -1; padding: 24px; } .login-page { padding: 24px 0; } .login-branding { padding: 24px; } .login-branding h2 { font-size: 28px; } .login-header .main-nav { display: none; } }

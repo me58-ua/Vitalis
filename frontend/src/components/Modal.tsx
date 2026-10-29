@@ -7,8 +7,10 @@ export function Modal({ title, children, onClose, busy = false }: {
   useEffect(() => {
     const dialog = ref.current;
     const previous = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     dialog?.showModal();
-    return () => { dialog?.close(); if (previous instanceof HTMLElement) previous.focus(); };
+    return () => { dialog?.close(); document.body.style.overflow = previousOverflow; if (previous instanceof HTMLElement) previous.focus(); };
   }, []);
   return <dialog ref={ref} className="modal" aria-labelledby="modal-title"
     onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>

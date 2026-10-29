@@ -1,9 +1,10 @@
 import { useRef, useState, type FormEvent } from 'react';
 import axios from 'axios';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { destination } from '../auth/destination';
-import { AuthDialog } from '../auth/AuthDialog';
+import { Modal } from '../components/Modal';
+import { HomePage } from './HomePage';
 import { apiConfigured } from '../api/client';
 import { errorMessage } from '../api/errors';
 import identifierIcon from '../assets/figma/login/identifier.svg';
@@ -18,7 +19,7 @@ export function LoginPage() {
   const [visible, setVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [registerOpen, setRegisterOpen] = useState(false);
+  const navigate = useNavigate();
   const locked = useRef(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
   if (user) return <Navigate to={destination(user.role)} replace />;
@@ -40,18 +41,9 @@ export function LoginPage() {
     }
   }
 
-  return <main id="contenido" className="login-page">
-    <div className="login-grid">
-      <aside className="login-branding" aria-labelledby="login-privacy-title">
-        <span className="login-kicker">TU ESPACIO DE SALUD</span>
-        <Link to="/" className="login-wordmark" aria-label="vitaLis, inicio">vitaLis</Link>
-        <h2 id="login-privacy-title">Tu salud, mejor comprendida. Tus datos, protegidos.</h2>
-        <p>Conoce mejor tu salud e identifica posibles riesgos a partir de tu información y tus hábitos, con la tranquilidad de que tus datos se tratan de forma segura y confidencial.</p>
-        <div className="login-branding-note"><strong>Un espacio para cuidarte</strong><p>Accede a tu cuenta de paciente o profesional.</p></div>
-        <Link className="login-privacy-link" to="/#privacidad">Conoce cómo se tratan tus datos →</Link>
-      </aside>
-      <section className="login-card" aria-labelledby="login-title">
-        <div><p className="login-eyebrow">BIENVENIDO A VITALIS</p><h1 id="login-title">Iniciar sesión</h1></div>
+  return <><HomePage /><Modal title="Iniciar sesión" onClose={() => navigate('/', { replace: true })} busy={submitting || busy}>
+      <div className="login-card">
+        <p className="login-eyebrow">BIENVENIDO A VITALIS</p>
         {!apiConfigured && <p className="error-state" role="alert">La conexión con el servidor no está configurada. Consulta la guía de instalación.</p>}
         <form onSubmit={(event) => { void submit(event); }} aria-busy={submitting || busy}>
           <fieldset disabled={submitting || busy || !apiConfigured}>
@@ -67,10 +59,7 @@ export function LoginPage() {
           {error && <p ref={errorRef} tabIndex={-1} className="error-state" role="alert">{error}</p>}
         </form>
         <p className="login-recovery-note">La recuperación de contraseña todavía no está disponible en esta aplicación.</p>
-        <div className="login-registration"><p><img src={registerIcon} alt="" />¿Aún no tienes cuenta?</p><button className="text-button" onClick={() => setRegisterOpen(true)}>Crear cuenta →</button></div>
-        <Link className="login-back" to="/">Volver al inicio</Link>
-      </section>
-    </div>
-    {registerOpen && <AuthDialog mode="patient" onClose={() => setRegisterOpen(false)} onModeChange={() => { setRegisterOpen(false); }} />}
-  </main>;
+        <div className="login-registration"><p><img src={registerIcon} alt="" />¿Aún no tienes cuenta?</p><Link to="/register">Crear cuenta →</Link></div>
+      </div>
+    </Modal></>;
 }

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { AuthDialog, type AuthMode } from '../auth/AuthDialog';
+import { Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { BenefitCards } from '../components/BenefitCards';
 import { PrivacyBanner } from '../components/PrivacyBanner';
@@ -9,20 +8,18 @@ import arrow from '../assets/figma/imgContainer1.svg';
 import loginArrow from '../assets/figma/imgContainer2.svg';
 import analysisIcon from '../assets/figma/imgContainer.svg';
 
-function authMode(value: string | null): AuthMode | null {
-  return value === 'login' || value === 'patient' || value === 'professional' ? value : null;
-}
-
 export function HomePage() {
-  const [params, setParams] = useSearchParams();
-  const mode = authMode(params.get('acceso'));
+  const [params] = useSearchParams();
+  const mode = params.get('acceso');
+  const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   useEffect(() => {
     if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
   }, [location.hash]);
-  function open(mode: AuthMode) { setParams({ acceso: mode }); }
+  function open(mode: 'login' | 'patient' | 'professional') { navigate(mode === 'login' ? '/login' : `/register?role=${mode}`); }
   if (mode === 'login') return <Navigate to="/login" replace />;
+  if (mode === 'patient' || mode === 'professional') return <Navigate to={`/register?role=${mode}`} replace />;
   return <main id="contenido">
     <section className="hero section-container" aria-labelledby="hero-heading">
       <div className="hero-copy"><span className="eyebrow"><span />SALUD Y ATENCIÓN CONECTADAS</span>
@@ -39,6 +36,5 @@ export function HomePage() {
       </div>
     </section>
     <BenefitCards /><PrivacyBanner />
-    {mode && <AuthDialog key={mode} mode={mode} onClose={() => setParams({}, { replace: true })} onModeChange={open} />}
   </main>;
 }
