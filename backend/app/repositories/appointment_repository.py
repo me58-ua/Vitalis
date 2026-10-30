@@ -2,7 +2,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, User
 
@@ -15,6 +15,28 @@ class AppointmentRepository:
         self.session.add(schedule)
         self.session.flush()
         return schedule
+
+    def list_admin(self, patient_id, professional_id, start, end, statuses, offset, limit):
+        patient, professional = aliased(User), aliased(User)
+        conditions = []
+        for field, value in ((Appointment.patient_id, patient_id), (Appointment.professional_id, professional_id)):
+            if value is not None:
+                conditions.append(field == value)
+        if start is not None:
+            conditions.append(Appointment.start_time >= start)
+        if end is not None:
+            conditions.append(Appointment.start_time < end)
+        if statuses is not None:
+            conditions.append(Appointment.status.in_(statuses))
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(*conditions)) or 0
+        query = (select(Appointment.id, Appointment.patient_id, patient.name.label("patient_name"),
+                        Appointment.professional_id, professional.name.label("professional_name"),
+                        Appointment.start_time, Appointment.end_time, Appointment.type, Appointment.status, Appointment.reason)
+                 .join(patient, patient.id == Appointment.patient_id)
+                 .join(professional, professional.id == Appointment.professional_id)
+                 .where(*conditions).order_by(Appointment.start_time.asc(), Appointment.id.asc())
+                 .offset(offset).limit(limit))
+        return list(self.session.execute(query).mappings()), total
 
     def create_appointment(self, appointment: Appointment) -> Appointment:
         self.session.add(appointment)

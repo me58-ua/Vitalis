@@ -2,7 +2,9 @@ from typing import Annotated
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from app.schemas.admin_appointments import AdminAppointmentsQuery, AdminAppointmentListResponse, AdminUpcomingAppointmentsResponse
+from app.services.admin_appointment_service import AdminAppointmentQueryService
 
 from app.api.deps import (
     get_appointment_repository,
@@ -49,6 +51,16 @@ Users = Annotated[UserRepository, Depends(get_user_repository)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
+
+
+@router.get("/appointments", response_model=AdminAppointmentListResponse)
+def list_admin_appointments(_: AdminUser, appointments: Appointments, query: Annotated[AdminAppointmentsQuery, Query()]):
+    return AdminAppointmentQueryService(appointments).list(query)
+
+
+@router.get("/appointments/upcoming-month", response_model=AdminUpcomingAppointmentsResponse)
+def upcoming_admin_appointments(_: AdminUser, appointments: Appointments, limit: int = Query(default=3, ge=1, le=10)):
+    return AdminAppointmentQueryService(appointments).upcoming_month(limit)
 
 
 @router.post("/schedules", response_model=AdminScheduleResponse, status_code=status.HTTP_201_CREATED)

@@ -43,7 +43,7 @@ class RiskHistoryService:
                 raise RiskHistoryAccessError("Not authorized to access risk history")
             self.audit.record(
                 current_user.id, UserRole.PROFESSIONAL, AuditAction.READ,
-                "risk_assessment", patient_id, patient_id,
+                "risk_assessment", patient_id, profile.user_id,
             )
         if not profile.ai_processing_consent:
             return {

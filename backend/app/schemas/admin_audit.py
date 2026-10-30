@@ -12,7 +12,7 @@ class AuditFilters(BaseModel):
     accion: AuditAction | None = None
     entidad: str | None = Field(default=None, min_length=1, max_length=80)
     entidad_id: UUID | None = None
-    patient_id: UUID | None = None
+    patient_id: UUID | None = Field(default=None, description="Patient user account UUID (users.id)")
     from_date: AwareDatetime | None = None
     to_date: AwareDatetime | None = None
 
@@ -34,7 +34,7 @@ class AuditLogResponse(BaseModel):
     id: UUID
     actor_id: UUID
     actor_role: UserRole
-    patient_id: UUID | None
+    patient_id: UUID | None = Field(description="Patient user account UUID (users.id)")
     accion: AuditAction
     entidad: str
     entidad_id: UUID | None

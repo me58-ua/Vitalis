@@ -10,6 +10,7 @@ import { AdminPanelPage } from './pages/admin/AdminPanelPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
+import { AdminAppointmentsPage } from './pages/admin/AdminAppointmentsPage';
 
 export function App() {
   return <BrowserRouter><AuthProvider><Routes><Route element={<PublicLayout />}>
@@ -25,5 +26,6 @@ export function App() {
   </Route><Route element={<RequireRole role="admin" />}><Route element={<AdminLayout />}>
     <Route path="/adminPanel" element={<AdminPanelPage />} />
     <Route path="/adminPanel/auditoria" element={<AdminAuditPage />} />
+    <Route path="/adminPanel/gestionCitas" element={<AdminAppointmentsPage />} />
   </Route></Route><Route path="/register" element={<RegisterPage />} /></Routes></AuthProvider></BrowserRouter>;
 }

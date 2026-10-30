@@ -30,7 +30,7 @@ export function AdminLayout() {
       <nav aria-label="Administración"><p className="admin-eyebrow">ADMINISTRACIÓN</p>
         <NavLink to="/adminPanel" end onClick={close}><img src={dashboard} alt="" />Dashboard Admin</NavLink>
         <span className="admin-nav-unavailable" aria-disabled="true"><img src={users} alt="" /><span>Gestión de usuarios<small>Próximamente</small></span></span>
-        <span className="admin-nav-unavailable" aria-disabled="true"><img src={appointments} alt="" /><span>Gestión de citas<small>Próximamente</small></span></span>
+        <NavLink to="/adminPanel/gestionCitas" onClick={close}><img src={appointments} alt="" />Gestión de citas</NavLink>
         <NavLink to="/adminPanel/auditoria" onClick={close}><img src={audit} alt="" />Auditoría y logs</NavLink>
       </nav>
       <div className="admin-session"><p>Se cerrarán todas las sesiones de tu cuenta.</p>

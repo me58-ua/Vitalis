@@ -231,6 +231,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin Appointments */
+        get: operations["list_admin_appointments_admin_appointments_get"];
+        put?: never;
+        /** Create Appointment */
+        post: operations["create_appointment_admin_appointments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/appointments/upcoming-month": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Upcoming Admin Appointments */
+        get: operations["upcoming_admin_appointments_admin_appointments_upcoming_month_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/schedules": {
         parameters: {
             query?: never;
@@ -242,23 +277,6 @@ export interface paths {
         put?: never;
         /** Create Schedule */
         post: operations["create_schedule_admin_schedules_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/appointments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Appointment */
-        post: operations["create_appointment_admin_appointments_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1345,6 +1363,17 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** AdminAppointmentListResponse */
+        AdminAppointmentListResponse: {
+            /** Appointments */
+            appointments: components["schemas"]["AdminAppointmentSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /** AdminAppointmentResponse */
         AdminAppointmentResponse: {
             /**
@@ -1388,6 +1417,42 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** AdminAppointmentSummary */
+        AdminAppointmentSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /** Patient Name */
+            patient_name: string;
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Professional Name */
+            professional_name: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+            type: components["schemas"]["AppointmentType"];
+            status: components["schemas"]["AppointmentStatus"];
+            /** Reason */
+            reason: string | null;
         };
         /** AdminAppointmentUpdate */
         AdminAppointmentUpdate: {
@@ -1457,6 +1522,28 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** AdminUpcomingAppointmentsResponse */
+        AdminUpcomingAppointmentsResponse: {
+            /** Appointments */
+            appointments: components["schemas"]["AdminAppointmentSummary"][];
+            /** Total */
+            total: number;
+            /**
+             * Period Start
+             * Format: date-time
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date-time
+             */
+            period_end: string;
+            /**
+             * Timezone
+             * @default Europe/Madrid
+             */
+            timezone: string;
         };
         /** AdminUserCreate */
         AdminUserCreate: {
@@ -1731,7 +1818,10 @@ export interface components {
              */
             actor_id: string;
             actor_role: components["schemas"]["UserRole"];
-            /** Patient Id */
+            /**
+             * Patient Id
+             * @description Patient user account UUID (users.id)
+             */
             patient_id: string | null;
             accion: components["schemas"]["AuditAction"];
             /** Entidad */
@@ -3418,6 +3508,7 @@ export interface operations {
                 accion?: components["schemas"]["AuditAction"] | null;
                 entidad?: string | null;
                 entidad_id?: string | null;
+                /** @description Patient user account UUID (users.id) */
                 patient_id?: string | null;
                 from_date?: string | null;
                 to_date?: string | null;
@@ -3698,26 +3789,30 @@ export interface operations {
             };
         };
     };
-    create_schedule_admin_schedules_post: {
+    list_admin_appointments_admin_appointments_get: {
         parameters: {
-            query?: never;
+            query?: {
+                patient_id?: string | null;
+                professional_id?: string | null;
+                from_date?: string | null;
+                to_date?: string | null;
+                upcoming_month?: boolean;
+                page?: number;
+                page_size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminScheduleCreate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminScheduleResponse"];
+                    "application/json": components["schemas"]["AdminAppointmentListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3751,6 +3846,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminAppointmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upcoming_admin_appointments_admin_appointments_upcoming_month_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUpcomingAppointmentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_schedule_admin_schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminScheduleResponse"];
                 };
             };
             /** @description Validation Error */

@@ -37,7 +37,7 @@ class AuditLog(Base):
         nullable=False,
     )
     patient_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("patient_profiles.id", ondelete="SET NULL"), nullable=True, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     accion: Mapped[AuditAction] = mapped_column(
         Enum(

@@ -18,6 +18,7 @@ class AuditService:
         entity_id: UUID | None = None,
         patient_id: UUID | None = None,
     ) -> AuditLog | None:
+        """Record a resource action; patient_id always refers to users.id."""
         if self.audits is None:
             return None
         return self.audits.create(

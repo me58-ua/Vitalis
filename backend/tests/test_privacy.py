@@ -101,7 +101,7 @@ class PrivacyServiceTests(unittest.TestCase):
         self.assertFalse(self.profile.share_health_data)
         self.assertEqual(self.audits.logs[0].accion.value, "eliminacion")
         self.assertEqual(self.audits.logs[0].entidad, "user")
-        self.assertEqual(self.audits.logs[0].patient_id, self.profile.id)
+        self.assertEqual(self.audits.logs[0].patient_id, self.user.id)
 
     def test_professional_erasure_anonymizes_professional_account(self):
         professional_id = uuid.uuid4()

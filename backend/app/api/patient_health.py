@@ -87,7 +87,7 @@ def update_consent(
         AuditAction.UPDATE,
         "patient_profile",
         profile.id,
-        profile.id,
+        current_user.id,
     )
     return {"share_health_data": profile.share_health_data}
 

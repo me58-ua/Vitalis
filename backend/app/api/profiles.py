@@ -77,7 +77,7 @@ def update_ai_consent(
         AuditAction.UPDATE,
         "patient_profile",
         profile.id,
-        profile.id,
+        current_user.id,
     )
     return profile
 

@@ -48,7 +48,7 @@ export function AdminAuditPage() {
         <label>Acción<select name="accion"><option value="">Todas</option>{Object.entries(actions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Entidad<input name="entidad" maxLength={80} placeholder="Nombre exacto de entidad" /></label>
         <label>ID del actor<input name="actor_id" pattern={uuidPattern} title="Introduce un UUID válido" /></label>
-        <label>ID del perfil de paciente<input name="patient_id" pattern={uuidPattern} title="Introduce un UUID válido" /></label>
+        <label>ID de usuario del paciente<input name="patient_id" pattern={uuidPattern} title="Introduce un UUID válido" /></label>
         <label>ID de entidad<input name="entidad_id" pattern={uuidPattern} title="Introduce un UUID válido" /></label>
         <label>Desde<input name="from_date" type="datetime-local" step={1} /></label>
         <label>Hasta<input name="to_date" type="datetime-local" step={1} /></label>
@@ -63,7 +63,7 @@ export function AdminAuditPage() {
       {state.error && <div className="error-state" role="alert"><p>{state.error}</p><button className="text-button" onClick={state.retry}>Reintentar</button></div>}
       {data && <>
         <p role="status">{data.total.toLocaleString('es-ES')} registros encontrados.</p>
-        {data.items.length === 0 ? <p>No se han encontrado auditorías con estos filtros.</p> : <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="Tabla de auditorías; desplaza horizontalmente para ver todas las columnas"><table className="admin-audit-table"><caption>Acciones registradas · fechas en Europe/Madrid</caption><thead><tr><th scope="col">Fecha y hora</th><th scope="col">Actor</th><th scope="col">Acción</th><th scope="col">Entidad</th><th scope="col">Perfil de paciente</th><th scope="col">ID de auditoría</th></tr></thead><tbody>
+        {data.items.length === 0 ? <p>No se han encontrado auditorías con estos filtros.</p> : <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="Tabla de auditorías; desplaza horizontalmente para ver todas las columnas"><table className="admin-audit-table"><caption>Acciones registradas · fechas en Europe/Madrid</caption><thead><tr><th scope="col">Fecha y hora</th><th scope="col">Actor</th><th scope="col">Acción</th><th scope="col">Entidad</th><th scope="col">Cuenta del paciente</th><th scope="col">ID de auditoría</th></tr></thead><tbody>
           {data.items.map((item) => <tr key={item.id}><td><time dateTime={item.fecha_hora}>{date(item.fecha_hora)}</time></td><td>{roles[item.actor_role]}<code>{item.actor_id}</code></td><td>{actions[item.accion]}</td><td>{item.entidad}<code>{item.entidad_id ?? 'Sin identificador'}</code></td><td><code>{item.patient_id ?? 'No asociado'}</code></td><td><code>{item.id}</code></td></tr>)}
         </tbody></table></div>}
         <nav className="pagination" aria-label="Paginación de auditorías"><button disabled={data.page <= 1} onClick={() => setQuery({ ...query, page: data.page - 1 })}>Anterior</button><span>Página {data.page} de {Math.max(1, Math.ceil(data.total / data.page_size))}</span><button disabled={data.page * data.page_size >= data.total} onClick={() => setQuery({ ...query, page: data.page + 1 })}>Siguiente</button></nav>

@@ -267,4 +267,6 @@ __marimo__/
 seguimiento.md
 seguimientoFrontend.md
 frontend/README.md
+/backend/docs/*.md
+/frontend/src/pages/AGENTS.md
 database_schema.dbml

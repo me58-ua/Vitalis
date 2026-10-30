@@ -83,11 +83,11 @@ class PatientHealthService:
                 result["health_documents"] = self.health_documents.list_for_patient(profile.id)
             self.audit.record(
                 professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
-                "alcohol_log", profile.id, profile.id,
+                "alcohol_log", profile.id, profile.user_id,
             )
             self.audit.record(
                 professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
-                "family_history_entry", profile.id, profile.id,
+                "family_history_entry", profile.id, profile.user_id,
             )
         else:
             result = {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
@@ -100,7 +100,7 @@ class PatientHealthService:
         )
         self.audit.record(
             professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
-            "patient_profile", profile.id, profile.id,
+            "patient_profile", profile.id, profile.user_id,
         )
         return result
 
