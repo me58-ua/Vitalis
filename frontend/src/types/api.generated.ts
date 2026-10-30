@@ -126,6 +126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/metrics/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Monthly Admin Metrics */
+        get: operations["monthly_admin_metrics_admin_metrics_monthly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/audit-logs": {
         parameters: {
             query?: never;
@@ -1465,6 +1482,45 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** AdminMonthlyMetricsResponse */
+        AdminMonthlyMetricsResponse: {
+            /**
+             * Timezone
+             * @default Europe/Madrid
+             */
+            timezone: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Month Start
+             * Format: date-time
+             */
+            month_start: string;
+            /**
+             * Month End
+             * Format: date-time
+             */
+            month_end: string;
+            /**
+             * Month Start Date
+             * Format: date
+             */
+            month_start_date: string;
+            /**
+             * Month End Date
+             * Format: date
+             */
+            month_end_date: string;
+            users: components["schemas"]["MonthlyMetric"];
+            patients: components["schemas"]["MonthlyMetric"];
+            professionals: components["schemas"]["MonthlyMetric"];
+            appointments: components["schemas"]["MonthlyMetric"];
+            /** Series */
+            series: components["schemas"]["MonthlyActivity"][];
+        };
         /** AdminScheduleCreate */
         AdminScheduleCreate: {
             /**
@@ -2420,6 +2476,30 @@ export interface components {
              * Format: date-time
              */
             recorded_at: string;
+        };
+        /** MonthlyActivity */
+        MonthlyActivity: {
+            /** Month */
+            month: string;
+            /** Users */
+            users: number;
+            /** Patients */
+            patients: number;
+            /** Professionals */
+            professionals: number;
+            /** Appointments */
+            appointments: number;
+        };
+        /** MonthlyMetric */
+        MonthlyMetric: {
+            /** Total */
+            total: number;
+            /** Current Month */
+            current_month: number;
+            /** Previous Month */
+            previous_month: number;
+            /** Change Percent */
+            change_percent: number | null;
         };
         /** NotificationListResponse */
         NotificationListResponse: {
@@ -3497,6 +3577,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    monthly_admin_metrics_admin_metrics_monthly_get: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMonthlyMetricsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

@@ -15,6 +15,12 @@ class UserRepository:
     def get_by_email(self, email: str) -> User | None:
         return self.session.scalar(select(User).where(User.email == email))
 
+    def registration_metrics(self, boundaries):
+        counts = [func.count().filter(User.created_at >= start, User.created_at < end)
+                  for start, end in boundaries]
+        rows = self.session.execute(select(User.role, func.count(), *counts).group_by(User.role)).all()
+        return {role: {"total": total, "months": list(months)} for role, total, *months in rows}
+
     def get_by_username(self, username: str) -> User | None:
         return self.session.scalar(select(User).where(User.username == username))
 

@@ -15,3 +15,5 @@ export type UpcomingAppointments = components['schemas']['AdminUpcomingAppointme
 export type CreateAppointment = components['schemas']['AdminAppointmentCreate'];
 export type UpdateAppointment = components['schemas']['AdminAppointmentUpdate'];
 export type AppointmentQuery = NonNullable<import('./api.generated').operations['list_admin_appointments_admin_appointments_get']['parameters']['query']>;
+export type AdminMonthlyMetrics = components['schemas']['AdminMonthlyMetricsResponse'];
+export type MonthlyMetric = components['schemas']['MonthlyMetric'];

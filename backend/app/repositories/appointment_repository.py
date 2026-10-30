@@ -43,6 +43,12 @@ class AppointmentRepository:
         self.session.flush()
         return appointment
 
+    def monthly_totals(self, boundaries):
+        counts = [func.count().filter(Appointment.start_time >= start, Appointment.start_time < end)
+                  for start, end in boundaries]
+        return list(self.session.execute(select(*counts).select_from(Appointment)
+                    .where(Appointment.start_time >= boundaries[0][0], Appointment.start_time < boundaries[-1][1])).one())
+
     def get_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.get(Appointment, appointment_id)
 

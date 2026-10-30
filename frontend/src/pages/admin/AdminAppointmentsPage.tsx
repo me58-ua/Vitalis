@@ -79,8 +79,10 @@ function CancelAppointmentDialog({ item, onClose, onCancelled }: { item: Appoint
 
 export function AdminAppointmentsPage() {
   const [params, setParams] = useSearchParams();
-  const [query, setQuery] = useState<AppointmentQuery>(() => ({ page: 1, page_size: 20, upcoming_month: params.get('upcoming_month') === 'true' }));
+  const [query, setQuery] = useState<AppointmentQuery>(() => ({ page: 1, page_size: 20, upcoming_month: params.get('upcoming_month') === 'true', from_date: params.get('from_date') || undefined, to_date: params.get('to_date') || undefined }));
   const [upcomingOnly, setUpcomingOnly] = useState(Boolean(query.upcoming_month));
+  const [fromDate, setFromDate] = useState(query.from_date ?? '');
+  const [toDate, setToDate] = useState(query.to_date ?? '');
   const [patient, setPatient] = useState<UserOption | null>(null);
   const [professional, setProfessional] = useState<UserOption | null>(null);
   const [validation, setValidation] = useState('');
@@ -94,7 +96,7 @@ export function AdminAppointmentsPage() {
     if (from && to && from > to) { setValidation('La fecha inicial debe ser anterior o igual a la final.'); return; }
     setValidation(''); setSuccess('');
     const upcoming = form.has('upcoming_month');
-    setParams(upcoming ? { upcoming_month: 'true' } : {}, { replace: true });
+    setParams({ ...(upcoming ? { upcoming_month: 'true' } : {}), ...(from ? { from_date: from } : {}), ...(to ? { to_date: to } : {}) }, { replace: true });
     setQuery({ page: 1, page_size: 20, patient_id: patient?.id, professional_id: professional?.id, from_date: from || undefined, to_date: to || undefined, upcoming_month: upcoming });
   }
   const data = state.data;
@@ -103,10 +105,10 @@ export function AdminAppointmentsPage() {
     <p className="admin-intro">Consulta, filtra y anula citas. Los horarios se muestran en Europe/Madrid.</p>
     {success && <p className="success-state" role="status">{success}</p>}
     <section className="admin-card" aria-labelledby="appointment-filters"><h2 id="appointment-filters">Filtrar citas</h2>
-      <form className="admin-appointment-filters" onSubmit={apply} onReset={() => { setPatient(null); setProfessional(null); setUpcomingOnly(false); setValidation(''); setParams({}, { replace: true }); setQuery({ page: 1, page_size: 20 }); }}>
+      <form className="admin-appointment-filters" onSubmit={apply} onReset={() => { setPatient(null); setProfessional(null); setUpcomingOnly(false); setFromDate(''); setToDate(''); setValidation(''); setParams({}, { replace: true }); setQuery({ page: 1, page_size: 20 }); }}>
         <AdminUserSelect role="patient" value={patient} onChange={setPatient} />
         <AdminUserSelect role="professional" value={professional} onChange={setProfessional} />
-        <label>Desde<input name="from_date" type="date" /></label><label>Hasta<input name="to_date" type="date" /></label>
+        <label>Desde<input name="from_date" type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} /></label><label>Hasta<input name="to_date" type="date" value={toDate} onChange={event => setToDate(event.target.value)} /></label>
         <label className="checkbox full"><input name="upcoming_month" type="checkbox" checked={upcomingOnly} onChange={event => setUpcomingOnly(event.target.checked)} />Solo próximas citas de este mes</label>
         <p className="field-help full">El intervalo incluye ambos días según Europe/Madrid. El resumen mensual excluye las citas iniciadas, anuladas o finalizadas.</p>
         <div className="admin-filter-actions full"><button className="button primary" type="submit" disabled={state.loading}>Aplicar filtros</button><button className="button secondary" type="reset" disabled={state.loading}>Limpiar filtros</button></div>

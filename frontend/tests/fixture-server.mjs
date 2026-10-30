@@ -46,6 +46,16 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     }
     if (req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return send(200, account);
+    if (path === '/admin/metrics/monthly') {
+      if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
+      if (state.failTotals) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      return send(200, { timezone: 'Europe/Madrid', generated_at: '2030-11-15T12:00:00Z', month_start: '2030-10-31T23:00:00Z', month_end: '2030-11-30T23:00:00Z', month_start_date: '2030-11-01', month_end_date: '2030-11-30',
+        users: { total: 8, current_month: 4, previous_month: 2, change_percent: 100 },
+        patients: { total: 5, current_month: 0, previous_month: 2, change_percent: -100 },
+        professionals: { total: 2, current_month: 1, previous_month: 0, change_percent: null },
+        appointments: { total: 4, current_month: 4, previous_month: 2, change_percent: 100 },
+        series: Array.from({ length: 6 }, (_, index) => ({ month: `2030-${String(index + 6).padStart(2, '0')}`, users: index === 5 ? 4 : index === 4 ? 2 : 0, patients: index === 4 ? 2 : 0, professionals: index === 5 ? 1 : 0, appointments: index === 5 ? 4 : index === 4 ? 2 : 0 })) });
+    }
     if (path === '/admin/users') {
       if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
       if (state.failTotals) return send(503, { detail: 'TEST_UNAVAILABLE' });

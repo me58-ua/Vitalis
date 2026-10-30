@@ -29,6 +29,24 @@
 .admin-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin-bottom: 32px; }
 .admin-metric, .admin-card { background: white; border-radius: 24px; padding: 28px; box-shadow: 0 1px 2px #0000000d; min-width: 0; }
 .admin-metric { background: radial-gradient(circle at top right, #00352708, transparent 45%), white; }
+.admin-metric-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 20px; }
+.admin-metric-top .admin-metric-icon { margin-bottom: 0; flex-shrink: 0; }
+.admin-growth { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 5px 8px; font-size: 12px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+.admin-growth-up { background: #6cf8bb; color: #00714d; }
+.admin-growth-down { background: #ffe5e1; color: #9b3028; }
+.admin-growth-flat, .admin-growth-new { background: #eff4ff; color: #404944; }
+.admin-metrics-help { color: #404944; font-size: 12px; line-height: 1.6; margin: -12px 0 28px; }
+.admin-activity-chart { margin: 24px 0 0; }
+.admin-activity-chart svg { width: 100%; height: auto; display: block; }
+.admin-activity-chart svg text { fill: #404944; font-size: 12px; }
+.admin-activity-chart figcaption { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; margin: 8px 0 24px; }
+.admin-activity-chart figcaption span { display: inline-flex; align-items: center; gap: 6px; }
+.admin-activity-chart i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.chart-appointments { background: #003527; }
+.chart-users { background: #168c68; }
+.admin-activity-chart details { font-size: 13px; line-height: 1.5; }
+.admin-activity-chart .admin-audit-table { min-width: 500px; }
+@media (max-width: 900px) { .admin-metrics .admin-metric { display: block; } }
 .admin-metric-icon { display: grid; place-items: center; width: 48px; height: 48px; background: #eff4ff; border-radius: 50%; margin-bottom: 20px; }
 .admin-metric h2 { font-size: 14px; line-height: 20px; font-weight: 500; color: #404944; margin-bottom: 8px; }
 .admin-metric .admin-metric-value { font-size: 32px; font-weight: 600; line-height: 40px; color: #121c2a; margin-bottom: 12px; }
