@@ -51,6 +51,13 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     }
     if (req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return send(200, account);
+    if (!state.userManagement && path.startsWith('/admin/users/') && req.method === 'GET') {
+      if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
+      if (state.failAuditNames) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      const id = path.split('/').at(-1);
+      const item = [account, participants.patient, participants.professional].find(item => item.id === id);
+      return item ? send(200, detailUser(item)) : send(404, { detail: 'User not found' });
+    }
     if (state.userManagement && (path.startsWith('/admin/users') || path.startsWith('/admin/professionals/'))) {
       if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
       if (req.method !== 'GET' && state.userFailure) return send(state.userFailure.status, { detail: state.userFailure.detail });
@@ -138,7 +145,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (state.failAudits) return send(503, { detail: 'TEST_UNAVAILABLE' });
       const params = new URL(req.url, 'http://fixture.invalid').searchParams;
       state.auditQueries.push(Object.fromEntries(params));
-      let rows = Array.from({ length: 21 }, (_, index) => ({ id: `00000000-0000-4000-8000-${String(index + 100).padStart(12, '0')}`, actor_id: account.id, actor_role: 'admin', patient_id: null, accion: index % 2 ? 'lectura' : 'modificacion', entidad: 'user_role', entidad_id: null, fecha_hora: '2026-10-30T12:00:00Z' }));
+      let rows = Array.from({ length: 21 }, (_, index) => ({ id: `00000000-0000-4000-8000-${String(index + 100).padStart(12, '0')}`, actor_id: account.id, actor_role: 'admin', patient_id: index === 20 ? participants.patient.id : null, accion: index % 2 ? 'lectura' : 'modificacion', entidad: index === 20 ? 'appointment' : 'user_role', entidad_id: index === 20 ? appointments[0].id : participants.professional.id, fecha_hora: '2026-10-30T12:00:00Z' }));
       for (const key of ['actor_id', 'actor_role', 'patient_id', 'accion', 'entidad', 'entidad_id']) {
         if (params.has(key)) rows = rows.filter(row => row[key] === params.get(key));
       }
