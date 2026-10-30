@@ -50,5 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (request === attempt.current) { setBusy(false); locked.current = false; }
     }
   }
-  return <AuthContext.Provider value={{ user, busy, logoutError, signIn, logout }}>{children}</AuthContext.Provider>;
+  async function refreshUser() {
+    const generation = session.generation();
+    const account = await currentUser();
+    if (generation === session.generation()) setUser(account);
+  }
+  return <AuthContext.Provider value={{ user, busy, logoutError, signIn, logout, refreshUser }}>{children}</AuthContext.Provider>;
 }

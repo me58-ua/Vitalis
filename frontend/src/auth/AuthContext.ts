@@ -7,6 +7,7 @@ export interface AuthState {
   logoutError: string;
   signIn: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 export const AuthContext = createContext<AuthState | null>(null);
 export function useAuth() {

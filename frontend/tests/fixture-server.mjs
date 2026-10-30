@@ -12,6 +12,11 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     patient: { ...account, id: '00000000-0000-4000-8000-000000000201', role: 'patient', name: 'Paciente sintético', username: 'patient_fixture' },
     professional: { ...account, id: '00000000-0000-4000-8000-000000000202', role: 'professional', name: 'Profesional sintético', username: 'professional_fixture' },
   };
+  Object.assign(state, { userManagement: false, failUsers: false, userFailure: null, userWrites: [], userQueries: [] });
+  const managedUsers = [participants.patient, ...Array.from({ length: 20 }, (_, index) => ({ ...participants.patient,
+    id: `00000000-0000-4000-8000-${String(601 + index).padStart(12, '0')}`, name: `Paciente de prueba ${index + 2}`, username: `patient_test_${index + 2}` })), participants.professional, account];
+  const detailUser = item => ({ ...item, patient_profile: item.patient_profile ?? (item.role === 'patient' ? { address: null, blood_type: null, timezone: 'Europe/Madrid', sex_at_birth: null, height_cm: null, weight_kg: null } : null),
+    professional_profile: item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
   const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'pending', reason: null }));
   const notification = {
     id: '00000000-0000-4000-8000-000000000002', type: 'test', title: 'Aviso de prueba', message: 'Mensaje sintético para verificar la interfaz.',
@@ -20,7 +25,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
   const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
     let raw = '';
     for await (const part of req) raw += part;
@@ -46,6 +51,42 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     }
     if (req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return send(200, account);
+    if (state.userManagement && (path.startsWith('/admin/users') || path.startsWith('/admin/professionals/'))) {
+      if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
+      if (req.method !== 'GET' && state.userFailure) return send(state.userFailure.status, { detail: state.userFailure.detail });
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      if (path === '/admin/users' && req.method === 'GET') {
+        if (state.failUsers) return send(503, { detail: 'TEST_UNAVAILABLE' });
+        state.userQueries.push(Object.fromEntries(params));
+        const search = (params.get('search') || '').toLowerCase();
+        const rows = managedUsers.filter(item => (!params.get('role') || item.role === params.get('role')) && (!search || [item.name, item.email, item.username].some(value => value.toLowerCase().includes(search))));
+        const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);
+        return send(200, { users: rows.slice((page - 1) * size, page * size), total: rows.length, page, page_size: size });
+      }
+      if (path === '/admin/users' && req.method === 'POST') {
+        const { password, ...body } = JSON.parse(raw);
+        void password;
+        state.userWrites.push({ method: 'POST', ...JSON.parse(raw) });
+        const item = { ...account, ...body, id: `00000000-0000-4000-8000-${String(801 + state.userWrites.length).padStart(12, '0')}`, is_active: body.role !== 'professional' };
+        if (item.professional_profile) Object.assign(item.professional_profile, { id: item.id, user_id: item.id, approval_status: 'pending', rejection_reason: null, reviewed_at: null, reviewed_by: null });
+        managedUsers.unshift(item); return send(201, detailUser(item));
+      }
+      const id = path.split('/')[3];
+      const item = managedUsers.find(item => item.id === id);
+      if (!item) return send(404, { detail: 'User not found' });
+      if (req.method === 'GET') return send(200, detailUser(item));
+      if (path.endsWith('/approve')) {
+        item.professional_profile.approval_status = 'approved'; item.is_active = true;
+        return send(200, item.professional_profile);
+      }
+      if (req.method === 'PATCH') {
+        const { password, ...body } = JSON.parse(raw); void password;
+        state.userWrites.push({ method: 'PATCH', ...JSON.parse(raw) }); Object.assign(item, body); return send(200, detailUser(item));
+      }
+      if (req.method === 'DELETE') {
+        managedUsers.splice(managedUsers.indexOf(item), 1); res.writeHead(204); res.end(); return;
+      }
+    }
     if (path === '/admin/metrics/monthly') {
       if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
       if (state.failTotals) return send(503, { detail: 'TEST_UNAVAILABLE' });

@@ -12,7 +12,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const output = path.join(root, 'test-results', 'client');
   await mkdir(output, { recursive: true });
-  for (const name of ['client', 'session', 'auth', 'notifications', 'errors']) {
+  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors']) {
     const source = (await readFile(path.join(root, 'src/api', `${name}.ts`), 'utf8'))
       .replace('import.meta.env.VITE_API_BASE_URL', JSON.stringify(fixture.url));
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText
@@ -26,6 +26,8 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const notifications = await load('notifications');
   const { session } = await load('session');
   const { errorMessage } = await load('errors');
+  const { adminUserError } = await load('adminUserErrors');
+  const admin = await load('admin');
 
   await t.test('URL-encoded login and account lookup', async () => {
     const tokens = await auth.login('test_user', 'TestPassword!');
@@ -76,5 +78,39 @@ test('Axios follows authentication and notification contracts', async (t) => {
     session.replace(null);
     await assert.rejects(request);
     assert.equal(session.read(), null);
+  });
+  await t.test('admin user CRUD sends nested profiles, paginates, and explains conflicts in Spanish', async () => {
+    fixture.account.role = 'admin'; fixture.state.userManagement = true; fixture.state.delayRefresh = 0;
+    session.replace(await auth.login('test_user', 'TestPassword!'));
+    const signal = new AbortController().signal;
+    const page = await admin.getAdminUsers({ role: 'patient', page: 2, page_size: 20 }, signal);
+    assert.equal(page.users.length, 1); assert.equal(page.total, 21); assert.equal(page.page, 2);
+    const payload = { name: 'Synthetic create', dni: 'TEST-NEW', username: 'new_test', email: 'new@example.invalid', tel: '000000000', birth_date: '1990-01-01', role: 'patient', password: 'TestPassword!', patient_profile: { height_cm: 175, timezone: 'Europe/Madrid' } };
+    const created = await admin.createAdminUser(payload, signal);
+    assert.equal(created.patient_profile.height_cm, 175);
+    assert.deepEqual(fixture.state.userWrites.at(-1).patient_profile, payload.patient_profile);
+    assert.equal((await admin.getAdminUser(created.id, signal)).username, payload.username);
+    const updated = await admin.updateAdminUser(created.id, { name: 'Edited', patient_profile: { weight_kg: 70 } }, signal);
+    assert.equal(updated.name, 'Edited'); assert.equal(fixture.state.userWrites.at(-1).password, undefined);
+    for (const [code, text, field] of [['DUPLICATE_DNI', /DNI/, 'dni'], ['DUPLICATE_EMAIL', /correo/, 'email'], ['DUPLICATE_USERNAME', /nombre de usuario/, 'username'], ['DUPLICATE_LICENSE_NUMBER', /colegiación/, 'license_number']]) {
+      fixture.state.userFailure = { status: 409, detail: code };
+      await assert.rejects(admin.createAdminUser(payload, signal), error => {
+        const translated = adminUserError(error, 'save'); assert.match(translated.summary, text); assert.ok(translated.fields[field]); return true;
+      });
+    }
+    await assert.rejects(admin.deleteAdminUser(created.id, signal), error => { assert.match(adminUserError(error, 'delete').summary, /registros relacionados/); return true; });
+    fixture.state.userFailure = { status: 422, detail: [{ loc: ['body', 'patient_profile', 'height_cm'], type: 'greater_than_equal', ctx: { ge: 100 } }, { loc: ['body', 'professional_profile', 'license_number'], type: 'missing' }] };
+    await assert.rejects(admin.createAdminUser(payload, signal), error => {
+      const translated = adminUserError(error, 'save'); assert.match(translated.fields.height_cm, /mínimo es 100/); assert.match(translated.fields.license_number, /obligatorio/); return true;
+    });
+    for (const [status, text] of [[403, /administrador/], [404, /ya no existe/], [429, /demasiadas/], [503, /servidor/]]) {
+      fixture.state.userFailure = { status, detail: 'DO_NOT_EXPOSE_INTERNAL_DETAIL' };
+      await assert.rejects(admin.createAdminUser(payload, signal), error => {
+        const message = adminUserError(error, 'save').summary; assert.match(message, text); assert.ok(!message.includes('DO_NOT_EXPOSE')); return true;
+      });
+    }
+    fixture.state.userFailure = null;
+    await admin.deleteAdminUser(created.id, signal);
+    await assert.rejects(admin.getAdminUser(created.id, signal));
   });
 });

@@ -1521,6 +1521,52 @@ export interface components {
             /** Series */
             series: components["schemas"]["MonthlyActivity"][];
         };
+        /** AdminPatientProfileInput */
+        AdminPatientProfileInput: {
+            /** Address */
+            address?: string | null;
+            /** Blood Type */
+            blood_type?: string | null;
+            /**
+             * Timezone
+             * @default Europe/Madrid
+             */
+            timezone: string;
+            /** Sex At Birth */
+            sex_at_birth?: string | null;
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Weight Kg */
+            weight_kg?: number | null;
+        };
+        /** AdminProfessionalProfileInput */
+        AdminProfessionalProfileInput: {
+            /** Specialty */
+            specialty: string;
+            /** Bio */
+            bio?: string | null;
+            /** Practice Address */
+            practice_address?: string | null;
+            /** Practice Phone */
+            practice_phone?: string | null;
+            /**
+             * Is Accepting New Patients
+             * @default true
+             */
+            is_accepting_new_patients: boolean;
+            /**
+             * Default Consultation Duration Minutes
+             * @default 30
+             */
+            default_consultation_duration_minutes: number;
+            /**
+             * Telehealth Enabled
+             * @default true
+             */
+            telehealth_enabled: boolean;
+            /** License Number */
+            license_number: string;
+        };
         /** AdminScheduleCreate */
         AdminScheduleCreate: {
             /**
@@ -1623,6 +1669,48 @@ export interface components {
             /** Gender */
             gender?: string | null;
             role: components["schemas"]["UserRole"];
+            patient_profile?: components["schemas"]["AdminPatientProfileInput"] | null;
+            professional_profile?: components["schemas"]["AdminProfessionalProfileInput"] | null;
+        };
+        /** AdminUserDetailResponse */
+        AdminUserDetailResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Dni */
+            dni: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string;
+            /** Tel */
+            tel: string;
+            /**
+             * Birth Date
+             * Format: date
+             */
+            birth_date: string;
+            /** Gender */
+            gender: string | null;
+            role: components["schemas"]["UserRole"];
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            patient_profile?: components["schemas"]["AdminPatientProfileInput"] | null;
+            professional_profile?: components["schemas"]["ProfessionalProfileResponse"] | null;
         };
         /** AdminUserListResponse */
         AdminUserListResponse: {
@@ -1694,6 +1782,8 @@ export interface components {
             role?: components["schemas"]["UserRole"] | null;
             /** Is Active */
             is_active?: boolean | null;
+            patient_profile?: components["schemas"]["AdminPatientProfileInput"] | null;
+            professional_profile?: components["schemas"]["AdminProfessionalProfileInput"] | null;
         };
         /** AlcoholLogHistoryResponse */
         AlcoholLogHistoryResponse: {
@@ -3705,7 +3795,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminUserResponse"];
+                    "application/json": components["schemas"]["AdminUserDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3736,7 +3826,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminUserResponse"];
+                    "application/json": components["schemas"]["AdminUserDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3800,7 +3890,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminUserResponse"];
+                    "application/json": components["schemas"]["AdminUserDetailResponse"];
                 };
             };
             /** @description Validation Error */

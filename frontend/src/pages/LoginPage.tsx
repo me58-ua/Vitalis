@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import axios from 'axios';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { destination } from '../auth/destination';
 import { Modal } from '../components/Modal';
@@ -22,6 +22,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const locked = useRef(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const navigationState: unknown = useLocation().state;
+  const authenticationRequired = typeof navigationState === 'object' && navigationState !== null && 'authenticationRequired' in navigationState && navigationState.authenticationRequired === true;
   if (user) return <Navigate to={destination(user.role)} replace />;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -44,6 +46,7 @@ export function LoginPage() {
   return <><HomePage /><Modal title="Iniciar sesión" onClose={() => navigate('/', { replace: true })} busy={submitting || busy}>
       <div className="login-card">
         <p className="login-eyebrow">BIENVENIDO A VITALIS</p>
+        {authenticationRequired && !error && <p className="error-state" role="alert">Inicia sesión para continuar. Si tu sesión ha caducado o tu cuenta está inactiva, tendrás que identificarte de nuevo o contactar con la administración.</p>}
         {!apiConfigured && <p className="error-state" role="alert">La conexión con el servidor no está configurada. Consulta la guía de instalación.</p>}
         <form onSubmit={(event) => { void submit(event); }} aria-busy={submitting || busy}>
           <fieldset disabled={submitting || busy || !apiConfigured}>

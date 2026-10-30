@@ -5,7 +5,7 @@ import type { User } from '../types/api';
 
 export function RequireRole({ role }: { role: User['role'] }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace state={{ authenticationRequired: true }} />;
   if (user.role !== role) return <Navigate to={destination(user.role)} replace />;
   return <Outlet />;
 }
