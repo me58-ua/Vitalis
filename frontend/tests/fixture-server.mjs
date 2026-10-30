@@ -17,6 +17,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     id: `00000000-0000-4000-8000-${String(601 + index).padStart(12, '0')}`, name: `Paciente de prueba ${index + 2}`, username: `patient_test_${index + 2}` })), participants.professional, account];
   const detailUser = item => ({ ...item, patient_profile: item.patient_profile ?? (item.role === 'patient' ? { address: null, blood_type: null, timezone: 'Europe/Madrid', sex_at_birth: null, height_cm: null, weight_kg: null } : null),
     professional_profile: item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
+  const demoSessions = [];
   const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'pending', reason: null }));
   const notification = {
     id: '00000000-0000-4000-8000-000000000002', type: 'test', title: 'Aviso de prueba', message: 'Mensaje sintético para verificar la interfaz.',
@@ -35,6 +36,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.logins += 1;
       const form = new URLSearchParams(raw);
       if (!req.headers['content-type']?.startsWith('application/x-www-form-urlencoded')) return send(422, { detail: 'FORM_REQUIRED' });
+      if (state.independentSessions) {
+        const user = [account, participants.patient, participants.professional].find(item => item.username === form.get('username'));
+        if (!user || form.get('password') !== 'TestPassword!') return send(401, { detail: 'INVALID_CREDENTIALS' });
+        const id = `synthetic-session-${state.logins}`;
+        const login = { user, access: `${id}-access`, refresh: `${id}-refresh`, revoked: false };
+        demoSessions.push(login);
+        return send(200, { access_token: login.access, refresh_token: login.refresh, token_type: 'bearer' });
+      }
       if (form.get('username') !== 'test_user' || form.get('password') !== 'TestPassword!') return send(401, { detail: 'INVALID_CREDENTIALS' });
       state.access = 'test-access';
       return send(200, { access_token: state.access, refresh_token: 'test-refresh', token_type: 'bearer' });
@@ -45,12 +54,20 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     }
     if (path === '/auth/refresh') {
       state.refreshes += 1;
+      if (state.failRefresh) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      if (state.independentSessions) {
+        const login = demoSessions.find(item => item.refresh === JSON.parse(raw).refresh_token && !item.revoked);
+        if (!login) return send(401, { detail: 'INVALID_REFRESH_TOKEN' });
+        login.refresh = `${login.refresh}-rotated`;
+        return send(200, { access_token: login.access, refresh_token: login.refresh, token_type: 'bearer' });
+      }
       if (state.delayRefresh) await new Promise((resolve) => setTimeout(resolve, state.delayRefresh));
       state.access = 'test-rotated';
       return send(200, { access_token: state.access, refresh_token: 'test-refresh-rotated', token_type: 'bearer' });
     }
-    if (req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
-    if (path === '/auth/me') return send(200, account);
+    const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
+    if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
+    if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
     if (!state.userManagement && path.startsWith('/admin/users/') && req.method === 'GET') {
       if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
       if (state.failAuditNames) return send(503, { detail: 'TEST_UNAVAILABLE' });
@@ -156,7 +173,8 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     if (path === '/auth/logout' && req.method === 'POST') {
       if (state.failLogout) return send(503, { detail: 'TEST_UNAVAILABLE' });
       state.logouts += 1;
-      state.access = 'revoked-test-token';
+      if (demoLogin) demoLogin.revoked = true;
+      else state.access = 'revoked-test-token';
       res.writeHead(204); res.end(); return;
     }
     if (path === '/health/documents/search') {

@@ -39,7 +39,7 @@ def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def create_access_token(subject: str, role: str, session_version: int = 0) -> str:
+def create_access_token(subject: str, role: str, session_version: int = 0, session_id: str | None = None) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
@@ -49,6 +49,8 @@ def create_access_token(subject: str, role: str, session_version: int = 0) -> st
         "session_version": session_version,
         "exp": expires_at,
     }
+    if session_id is not None:
+        payload["sid"] = session_id
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 

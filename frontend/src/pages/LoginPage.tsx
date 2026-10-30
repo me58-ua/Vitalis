@@ -56,7 +56,7 @@ export function LoginPage() {
             <div className="login-input"><img src={passwordIcon} alt="" /><input id="login-password" name="password" type={visible ? 'text' : 'password'} autoComplete="current-password" required placeholder="Introduce tu contraseña" />
               <button className="login-visibility" type="button" aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={visible} onClick={() => setVisible(!visible)}><img src={visibilityIcon} alt="" /></button>
             </div>
-            <p className="login-session-note">La sesión se mantiene mientras esta aplicación permanezca abierta. Al recargar tendrás que volver a identificarte.</p>
+            <p className="login-session-note">Tu sesión se conserva al recargar esta pestaña. Puedes usar cuentas distintas en pestañas separadas.</p>
             <button type="submit" className="button primary login-submit">{submitting || busy ? 'Iniciando sesión…' : 'Iniciar sesión en vitaLis'}<img src={arrowIcon} alt="" /></button>
           </fieldset>
           {error && <p ref={errorRef} tabIndex={-1} className="error-state" role="alert">{error}</p>}

@@ -56,10 +56,13 @@ class FakeUserRepository:
         return refresh_token
 
     def get_active_refresh_token(self, token_hash):
-        refresh_token = self.refresh_tokens.get(token_hash)
+        refresh_token = next((token for token in self.refresh_tokens.values() if token.token_hash == token_hash), None)
         if refresh_token is None or refresh_token.revoked_at is not None:
             return None
         return refresh_token
+
+    def get_refresh_session(self, session_id, *, lock=False):
+        return next((token for token in self.refresh_tokens.values() if token.id == session_id), None)
 
     def invalidate_sessions(self, user_id):
         self.get_by_id(user_id).session_version += 1
@@ -175,7 +178,7 @@ class AuthTests(unittest.TestCase):
     def test_login_returns_user_and_token_contains_subject_and_role(self):
         user = self.service.register_patient(self.data)
         authenticated = self.service.authenticate(self.data.email, self.data.password)
-        token = self.service.issue_access_token(authenticated)
+        token, _ = self.service.issue_tokens(authenticated)
         payload = decode_access_token(token)
         self.assertEqual(authenticated.id, user.id)
         self.assertEqual(payload["sub"], str(user.id))
@@ -230,7 +233,7 @@ class AuthTests(unittest.TestCase):
 
     def test_refresh_token_rotates_and_revokes_previous_token(self):
         user = self.service.register_patient(self.data)
-        first_refresh_token = self.service.issue_refresh_token(user)
+        _, first_refresh_token = self.service.issue_tokens(user)
 
         access_token, second_refresh_token = self.service.refresh_tokens(first_refresh_token)
 
@@ -246,16 +249,19 @@ class AuthTests(unittest.TestCase):
         from app.services.auth_service import InvalidAccessTokenError, InvalidRefreshTokenError
         from app.api.auth import logout
         user = self.service.register_patient(self.data)
-        access = self.service.issue_access_token(user)
-        refresh = self.service.issue_refresh_token(user)
+        access, refresh = self.service.issue_tokens(user)
+        other_access, other_refresh = self.service.issue_tokens(user)
         self.assertIs(self.service.get_current_user(access), user)
-        logout(user, self.repository)
+        logout(user, self.repository, access)
         with self.assertRaises(InvalidAccessTokenError):
             self.service.get_current_user(access)
         with self.assertRaises(InvalidRefreshTokenError):
             self.service.refresh_tokens(refresh)
-        self.assertIs(self.service.get_current_user(self.service.issue_access_token(user)), user)
-        self.assertTrue(self.service.refresh_tokens(self.service.issue_refresh_token(user)))
+        self.assertIs(self.service.get_current_user(other_access), user)
+        self.assertTrue(self.service.refresh_tokens(other_refresh))
+        new_access, new_refresh = self.service.issue_tokens(user)
+        self.assertIs(self.service.get_current_user(new_access), user)
+        self.assertTrue(self.service.refresh_tokens(new_refresh))
 
 
 if __name__ == "__main__":

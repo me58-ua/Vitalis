@@ -20,9 +20,9 @@ export function PublicLayout() {
           <Notifications key={user.id} userId={user.id} />
           <details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><img src={accountIcon} alt="" /></summary>
             <div className="account-panel"><strong>{user.name}</strong><span>{labels[user.role]}</span>
-              <p className="field-help">Se cerrarán todas las sesiones de tu cuenta, también en otros dispositivos.</p>
+              <p className="field-help">Se cerrará esta sesión. Las demás sesiones seguirán abiertas.</p>
               {logoutError && <p role="alert" className="error-state">{logoutError}</p>}
-              <button className="text-button" disabled={busy} onClick={() => { void logout(); }}>{busy ? 'Cerrando sesión…' : 'Cerrar todas las sesiones'}</button></div>
+              <button className="text-button" disabled={busy} onClick={() => { void logout(); }}>{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div>
           </details>
         </> : !isLogin && <Link className="button header-login" to="/login">Iniciar sesión</Link>}
       </div>

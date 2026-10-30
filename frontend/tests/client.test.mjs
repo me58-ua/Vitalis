@@ -7,6 +7,9 @@ import ts from 'typescript';
 import { fixtureServer } from './fixture-server.mjs';
 
 test('Axios follows authentication and notification contracts', async (t) => {
+  const stored = new Map();
+  globalThis.window = { sessionStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) } };
+  t.after(() => { delete globalThis.window; });
   const fixture = await fixtureServer();
   t.after(fixture.close);
   const root = fileURLToPath(new URL('../', import.meta.url));
@@ -35,6 +38,11 @@ test('Axios follows authentication and notification contracts', async (t) => {
     assert.equal((await auth.currentUser()).id, fixture.account.id);
     assert.equal(tokens.token_type, 'bearer');
   });
+  await t.test('browser storage restores the session after module reload', async () => {
+    const reloaded = await import(`${pathToFileURL(path.join(output, 'session.js')).href}?reload=1`);
+    assert.deepEqual(reloaded.session.read(), session.read());
+    assert.equal(stored.size, 1);
+  });
   await t.test('invalid credentials produce a Spanish error', async () => {
     await assert.rejects(auth.login('test_user', 'incorrect'), (error) => {
       assert.match(errorMessage(error), /credenciales/); return true;
@@ -50,6 +58,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
     assert.equal(count, 1); assert.equal(page.notifications.length, 1);
     assert.equal(fixture.state.refreshes, 1);
     assert.equal(session.read().refresh_token, 'test-refresh-rotated');
+    assert.equal(JSON.parse(stored.get('vitalis.session')).refresh_token, 'test-refresh-rotated');
   });
   await t.test('403 does not refresh or clear the session', async () => {
     fixture.state.forbidden = true;
@@ -63,6 +72,15 @@ test('Axios follows authentication and notification contracts', async (t) => {
     const item = await notifications.markRead(fixture.notification.id, new AbortController().signal);
     assert.ok(item.read_at); assert.equal(fixture.state.reads, 1);
     assert.equal(await notifications.getUnreadCount(new AbortController().signal), 0);
+  });
+  await t.test('a temporary refresh failure preserves the saved login for retry', async () => {
+    const before = session.read();
+    fixture.state.access = 'expired-for-network-test'; fixture.state.failRefresh = true;
+    await assert.rejects(notifications.getUnreadCount(new AbortController().signal));
+    assert.deepEqual(session.read(), before);
+    assert.equal(stored.has('vitalis.session'), true);
+    fixture.state.failRefresh = false;
+    await notifications.getUnreadCount(new AbortController().signal);
   });
   await t.test('empty and failed responses never fabricate notifications', async () => {
     fixture.state.empty = true;
@@ -78,6 +96,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
     session.replace(null);
     await assert.rejects(request);
     assert.equal(session.read(), null);
+    assert.equal(stored.has('vitalis.session'), false);
   });
   await t.test('admin user CRUD sends nested profiles, paginates, and explains conflicts in Spanish', async () => {
     fixture.account.role = 'admin'; fixture.state.userManagement = true; fixture.state.delayRefresh = 0;

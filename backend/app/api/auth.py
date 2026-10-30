@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from app.api.deps import get_current_user, get_user_repository
+from app.api.deps import get_current_user, get_user_repository, oauth2_scheme
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import (
@@ -25,6 +25,7 @@ from app.services.auth_service import (
 	InvalidCredentialsError,
 	UsernameAlreadyRegisteredError,
 	InvalidRefreshTokenError,
+	InvalidAccessTokenError,
 )
 from app.services.email_service import send_welcome_email
 
@@ -64,10 +65,8 @@ def login(
 			detail="INVALID_CREDENTIALS",
 			headers={"WWW-Authenticate": "Bearer"},
 		)
-	return TokenResponse(
-		access_token=service.issue_access_token(user),
-		refresh_token=service.issue_refresh_token(user),
-	)
+	access_token, refresh_token = service.issue_tokens(user)
+	return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -123,6 +122,10 @@ def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
 def logout(
 	current_user: Annotated[User, Depends(get_current_user)],
 	users: Annotated[UserRepository, Depends(get_user_repository)],
+	token: Annotated[str, Depends(oauth2_scheme)],
 ) -> None:
-	"""Close all account sessions, invalidating access and refresh tokens."""
-	AuthService(users).logout(current_user)
+	"""Close only the login session identified by the bearer token."""
+	try:
+		AuthService(users).logout(current_user, token)
+	except InvalidAccessTokenError as error:
+		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="INVALID_CREDENTIALS") from error

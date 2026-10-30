@@ -117,3 +117,9 @@ class UserRepository:
             )
             .with_for_update()
         )
+
+    def get_refresh_session(self, session_id: UUID, *, lock: bool = False) -> RefreshToken | None:
+        query = select(RefreshToken).where(RefreshToken.id == session_id)
+        if lock:
+            query = query.with_for_update()
+        return self.session.scalar(query)

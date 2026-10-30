@@ -117,7 +117,7 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description Close all account sessions, invalidating access and refresh tokens.
+         * @description Close only the login session identified by the bearer token.
          */
         post: operations["logout_auth_logout_post"];
         delete?: never;

@@ -1,6 +1,6 @@
 # Servicio de autenticación: registra usuarios, valida credenciales y gestiona tokens de acceso y actualización.
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
 from jose import JWTError
@@ -114,30 +114,51 @@ class AuthService:
             payload = decode_access_token(token)
             subject = payload.get("sub")
             user_id = UUID(subject) if isinstance(subject, str) else None
-        except (JWTError, ValueError):
+            session_id = UUID(payload["sid"])
+        except (JWTError, ValueError, KeyError, TypeError, AttributeError):
             raise InvalidAccessTokenError
 
         user = self.users.get_by_id(user_id) if user_id else None
         token_session_version = payload.get("session_version", 0)
+        refresh_session = self.users.get_refresh_session(session_id)
         if (
             user is None
             or not user.is_active
             or not isinstance(token_session_version, int)
             or token_session_version != user.session_version
+            or refresh_session is None
+            or refresh_session.user_id != user.id
+            or not self._valid_session(refresh_session, user)
         ):
             raise InvalidAccessTokenError
         return user
 
-    def issue_access_token(self, user: User) -> str:
-        return create_access_token(str(user.id), user.role.value, getattr(user, "session_version", 0) or 0)
+    def _access_for_session(self, user: User, session_id: UUID) -> str:
+        return create_access_token(str(user.id), user.role.value, user.session_version, str(session_id))
 
-    def logout(self, current_user: User) -> None:
-        """Revoke all previously issued access/refresh tokens for this account."""
-        self.users.invalidate_sessions(current_user.id)
+    @staticmethod
+    def _valid_session(session: RefreshToken, user: User) -> bool:
+        expires = session.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        return session.revoked_at is None and expires > datetime.now(timezone.utc) and session.session_version == user.session_version
 
-    def issue_refresh_token(self, user: User) -> str:
+    def logout(self, current_user: User, access_token: str) -> None:
+        """Revoke this login session, leaving other logins and accounts untouched."""
+        try:
+            session_id = UUID(decode_access_token(access_token)["sid"])
+        except (JWTError, ValueError, KeyError, TypeError, AttributeError) as error:
+            raise InvalidAccessTokenError from error
+        session = self.users.get_refresh_session(session_id, lock=True)
+        if session is None or session.user_id != current_user.id:
+            raise InvalidAccessTokenError
+        session.revoked_at = datetime.now(timezone.utc)
+        self.users.session.flush()
+
+    def issue_tokens(self, user: User) -> tuple[str, str]:
         raw_token = create_refresh_token()
         refresh_token = RefreshToken(
+            id=uuid4(),
             user_id=user.id,
             token_hash=hash_refresh_token(raw_token),
             session_version=user.session_version,
@@ -145,22 +166,25 @@ class AuthService:
             + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
         self.users.create_refresh_token(refresh_token)
-        return raw_token
+        return self._access_for_session(user, refresh_token.id), raw_token
 
     def refresh_tokens(self, raw_token: str) -> tuple[str, str]:
         refresh_token = self.users.get_active_refresh_token(hash_refresh_token(raw_token))
-        now = datetime.now(timezone.utc)
-        if refresh_token is None or refresh_token.expires_at <= now:
+        if refresh_token is None:
             raise InvalidRefreshTokenError
 
         user = self.users.get_by_id(refresh_token.user_id)
         if (
             user is None
             or not user.is_active
-            or refresh_token.session_version != user.session_version
+            or not self._valid_session(refresh_token, user)
         ):
             raise InvalidRefreshTokenError
 
-        refresh_token.revoked_at = now
+        # Rotate the secret while keeping a stable login ID for access validation
+        # and logout, including when refresh and logout requests race.
+        new_token = create_refresh_token()
+        refresh_token.token_hash = hash_refresh_token(new_token)
+        refresh_token.expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         self.users.session.flush()
-        return self.issue_access_token(user), self.issue_refresh_token(user)
+        return self._access_for_session(user, refresh_token.id), new_token

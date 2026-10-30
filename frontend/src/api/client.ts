@@ -41,7 +41,7 @@ async function refreshTokens(): Promise<Tokens> {
       return data;
     })
     .catch((error: unknown) => {
-      if (generation === session.generation()) session.replace(null);
+      if (generation === session.generation() && error instanceof AxiosError && error.response?.status === 401) session.replace(null);
       throw error;
     })
     .finally(() => { if (refreshFlight?.promise === promise) refreshFlight = null; });

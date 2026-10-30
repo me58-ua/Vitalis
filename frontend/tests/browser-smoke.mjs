@@ -76,6 +76,11 @@ try {
     for (let i = 0; i < 100; i += 1) { if (await evaluate(expression)) return; await sleep(100); }
     throw new Error(`Browser condition timed out: ${expression}`);
   }
+  async function reloadUntil(expression) {
+    await evaluate('window.__vitalisReloadPending = true');
+    await command('Page.reload');
+    await until(`window.__vitalisReloadPending !== true && (${expression})`);
+  }
   async function click(selector) {
     await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   }
@@ -271,11 +276,28 @@ try {
   assert.equal(await evaluate(`document.querySelector('main h1').textContent`), 'Página de profesional');
   await evaluate(`history.pushState(null, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate'))`);
   await until(`location.pathname === '/professionalDashboard'`);
-  await command('Page.reload');
+  await reloadUntil(`location.pathname === '/professionalDashboard' && document.querySelector('.account-menu') !== null`);
+  fixture.state.access = 'expired-on-reload';
+  await reloadUntil(`location.pathname === '/professionalDashboard' && document.querySelector('.account-menu') !== null`);
+  fixture.state.failMe = true;
+  await reloadUntil(`document.body.textContent.includes('No se pudo restaurar la sesión')`);
+  fixture.state.failMe = false;
+  await click('main .primary');
+  await until(`location.pathname === '/professionalDashboard' && document.querySelector('.account-menu') !== null`);
+  fixture.state.failMe = true;
+  await reloadUntil(`document.body.textContent.includes('No se pudo restaurar la sesión')`);
+  fixture.state.failMe = false;
+  await click('main .secondary');
   await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
+  assert.equal(await evaluate(`sessionStorage.getItem('vitalis.session')`), null);
+  await fill('identifier', 'test_user'); await fill('password', 'TestPassword!');
+  await click('button[type="submit"]');
+  await until(`location.pathname === '/professionalDashboard' && document.querySelector('.account-menu') !== null`);
   await command('Page.navigate', { url: `${testOrigin}/patientPanel` });
+  await until(`location.pathname === '/professionalDashboard' && document.querySelector('.account-menu') !== null`);
+  await click('.account-menu summary'); await click('.account-panel button');
   await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
-  results.push({ check: 'professional destination, role guard, authenticated login redirect and reload session clearing' });
+  results.push({ check: 'session persistence on reload, expired-access refresh, restoration error/retry and role guards' });
   fixture.account.role = 'admin';
   await fill('identifier', 'test_user'); await fill('password', 'TestPassword!');
   await click('button[type="submit"]');
@@ -544,6 +566,30 @@ try {
   await until(`location.pathname === '/login' && document.querySelector('dialog[open]') !== null`);
   assert.equal(await evaluate(`document.querySelector('dialog [role="alert"]')?.textContent.includes('Inicia sesión para continuar')`), true);
   results.push({ check: 'admin login destination, role guard, logout and unauthenticated admin route' });
+  fixture.state.independentSessions = true;
+  await fill('identifier', 'test_user'); await fill('password', 'TestPassword!');
+  await click('button[type="submit"]');
+  await until(`location.pathname === '/adminPanel' && document.querySelector('.admin-account-menu') !== null`);
+  const adminTab = targetSession;
+  const { targetId: patientTarget } = await command('Target.createTarget', { url: 'about:blank' }, null);
+  targetSession = (await command('Target.attachToTarget', { targetId: patientTarget, flatten: true }, null)).sessionId;
+  const patientTab = targetSession;
+  await command('Page.enable'); await command('Runtime.enable');
+  await command('Page.navigate', { url: `${testOrigin}/login` });
+  await until(`document.querySelector('[name="identifier"]') !== null`);
+  await fill('identifier', 'patient_fixture'); await fill('password', 'TestPassword!');
+  await click('button[type="submit"]');
+  await until(`location.pathname === '/patientPanel' && document.querySelector('.account-menu') !== null`);
+  await reloadUntil(`location.pathname === '/patientPanel' && document.querySelector('.account-menu') !== null`);
+  targetSession = adminTab;
+  await reloadUntil(`location.pathname === '/adminPanel' && document.querySelector('.admin-account-menu') !== null`);
+  await click('.admin-account-menu summary'); await click('.admin-logout');
+  await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
+  targetSession = patientTab;
+  await reloadUntil(`location.pathname === '/patientPanel' && document.querySelector('.account-menu summary')?.getAttribute('aria-label').includes('Paciente sintético')`);
+  await click('.account-menu summary'); await click('.account-panel button');
+  await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
+  results.push({ check: 'separate admin and patient browser tabs retain accounts on reload; admin logout leaves the patient signed in' });
   assert.deepEqual(runtimeErrors, []);
   await writeFile(path.join(output, 'browser-report.json'), JSON.stringify({ results, runtimeErrors }, null, 2));
   console.log(JSON.stringify({ passed: results.length, results, runtimeErrors }, null, 2));
