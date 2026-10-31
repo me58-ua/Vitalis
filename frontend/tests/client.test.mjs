@@ -15,7 +15,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const output = path.join(root, 'test-results', 'client');
   await mkdir(output, { recursive: true });
-  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors']) {
+  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors', 'professional', 'professionalErrors']) {
     const source = (await readFile(path.join(root, 'src/api', `${name}.ts`), 'utf8'))
       .replace('import.meta.env.VITE_API_BASE_URL', JSON.stringify(fixture.url));
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText
@@ -31,6 +31,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const { errorMessage } = await load('errors');
   const { adminUserError } = await load('adminUserErrors');
   const admin = await load('admin');
+  const professional = await load('professional');
 
   await t.test('URL-encoded login and account lookup', async () => {
     const tokens = await auth.login('test_user', 'TestPassword!');
@@ -131,5 +132,28 @@ test('Axios follows authentication and notification contracts', async (t) => {
     fixture.state.userFailure = null;
     await admin.deleteAdminUser(created.id, signal);
     await assert.rejects(admin.getAdminUser(created.id, signal));
+  });
+  await t.test('professional API separates appointment motive from cancellation and keeps English transport enums', async () => {
+    fixture.account.role = 'professional';
+    const signal = new AbortController().signal;
+    const dashboard = await professional.getProfessionalDashboard(signal);
+    assert.equal(dashboard.weekly_distribution.length, 7);
+    assert.equal(dashboard.timezone, 'Europe/Madrid');
+    assert.ok(dashboard.upcoming_appointments.every(item => ['pending', 'confirmed'].includes(item.status)));
+    const payload = { patient_id: '00000000-0000-4000-8000-000000000201', start_time: '2030-11-05T10:00:00Z', end_time: '2030-11-05T10:30:00Z', type: 'in_person', appointment_reason: 'Motivo original sintético' };
+    await professional.createProfessionalAppointment(fixture.account.id, payload, signal);
+    assert.deepEqual(fixture.state.professionalCreates.at(-1), payload);
+    let page = await professional.getProfessionalAppointments({ page: 1, page_size: 20, upcoming_only: false }, signal);
+    const item = page.appointments.find(item => item.appointment_reason === payload.appointment_reason);
+    assert.ok(item);
+    await professional.cancelProfessionalAppointment(fixture.account.id, item.id, 'Cancelación sintética', signal);
+    page = await professional.getProfessionalAppointments({ upcoming_only: false, status: 'cancelled' }, signal);
+    const cancelled = page.appointments.find(row => row.id === item.id);
+    assert.equal(cancelled.appointment_reason, payload.appointment_reason);
+    assert.equal(cancelled.cancellation_reason, 'Cancelación sintética');
+    assert.deepEqual(fixture.state.professionalCancels.at(-1), { cancellation_reason: 'Cancelación sintética' });
+    assert.ok((await professional.getProfessionalPatients('', 1, signal)).total > 0);
+    assert.ok((await professional.getProfessionalProfile(signal)).specialty);
+    assert.equal((await professional.getProfessionalHistory(fixture.account.id, 1, signal)).appointments[0].status, 'cancelled');
   });
 });

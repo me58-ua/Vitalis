@@ -79,7 +79,7 @@ class AppointmentService:
             start_time=data.start_time,
             end_time=data.end_time,
             type=data.type,
-            reason=data.reason,
+            appointment_reason=data.appointment_reason,
         )
         return self._create_appointment(appointment)
 
@@ -138,7 +138,7 @@ class AppointmentService:
                 start_time=data.start_time,
                 end_time=data.end_time,
                 type=data.type,
-                reason=data.reason,
+                appointment_reason=data.appointment_reason,
             )
         )
 
@@ -150,6 +150,10 @@ class AppointmentService:
     ) -> Appointment:
         appointment = self._get_appointment(appointment_id)
         values = data.model_dump(exclude_unset=True)
+        values.pop("cancellation_reason", None)
+        values.pop("status_reason", None)
+        if data.cancellation_reason is not None and data.status != AppointmentStatus.CANCELLED:
+            raise AppointmentValidationError("Cancellation reason requires cancelled status")
         old_status = appointment.status
         start_time = values.get("start_time", appointment.start_time)
         end_time = values.get("end_time", appointment.end_time)
@@ -168,7 +172,7 @@ class AppointmentService:
                         old_status=old_status,
                         new_status=values["status"],
                         changed_by=changed_by.id,
-                        reason=data.reason,
+                        reason=data.cancellation_reason if data.status == AppointmentStatus.CANCELLED else data.status_reason,
                     )
                 )
                 self.audit.record(
@@ -206,7 +210,7 @@ class AppointmentService:
             start_time=data.start_time,
             end_time=data.end_time,
             type=data.type,
-            reason=data.reason,
+            appointment_reason=data.appointment_reason,
         )
         return self._create_appointment(appointment)
 
@@ -269,7 +273,7 @@ class AppointmentService:
                     old_status=old_status,
                     new_status=data.status,
                     changed_by=professional_id,
-                    reason=data.reason,
+                    reason=data.status_reason,
                 )
             )
             self.audit.record(
@@ -325,7 +329,7 @@ class AppointmentService:
                     old_status=old_status,
                     new_status=AppointmentStatus.CANCELLED,
                     changed_by=current_user.id,
-                    reason=data.reason,
+                    reason=data.cancellation_reason,
                 )
             )
             self.audit.record(

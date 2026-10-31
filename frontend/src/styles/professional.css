@@ -1,0 +1,103 @@
+.professional-main { padding: 24px 48px 48px; }
+.professional-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); align-items: start; gap: 24px; }
+.professional-primary, .professional-secondary { display: grid; gap: 24px; min-width: 0; }
+.professional-welcome { background: linear-gradient(150deg, #0035271a, transparent 70%), #eff4ff; padding: 40px; border-radius: 12px; min-height: 240px; display: flex; flex-direction: column; justify-content: center; }
+.professional-welcome h1 { font-size: clamp(32px, 3.3vw, 48px); line-height: 1.17; letter-spacing: -.96px; margin: 0 0 16px; }
+.professional-welcome p { color: var(--muted); font-size: 17px; line-height: 1.65; margin: 0; }
+.professional-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.professional-stats article { display: flex; gap: 12px; align-items: flex-start; padding: 24px 16px; background: #d9e3f6; border-radius: 8px; min-width: 0; }
+.professional-stats h2 { font-size: 10px; line-height: 1.6; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.professional-stat-icon { width: 44px; height: 44px; display: grid; place-items: center; background: var(--green); border-radius: 50%; flex-shrink: 0; }
+.professional-stat-completed, .professional-stat-patients { background: #6cf8bb; color: #006c49; font-weight: 700; font-size: 24px; }
+.professional-stat-patients { width: 44px; }
+.professional-stats .professional-stat-value { font-size: 32px; line-height: 40px; margin: 0 0 4px; color: #121c2a; font-weight: 600; }
+.professional-stats p, .professional-stats a { font-size: 11px; color: var(--muted); margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.professional-stats .professional-stat-change { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: #006c49; }
+.professional-upcoming { border-radius: 12px; background: white; overflow: hidden; box-shadow: 0 1px 2px #0000000d; }
+.professional-upcoming > header { padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #eff4ff; }
+.professional-upcoming h2, .professional-quick h2 { font-size: 24px; line-height: 32px; margin: 0; }
+.professional-upcoming header a { display: inline-flex; gap: 6px; align-items: center; color: var(--green); text-decoration: none; font-size: 13px; white-space: nowrap; }
+.professional-appointments-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; font-size: 12px; }
+.professional-appointments-table thead th { padding: 16px 12px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: #d9e3f680; }
+.professional-appointments-table th:first-child { width: 28%; padding-left: 24px; }
+.professional-appointments-table th:nth-child(2) { width: 22%; }
+.professional-appointments-table th:nth-child(3) { width: 22%; }
+.professional-appointments-table th:nth-child(4) { width: 20%; }
+.professional-appointments-table th:last-child { width: 8%; }
+.professional-appointments-table tbody th, .professional-appointments-table td { padding: 20px 12px; border-bottom: 1px solid #bfc9c333; font-weight: 400; color: var(--muted); line-height: 1.6; vertical-align: middle; overflow-wrap: anywhere; }
+.professional-patient-cell { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.professional-initials { width: 36px; height: 36px; display: grid; place-items: center; background: #b7ead8; border-radius: 50%; color: var(--green); flex-shrink: 0; font-size: 14px; }
+.professional-patient-cell strong { display: block; font-size: 12px; line-height: 1.5; color: #121c2a; }
+.professional-patient-cell small { display: block; margin-top: 4px; font-size: 10px; overflow-wrap: anywhere; }
+.professional-type { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 3px 5px; border-radius: 4px; background: #e6f2ec; color: #006c49; font-size: 10px; font-weight: 600; }
+.professional-status { display: block; margin-top: 6px; font-size: 11px; }
+.professional-more { width: 36px; min-height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: #d9e3f6; }
+.professional-upcoming footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; color: var(--muted); font-size: 12px; }
+.professional-empty { padding: 24px; line-height: 1.6; color: var(--muted); }
+.professional-quick { padding: 24px; border-radius: 12px; background: white; box-shadow: 0 1px 2px #0000000d; }
+.professional-quick > div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.professional-quick a, .professional-quick button { min-height: 104px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #dee9fc; color: #121c2a; border: 1px solid #bfc9c34d; border-radius: 8px; text-decoration: none; font-size: 13px; text-align: center; }
+.professional-quick .professional-new { background: var(--green); color: white; border-color: var(--green); }
+.professional-quick button:disabled { cursor: not-allowed; opacity: .65; }
+.professional-quick small { font-size: 10px; }
+.professional-weekly { padding: 24px; border-radius: 12px; background: #eff4ff; }
+.professional-weekly h2 { font-size: 13px; font-weight: 500; line-height: 1.6; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
+.professional-weekly > p { font-size: 11px; line-height: 1.6; color: var(--muted); }
+.professional-weekly figure { margin: 24px 0 16px; }
+.professional-chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; list-style: none; padding: 0; margin: 0; }
+.professional-chart li { min-width: 0; text-align: center; }
+.professional-chart-count { display: block; font-size: 12px; margin-bottom: 8px; color: var(--green); }
+.professional-chart-track { display: flex; align-items: flex-end; height: 150px; border-bottom: 1px solid #bfc9c3; }
+.professional-chart-track span { display: block; width: 100%; background: #6ffbbe80; border-radius: 2px 2px 0 0; }
+.is-today .professional-chart-track span { background: #006c49; }
+.professional-chart time { display: block; margin-top: 8px; font-size: 10px; color: var(--muted); }
+.professional-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.professional-search-form { display: flex; align-items: flex-end; gap: 12px; margin: 24px 0; }
+.professional-search-form label { flex: 1; min-width: 0; }
+.professional-search-form button { flex-shrink: 0; }
+.professional-patient-list, .professional-agenda-list { padding: 0; list-style: none; }
+.professional-patient-list li, .professional-agenda-list li { padding: 20px 0; border-bottom: 1px solid #e6eeff; overflow-wrap: anywhere; line-height: 1.6; font-size: 14px; }
+.professional-patient-list span { display: block; font-size: 13px; color: var(--muted); }
+.professional-agenda-list p { margin: 6px 0; }
+.professional-pages { margin-top: 24px; }
+.professional-select-pages { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.professional-select-pages button, .professional-pages button { padding: 10px 12px; min-height: 40px; border-radius: 8px; border: 1px solid #d9e3f6; background: #eff4ff; }
+.professional-create-form, .professional-agenda-filters, .professional-appointment-details { padding-top: 24px; }
+.professional-patient-select .professional-search-form { margin: 16px 0; }
+.professional-appointment-details p { line-height: 1.6; overflow-wrap: anywhere; }
+.professional-appointment-details form { margin-top: 24px; }
+.professional-profile dt { font-weight: 600; margin-top: 20px; }
+.professional-profile dd { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; line-height: 1.6; }
+@media (max-width: 1400px) { .professional-main { padding: 24px; } .professional-grid { grid-template-columns: minmax(0, 1.8fr) minmax(245px, 1fr); } .professional-stats article { flex-direction: column; } }
+@media (max-width: 1100px) { .professional-grid { grid-template-columns: minmax(0, 1fr); } .professional-secondary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .professional-stats article { flex-direction: row; } .professional-header .search-trigger span { display: none; } }
+@media (max-width: 760px) {
+  .professional-main { padding: 24px 16px 40px; }
+  .professional-header .admin-header-tools { gap: 4px; }
+  .professional-header .search-trigger { padding: 10px; font-size: 0; gap: 0; }
+  .professional-header .admin-header-title { flex: 1; }
+  .professional-header .admin-header-title p:last-child { font-size: 12px; }
+  .professional-welcome { min-height: 0; padding: 28px 24px; }
+  .professional-welcome h1 { font-size: 34px; }
+  .professional-welcome p { font-size: 15px; }
+  .professional-stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .professional-stats article { padding: 20px 24px; align-items: center; }
+  .professional-stats article > div { flex: 1; }
+  .professional-stats h2 { font-size: 11px; }
+  .professional-stat-icon { width: 48px; height: 48px; }
+  .professional-secondary { grid-template-columns: minmax(0, 1fr); }
+  .professional-upcoming > header { padding: 20px; }
+  .professional-upcoming h2 { font-size: 21px; }
+  .professional-appointments-table, .professional-appointments-table tbody { display: block; }
+  .professional-appointments-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .professional-appointments-table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; border-bottom: 1px solid #bfc9c333; }
+  .professional-appointments-table tbody th { width: auto; grid-column: 1 / -1; padding: 0; }
+  .professional-appointments-table th:first-child, .professional-appointments-table th:last-child { width: auto; }
+  .professional-appointments-table td { padding: 0; border: 0; }
+  .professional-appointments-table td:nth-child(3) { grid-column: 1 / -1; }
+  .professional-appointments-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; letter-spacing: .7px; margin-bottom: 6px; text-transform: uppercase; }
+  .professional-appointments-table td:last-child { justify-self: end; }
+  .professional-patient-cell strong { font-size: 15px; }
+  .professional-patient-cell small { font-size: 12px; }
+  .professional-type { font-size: 12px; }
+  .professional-upcoming footer { padding: 16px 20px; flex-wrap: wrap; }
+}

@@ -60,17 +60,17 @@ function CancelAppointmentDialog({ item, onClose, onCancelled }: { item: Appoint
   useEffect(() => () => controller.current?.abort(), []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (locked.current) return;
-    const reason = String(new FormData(event.currentTarget).get('reason') ?? '').trim();
+    const cancellationReason = String(new FormData(event.currentTarget).get('cancellation_reason') ?? '').trim();
     locked.current = true; setBusy(true); setError('');
     const abort = new AbortController(); controller.current = abort;
-    try { await cancelAdminAppointment(item.id, reason || null, abort.signal); if (!abort.signal.aborted) onCancelled(); }
+    try { await cancelAdminAppointment(item.id, cancellationReason || null, abort.signal); if (!abort.signal.aborted) onCancelled(); }
     catch (error: unknown) { if (!abort.signal.aborted) setError(appointmentError(error)); }
     finally { locked.current = false; if (!abort.signal.aborted) setBusy(false); }
   }
   return <Modal title="Anular cita" onClose={onClose} busy={busy}>
     <p>Vas a anular la cita de <strong>{item.patient_name}</strong> con {item.professional_name}, el {appointmentDate(item.start_time)}. El registro de la cita se conservará.</p>
     <form aria-busy={busy} onSubmit={event => { void submit(event); }}><fieldset className="form-grid" disabled={busy}>
-      <label className="full">Motivo de anulación (opcional)<textarea name="reason" rows={3} /></label>
+      <label className="full">Motivo de anulación (opcional)<textarea name="cancellation_reason" rows={3} /></label>
       <button className="button primary full" type="submit">{busy ? 'Anulando…' : 'Confirmar anulación'}</button>
       <button className="text-button full" type="button" onClick={onClose}>Volver sin anular</button>
     </fieldset>{error && <p className="error-state" role="alert">{error}</p>}</form>
@@ -119,7 +119,7 @@ export function AdminAppointmentsPage() {
       {state.loading && <p role="status">Cargando citas…</p>}
       {state.error && <div role="alert" className="error-state"><p>{state.error}</p><button className="text-button" onClick={state.retry}>Reintentar</button></div>}
       {data && <><p role="status">{data.total} citas encontradas.</p>{data.appointments.length === 0 ? <p>No se han encontrado citas con estos filtros.</p> : <ul className="admin-appointments-list">{data.appointments.map(item => <li key={item.id}>
-        <div><h3>{item.patient_name}</h3><p>Profesional: {item.professional_name}</p><p><time dateTime={item.start_time}>{appointmentDate(item.start_time)}</time> — <time dateTime={item.end_time}>{appointmentDate(item.end_time)}</time></p><p>{appointmentTypes[item.type]} · <strong>{appointmentStatuses[item.status]}</strong></p>{item.status === 'cancelled' && <p>Motivo de anulación: {item.reason || 'No indicado'}</p>}</div>
+        <div><h3>{item.patient_name}</h3><p>Profesional: {item.professional_name}</p><p><time dateTime={item.start_time}>{appointmentDate(item.start_time)}</time> — <time dateTime={item.end_time}>{appointmentDate(item.end_time)}</time></p><p>{appointmentTypes[item.type]} · <strong>{appointmentStatuses[item.status]}</strong></p>{item.status === 'cancelled' && <p>Motivo de anulación: {item.cancellation_reason || 'No indicado'}</p>}</div>
         {(item.status === 'pending' || item.status === 'confirmed') && <button className="button secondary" onClick={() => { setSuccess(''); setDialog(item); }}>Anular cita</button>}
       </li>)}</ul>}
       <nav className="pagination" aria-label="Paginación de citas"><button disabled={data.page <= 1} onClick={() => setQuery({ ...query, page: data.page - 1 })}>Anterior</button><span>Página {data.page} de {Math.max(1, Math.ceil(data.total / data.page_size))}</span><button disabled={data.page * data.page_size >= data.total} onClick={() => setQuery({ ...query, page: data.page + 1 })}>Siguiente</button></nav></>}

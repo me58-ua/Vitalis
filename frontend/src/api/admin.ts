@@ -20,8 +20,8 @@ export async function getUpcomingAppointments(signal: AbortSignal) {
 export async function createAdminAppointment(payload: CreateAppointment, signal: AbortSignal) {
   await api.post('/admin/appointments', payload, { signal });
 }
-export async function cancelAdminAppointment(id: string, reason: string | null, signal: AbortSignal) {
-  const payload: UpdateAppointment = { status: 'cancelled', reason };
+export async function cancelAdminAppointment(id: string, cancellationReason: string | null, signal: AbortSignal) {
+  const payload: UpdateAppointment = { status: 'cancelled', cancellation_reason: cancellationReason };
   await api.patch(`/admin/appointments/${id}`, payload, { signal });
 }
 export async function getAppointmentUsers(role: 'patient' | 'professional', search: string, page: number, signal: AbortSignal) {

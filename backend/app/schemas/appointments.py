@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from app.models import AppointmentStatus, AppointmentType
 
@@ -38,7 +38,7 @@ class AdminAppointmentCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     type: AppointmentType
-    reason: str | None = None
+    appointment_reason: str | None = Field(default=None, validation_alias=AliasChoices("appointment_reason", "reason"))
 
     @model_validator(mode="after")
     def validate_appointment(self) -> "AdminAppointmentCreate":
@@ -57,6 +57,7 @@ class AdminAppointmentResponse(AdminAppointmentCreate):
     room_id: str | UUID
     created_at: datetime
     updated_at: datetime
+    cancellation_reason: str | None = None
 
 
 class AdminAppointmentUpdate(BaseModel):
@@ -64,7 +65,18 @@ class AdminAppointmentUpdate(BaseModel):
     end_time: datetime | None = None
     status: AppointmentStatus | None = None
     type: AppointmentType | None = None
-    reason: str | None = None
+    appointment_reason: str | None = None
+    cancellation_reason: str | None = None
+    status_reason: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_reason(cls, value):
+        if isinstance(value, dict) and "reason" in value:
+            value = dict(value)
+            key = "cancellation_reason" if value.get("status") == "cancelled" else "status_reason" if value.get("status") else "appointment_reason"
+            value.setdefault(key, value.pop("reason"))
+        return value
 
     @model_validator(mode="after")
     def validate_times(self) -> "AdminAppointmentUpdate":
@@ -83,7 +95,7 @@ class ProfessionalAppointmentCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     type: AppointmentType
-    reason: str | None = None
+    appointment_reason: str | None = Field(default=None, validation_alias=AliasChoices("appointment_reason", "reason"))
 
     @model_validator(mode="after")
     def validate_appointment(self) -> "ProfessionalAppointmentCreate":
@@ -111,7 +123,7 @@ class ProfessionalScheduleUpdate(BaseModel):
 
 class ProfessionalAppointmentStatusUpdate(BaseModel):
     status: AppointmentStatus
-    reason: str | None = None
+    status_reason: str | None = Field(default=None, validation_alias=AliasChoices("status_reason", "reason"))
 
     @model_validator(mode="after")
     def validate_status(self) -> "ProfessionalAppointmentStatusUpdate":
@@ -126,7 +138,7 @@ class ProfessionalAppointmentStatusUpdate(BaseModel):
 
 
 class AppointmentCancelRequest(BaseModel):
-    reason: str | None = None
+    cancellation_reason: str | None = Field(default=None, validation_alias=AliasChoices("cancellation_reason", "reason"))
 
 
 class ConsultationNoteUpdate(BaseModel):
@@ -169,7 +181,7 @@ class PatientAppointmentCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     type: AppointmentType
-    reason: str | None = None
+    appointment_reason: str | None = Field(default=None, validation_alias=AliasChoices("appointment_reason", "reason"))
 
     @model_validator(mode="after")
     def validate_appointment(self) -> "PatientAppointmentCreate":

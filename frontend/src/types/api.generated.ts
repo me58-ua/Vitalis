@@ -489,6 +489,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/professionals/me/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Professional Dashboard */
+        get: operations["professional_dashboard_professionals_me_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/professionals/me/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Professional Appointments */
+        get: operations["professional_appointments_professionals_me_appointments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/professionals/me/patients": {
         parameters: {
             query?: never;
@@ -1377,8 +1411,8 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
         };
         /** AdminAppointmentListResponse */
         AdminAppointmentListResponse: {
@@ -1414,8 +1448,8 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
             /**
              * Id
              * Format: uuid
@@ -1434,6 +1468,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
         };
         /** AdminAppointmentSummary */
         AdminAppointmentSummary: {
@@ -1468,8 +1504,10 @@ export interface components {
             end_time: string;
             type: components["schemas"]["AppointmentType"];
             status: components["schemas"]["AppointmentStatus"];
-            /** Reason */
-            reason: string | null;
+            /** Appointment Reason */
+            appointment_reason: string | null;
+            /** Cancellation Reason */
+            cancellation_reason: string | null;
         };
         /** AdminAppointmentUpdate */
         AdminAppointmentUpdate: {
@@ -1479,8 +1517,12 @@ export interface components {
             end_time?: string | null;
             status?: components["schemas"]["AppointmentStatus"] | null;
             type?: components["schemas"]["AppointmentType"] | null;
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
+            /** Status Reason */
+            status_reason?: string | null;
         };
         /** AdminMonthlyMetricsResponse */
         AdminMonthlyMetricsResponse: {
@@ -1849,8 +1891,8 @@ export interface components {
         AllergySeverity: "leve" | "moderada" | "grave" | "mortal";
         /** AppointmentCancelRequest */
         AppointmentCancelRequest: {
-            /** Reason */
-            reason?: string | null;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
         };
         /** AppointmentHistoryResponse */
         AppointmentHistoryResponse: {
@@ -1878,8 +1920,10 @@ export interface components {
             status: string;
             /** Type */
             type: string;
-            /** Reason */
-            reason: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
         };
         /** AppointmentResponse */
         AppointmentResponse: {
@@ -1904,8 +1948,8 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
             /**
              * Id
              * Format: uuid
@@ -1924,6 +1968,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
         };
         /**
          * AppointmentStatus
@@ -2686,8 +2732,8 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
         };
         /** PatientListResponse */
         PatientListResponse: {
@@ -2977,8 +3023,8 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
         };
         /** ProfessionalAppointmentHistoryListResponse */
         ProfessionalAppointmentHistoryListResponse: {
@@ -3014,8 +3060,8 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
-            /** Reason */
-            reason?: string | null;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
             /**
              * Id
              * Format: uuid
@@ -3034,6 +3080,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
             /** Patient Name */
             patient_name: string;
             /** Patient Username */
@@ -3050,14 +3098,102 @@ export interface components {
         /** ProfessionalAppointmentStatusUpdate */
         ProfessionalAppointmentStatusUpdate: {
             status: components["schemas"]["AppointmentStatus"];
-            /** Reason */
-            reason?: string | null;
+            /** Status Reason */
+            status_reason?: string | null;
+        };
+        /** ProfessionalAppointmentSummary */
+        ProfessionalAppointmentSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /** Patient Name */
+            patient_name: string;
+            /** Patient Username */
+            patient_username: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+            type: components["schemas"]["AppointmentType"];
+            status: components["schemas"]["AppointmentStatus"];
+            /** Appointment Reason */
+            appointment_reason: string | null;
+            /** Cancellation Reason */
+            cancellation_reason: string | null;
+        };
+        /** ProfessionalAppointmentsResponse */
+        ProfessionalAppointmentsResponse: {
+            /** Appointments */
+            appointments: components["schemas"]["ProfessionalAppointmentSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
         };
         /**
          * ProfessionalApprovalStatus
          * @enum {string}
          */
         ProfessionalApprovalStatus: "pending" | "approved" | "rejected";
+        /** ProfessionalDashboardResponse */
+        ProfessionalDashboardResponse: {
+            /**
+             * Timezone
+             * @default Europe/Madrid
+             */
+            timezone: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /**
+             * Week End
+             * Format: date
+             */
+            week_end: string;
+            /** Appointments Today */
+            appointments_today: number;
+            /** Appointments Yesterday */
+            appointments_yesterday: number;
+            /** Scheduled Today */
+            scheduled_today: number;
+            /** Completed Today */
+            completed_today: number;
+            /** Assigned Patients */
+            assigned_patients: number;
+            /** Weekly Distribution */
+            weekly_distribution: components["schemas"]["WeeklyAppointmentCount"][];
+            /** Upcoming Appointments */
+            upcoming_appointments: components["schemas"]["ProfessionalAppointmentSummary"][];
+            /** Upcoming Total */
+            upcoming_total: number;
+        };
         /** ProfessionalListResponse */
         ProfessionalListResponse: {
             /** Professionals */
@@ -3457,6 +3593,16 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+        };
+        /** WeeklyAppointmentCount */
+        WeeklyAppointmentCount: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Count */
+            count: number;
         };
     };
     responses: never;
@@ -4517,6 +4663,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    professional_dashboard_professionals_me_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalDashboardResponse"];
+                };
+            };
+        };
+    };
+    professional_appointments_professionals_me_appointments_get: {
+        parameters: {
+            query?: {
+                from_date?: string | null;
+                to_date?: string | null;
+                status?: components["schemas"]["AppointmentStatus"] | null;
+                upcoming_only?: boolean;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalAppointmentsResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

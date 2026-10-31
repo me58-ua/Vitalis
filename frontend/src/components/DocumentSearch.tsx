@@ -8,7 +8,7 @@ import searchIcon from '../assets/figma/imgMargin.svg';
 export function DocumentSearch({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button className="search-trigger" onClick={() => setOpen(true)}><img src={searchIcon} alt="" /><span>Buscar documentos médicos</span></button>
+    <button className="search-trigger" aria-label="Buscar documentos médicos" onClick={() => setOpen(true)}><img src={searchIcon} alt="" /><span>Buscar documentos médicos</span></button>
     {open && <SearchDialog user={user} onClose={() => setOpen(false)} />}
   </>;
 }

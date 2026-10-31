@@ -18,7 +18,9 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
   const detailUser = item => ({ ...item, patient_profile: item.patient_profile ?? (item.role === 'patient' ? { address: null, blood_type: null, timezone: 'Europe/Madrid', sex_at_birth: null, height_cm: null, weight_kg: null } : null),
     professional_profile: item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
   const demoSessions = [];
-  const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'pending', reason: null }));
+  const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'pending', appointment_reason: 'Motivo sintético de cita', cancellation_reason: null }));
+  const professionalAppointments = appointments.map((item, index) => ({ ...item, patient_username: participants.patient.username, type: index ? 'video' : 'in_person', status: index ? 'confirmed' : 'pending' }));
+  Object.assign(state, { failProfessionalDashboard: false, emptyProfessionalDashboard: false, failProfessionalCreate: false, failProfessionalCancel: false, professionalCreates: [], professionalCancels: [] });
   const notification = {
     id: '00000000-0000-4000-8000-000000000002', type: 'test', title: 'Aviso de prueba', message: 'Mensaje sintético para verificar la interfaz.',
     entity: null, entity_id: null, scheduled_for: null, read_at: null, email_required: false, email_status: 'not_required', created_at: '2026-10-25T09:00:00Z',
@@ -68,6 +70,45 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
+    if (path.startsWith('/professionals/')) {
+      const actor = demoLogin?.user ?? account;
+      if (actor.role !== 'professional') return send(403, { detail: 'PROFESSIONAL_REQUIRED' });
+      if (path === '/professionals/me/dashboard') {
+        if (state.failProfessionalDashboard) return send(503, { detail: 'TEST_UNAVAILABLE' });
+        const rows = state.emptyProfessionalDashboard ? [] : professionalAppointments.filter(item => ['pending', 'confirmed'].includes(item.status));
+        return send(200, { timezone: 'Europe/Madrid', generated_at: '2030-10-28T12:00:00Z', date: '2030-10-28', week_start: '2030-10-28', week_end: '2030-11-03',
+          appointments_today: state.emptyProfessionalDashboard ? 0 : 3, appointments_yesterday: state.emptyProfessionalDashboard ? 0 : 2, scheduled_today: state.emptyProfessionalDashboard ? 0 : 2, completed_today: state.emptyProfessionalDashboard ? 0 : 1, assigned_patients: state.emptyProfessionalDashboard ? 0 : 21,
+          weekly_distribution: ['2030-10-28', '2030-10-29', '2030-10-30', '2030-10-31', '2030-11-01', '2030-11-02', '2030-11-03'].map((date, index) => ({ date, count: state.emptyProfessionalDashboard ? 0 : index === 0 ? 3 : index === 5 ? 1 : 0 })), upcoming_appointments: rows.slice(0, 5), upcoming_total: rows.length });
+      }
+      if (path === '/professionals/me/patients') {
+        const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+        const search = (params.get('search') || '').toLowerCase();
+        const rows = managedUsers.filter(item => item.role === 'patient' && (!search || item.name.toLowerCase().includes(search) || item.username.toLowerCase().includes(search)));
+        const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);
+        return send(200, { patients: rows.slice((page - 1) * size, page * size), total: rows.length, page, page_size: size });
+      }
+      if (path === '/professionals/me/profile') return send(200, detailUser(actor).professional_profile);
+      if (path === '/professionals/me/appointments') {
+        const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+        const rows = professionalAppointments.filter(item => (params.get('upcoming_only') === 'false' || ['pending', 'confirmed'].includes(item.status)) && (!params.get('status') || item.status === params.get('status')) && (!params.get('from_date') || item.start_time.slice(0, 10) >= params.get('from_date')) && (!params.get('to_date') || item.start_time.slice(0, 10) <= params.get('to_date')));
+        const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);
+        return send(200, { appointments: rows.slice((page - 1) * size, page * size), total: rows.length, page, page_size: size });
+      }
+      if (path.endsWith('/appointments/history')) return send(200, { appointments: [{ ...professionalAppointments[0], id: '00000000-0000-4000-8000-000000000499', status: 'cancelled', start_time: '2025-10-01T09:00:00Z', end_time: '2025-10-01T09:30:00Z', cancellation_reason: 'Cancelación sintética', room_id: 'synthetic-room', created_at: '2025-09-01T09:00:00Z', updated_at: '2025-10-01T09:00:00Z', patient_email: participants.patient.email }], total: 1, page: 1, page_size: 20 });
+      if (req.method === 'POST' && path.endsWith('/cancel')) {
+        if (state.failProfessionalCancel) return send(409, { detail: 'TEST_CONFLICT' });
+        const item = professionalAppointments.find(item => item.id === path.split('/')[4]);
+        if (!item) return send(404, { detail: 'Appointment not found' });
+        const body = JSON.parse(raw); state.professionalCancels.push(body);
+        item.status = 'cancelled'; item.cancellation_reason = body.cancellation_reason; return send(200, item);
+      }
+      if (req.method === 'POST' && path.endsWith('/appointments')) {
+        if (state.failProfessionalCreate) return send(409, { detail: 'TEST_CONFLICT' });
+        const body = JSON.parse(raw); state.professionalCreates.push(body);
+        const item = { ...body, id: `00000000-0000-4000-8000-${String(901 + state.professionalCreates.length).padStart(12, '0')}`, professional_id: actor.id, patient_name: participants.patient.name, patient_username: participants.patient.username, status: 'pending', cancellation_reason: null };
+        professionalAppointments.unshift(item); return send(201, item);
+      }
+    }
     if (!state.userManagement && path.startsWith('/admin/users/') && req.method === 'GET') {
       if (account.role !== 'admin') return send(403, { detail: 'ADMIN_REQUIRED' });
       if (state.failAuditNames) return send(503, { detail: 'TEST_UNAVAILABLE' });
@@ -140,7 +181,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (req.method === 'POST') {
         if (state.failCreateAppointment) return send(409, { detail: 'TEST_CONFLICT' });
         const body = JSON.parse(raw); state.appointmentCreates.push(body);
-        const item = { ...body, id: `00000000-0000-4000-8000-${String(400 + state.appointmentCreates.length).padStart(12, '0')}`, patient_name: participants.patient.name, professional_name: participants.professional.name, status: 'pending', reason: null };
+        const item = { ...body, id: `00000000-0000-4000-8000-${String(400 + state.appointmentCreates.length).padStart(12, '0')}`, patient_name: participants.patient.name, professional_name: participants.professional.name, status: 'pending', appointment_reason: body.appointment_reason ?? null, cancellation_reason: null };
         appointments.push(item); return send(201, item);
       }
       if (state.failAppointments) return send(503, { detail: 'TEST_UNAVAILABLE' });

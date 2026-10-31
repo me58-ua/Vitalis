@@ -66,7 +66,7 @@ class AdminAppointmentTests(unittest.TestCase):
         self.assertEqual(payload["total"], 6)
         self.assertEqual(set(payload["appointments"][0]), {
             "id", "patient_id", "patient_name", "professional_id", "professional_name",
-            "start_time", "end_time", "type", "status", "reason",
+            "start_time", "end_time", "type", "status", "appointment_reason", "cancellation_reason",
         })
         self.assertNotEqual(self.profile.id, self.users[UserRole.PATIENT].id)
 

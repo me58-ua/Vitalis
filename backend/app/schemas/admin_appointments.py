@@ -31,7 +31,8 @@ class AdminAppointmentSummary(BaseModel):
     end_time: datetime
     type: AppointmentType
     status: AppointmentStatus
-    reason: str | None
+    appointment_reason: str | None
+    cancellation_reason: str | None
 
 
 class AdminAppointmentListResponse(BaseModel):
