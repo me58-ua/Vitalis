@@ -103,6 +103,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       }
       if (path === '/professionals/me/profile') return send(200, detailUser(actor).professional_profile);
       if (path === '/professionals/me/appointments') {
+        if (state.failProfessionalAppointments) return send(503, { detail: 'TEST_UNAVAILABLE' });
         const params = new URL(req.url, 'http://fixture.invalid').searchParams;
         const rows = professionalAppointments.filter(item => (params.get('upcoming_only') === 'false' || ['pending', 'confirmed'].includes(item.status)) && (!params.get('status') || item.status === params.get('status')) && (!params.get('from_date') || item.start_time.slice(0, 10) >= params.get('from_date')) && (!params.get('to_date') || item.start_time.slice(0, 10) <= params.get('to_date')));
         const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);

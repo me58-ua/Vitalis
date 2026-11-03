@@ -1,5 +1,21 @@
 import { api } from './client';
-import type { PatientHealthSnapshot, ProfessionalPrescriptionPage, Prescription } from '../types/api';
+import type { PatientHealthSnapshot, ProfessionalPrescriptionPage, Prescription, ProfessionalAppointment } from '../types/api';
+
+export async function getProfessionalWeek(fromDate: string, toDate: string, signal: AbortSignal) {
+  const appointments = new Map<string, ProfessionalAppointment>();
+  for (let page = 1; ; page += 1) {
+    const result = await getProfessionalAppointments({ from_date: fromDate, to_date: toDate, upcoming_only: false, page, page_size: 100 }, signal);
+    const before = appointments.size;
+    for (const item of result.appointments) {
+      if (!Number.isFinite(Date.parse(item.start_time)) || !Number.isFinite(Date.parse(item.end_time)) || Date.parse(item.end_time) <= Date.parse(item.start_time)) {
+        throw new Error('Las fechas de una cita no son válidas.');
+      }
+      appointments.set(item.id, item);
+    }
+    if (appointments.size >= result.total) return [...appointments.values()];
+    if (appointments.size === before) throw new Error('No se pudo cargar la semana completa.');
+  }
+}
 
 export async function getPatientSnapshot(patientId: string, signal: AbortSignal) {
   return (await api.get<PatientHealthSnapshot>(`/professionals/patients/${encodeURIComponent(patientId)}/health-snapshot`, { signal })).data;

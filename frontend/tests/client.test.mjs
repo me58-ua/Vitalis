@@ -156,4 +156,26 @@ test('Axios follows authentication and notification contracts', async (t) => {
     assert.ok((await professional.getProfessionalProfile(signal)).specialty);
     assert.equal((await professional.getProfessionalHistory(fixture.account.id, 1, signal)).appointments[0].status, 'cancelled');
   });
+  await t.test('weekly agenda loads every API page with date filters and includes historical appointments', async () => {
+    const adapter = api.defaults.adapter;
+    const requests = [];
+    api.defaults.adapter = async config => {
+      requests.push(config.params);
+      const count = config.params.page === 1 ? 100 : 1;
+      const appointments = Array.from({ length: count }, (_, index) => ({ id: `${config.params.page}-${index}`, start_time: '2026-11-03T09:30:00Z', end_time: '2026-11-03T10:00:00Z', status: 'completed' }));
+      return { data: { appointments, total: 101, page: config.params.page, page_size: 100 }, status: 200, statusText: 'OK', headers: {}, config };
+    };
+    try {
+      const rows = await professional.getProfessionalWeek('2026-11-02', '2026-11-08', new AbortController().signal);
+      assert.equal(rows.length, 101);
+      assert.deepEqual(requests.map(item => item.page), [1, 2]);
+      assert.ok(requests.every(item => item.upcoming_only === false && item.from_date === '2026-11-02' && item.to_date === '2026-11-08' && item.page_size === 100));
+    } finally { api.defaults.adapter = adapter; }
+  });
+  await t.test('weekly agenda fails instead of silently showing an incomplete week', async () => {
+    const adapter = api.defaults.adapter;
+    api.defaults.adapter = async config => ({ data: { appointments: [], total: 1, page: config.params.page, page_size: 100 }, status: 200, statusText: 'OK', headers: {}, config });
+    try { await assert.rejects(professional.getProfessionalWeek('2026-11-02', '2026-11-08', new AbortController().signal)); }
+    finally { api.defaults.adapter = adapter; }
+  });
 });
