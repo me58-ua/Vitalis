@@ -13,6 +13,7 @@ import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 import { AdminAppointmentsPage } from './pages/admin/AdminAppointmentsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { ProfessionalLayout } from './layouts/ProfessionalLayout';
+import { MyPatientsPage } from './pages/professional/MyPatientsPage';
 
 export function App() {
   return <BrowserRouter><AuthProvider><Routes><Route element={<PublicLayout />}>
@@ -22,7 +23,7 @@ export function App() {
       <Route path="/patientPanel" element={<PatientPanelPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />
-  </Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}><Route path="/professionalDashboard" element={<ProfessionalDashboardPage />} /></Route></Route><Route element={<RequireRole role="admin" />}><Route element={<AdminLayout />}>
+  </Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}><Route path="/professionalDashboard" element={<ProfessionalDashboardPage />} /><Route path="/professionalDashboard/misPacientes" element={<MyPatientsPage />} /></Route></Route><Route element={<RequireRole role="admin" />}><Route element={<AdminLayout />}>
     <Route path="/adminPanel" element={<AdminPanelPage />} />
     <Route path="/adminPanel/auditoria" element={<AdminAuditPage />} />
     <Route path="/adminPanel/gestionCitas" element={<AdminAppointmentsPage />} />

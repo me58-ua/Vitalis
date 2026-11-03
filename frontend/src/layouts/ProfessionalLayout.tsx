@@ -42,9 +42,9 @@ export function ProfessionalLayout() {
     <aside ref={sidebar} id="professional-sidebar" className={`admin-sidebar${menuOpen ? ' is-open' : ''}`}>
       <Link to="/professionalDashboard" className="admin-brand" onClick={close} aria-label="vitaLis, inicio profesional"><img src={logo} alt="" /><span>vitaLis</span></Link>
       <nav aria-label="Portal profesional"><p className="admin-eyebrow">PROFESIONAL</p>
-        <Link to="/professionalDashboard" className={!panel ? 'active' : ''} onClick={close}><img src={dashboard} alt="" />Panel del profesional</Link>
+        <Link to="/professionalDashboard" className={location.pathname === '/professionalDashboard' && !panel ? 'active' : ''} onClick={close}><img src={dashboard} alt="" />Panel del profesional</Link>
         <Link to="/professionalDashboard?panel=appointments" className={panel === 'appointments' ? 'active' : ''} onClick={close}><img src={agenda} alt="" />Agenda</Link>
-        <Link to="/professionalDashboard?panel=patients" className={panel === 'patients' ? 'active' : ''} onClick={close}><img src={patients} alt="" />Mis pacientes</Link>
+        <Link to="/professionalDashboard/misPacientes" className={location.pathname === '/professionalDashboard/misPacientes' ? 'active' : ''} onClick={close}><img src={patients} alt="" />Mis pacientes</Link>
         <span className="admin-nav-unavailable" aria-disabled="true"><img src={video} alt="" /><span>Videoconsulta<small>Próximamente</small></span></span>
         <span className="admin-nav-unavailable" aria-disabled="true"><img src={chat} alt="" /><span>Chat<small>Próximamente</small></span></span>
         <Link to="/professionalDashboard?panel=profile" className={panel === 'profile' ? 'active' : ''} onClick={close}><img src={profile} alt="" />Perfil profesional</Link>

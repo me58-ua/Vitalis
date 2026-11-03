@@ -81,11 +81,25 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
           weekly_distribution: ['2030-10-28', '2030-10-29', '2030-10-30', '2030-10-31', '2030-11-01', '2030-11-02', '2030-11-03'].map((date, index) => ({ date, count: state.emptyProfessionalDashboard ? 0 : index === 0 ? 3 : index === 5 ? 1 : 0 })), upcoming_appointments: rows.slice(0, 5), upcoming_total: rows.length });
       }
       if (path === '/professionals/me/patients') {
+        if (state.failPatients) return send(503, { detail: 'TEST_UNAVAILABLE' });
         const params = new URL(req.url, 'http://fixture.invalid').searchParams;
         const search = (params.get('search') || '').toLowerCase();
         const rows = managedUsers.filter(item => item.role === 'patient' && (!search || item.name.toLowerCase().includes(search) || item.username.toLowerCase().includes(search)));
         const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);
         return send(200, { patients: rows.slice((page - 1) * size, page * size), total: rows.length, page, page_size: size });
+      }
+      if (path.endsWith('/health-snapshot')) return send(200, { consent_shared: false, message_code: 'HEALTH_DATA_NOT_SHARED', allergies: [], medications: [], appointments: [], clinical_notes: [], prescriptions: [] });
+      if (path.endsWith('/prescriptions')) return send(200, { prescriptions: state.patientRecipes || [], total: (state.patientRecipes || []).length, page: 1, page_size: 10 });
+      if (req.method === 'POST' && path.endsWith('/prescription')) {
+        if (state.rejectRecipe) return send(403, { detail: 'ventana de emisión de receta expirada' });
+        state.recipeUploads = (state.recipeUploads || 0) + 1;
+        state.recipePath = path; state.recipeBody = raw;
+        const item = { id: notification.id, appointment_id: path.split('/')[4], patient_id: participants.patient.id, professional_id: actor.id, file_url: 'test-only.pdf', notas: null, created_at: '2026-11-03T12:00:00Z' };
+        state.patientRecipes = [item]; return send(201, item);
+      }
+      if (path.endsWith('/appointments/history') && new URL(req.url, 'http://fixture.invalid').searchParams.has('patient_id')) {
+        const patientId = new URL(req.url, 'http://fixture.invalid').searchParams.get('patient_id');
+        return send(200, { appointments: [{ ...professionalAppointments[0], patient_id: patientId, id: '00000000-0000-4000-8000-000000000498', status: 'completed', start_time: '2026-11-03T09:00:00Z', end_time: '2026-11-03T09:30:00Z', patient_email: participants.patient.email }], total: 1, page: 1, page_size: 10 });
       }
       if (path === '/professionals/me/profile') return send(200, detailUser(actor).professional_profile);
       if (path === '/professionals/me/appointments') {

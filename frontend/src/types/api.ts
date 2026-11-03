@@ -33,3 +33,6 @@ export type ProfessionalProfile = components['schemas']['ProfessionalProfileResp
 export type ProfessionalAppointmentCreate = components['schemas']['ProfessionalAppointmentCreate'];
 export type ProfessionalHistoryPage = components['schemas']['ProfessionalAppointmentHistoryListResponse'];
 export type ProfessionalAppointmentCancel = components['schemas']['AppointmentCancelRequest'];
+export type PatientHealthSnapshot = components['schemas']['HealthSnapshot'];
+export type ProfessionalPrescriptionPage = components['schemas']['PrescriptionListResponse'];
+export type Prescription = components['schemas']['PrescriptionResponse'];
