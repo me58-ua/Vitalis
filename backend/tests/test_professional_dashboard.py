@@ -14,7 +14,7 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.main import app
 from app.models import (User, UserRole, PatientProfile, ProfessionalPatient, Appointment, AppointmentStatus,
-                        AppointmentType, AppointmentStatusHistory, AuditLog, Notification)
+                        AppointmentType, AppointmentStatusHistory, AuditLog, Notification, Allergy, ChronicCondition)
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.services.professional_dashboard_service import ProfessionalDashboardService
@@ -25,7 +25,7 @@ class ProfessionalDashboardTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
         metadata = MetaData()
-        for model in (User, PatientProfile, ProfessionalPatient, Appointment, AppointmentStatusHistory, AuditLog, Notification):
+        for model in (User, PatientProfile, ProfessionalPatient, Appointment, AppointmentStatusHistory, AuditLog, Notification, Allergy, ChronicCondition):
             table = model.__table__.to_metadata(metadata)
             for constraint in list(table.constraints):
                 if isinstance(constraint, ExcludeConstraint):

@@ -39,8 +39,10 @@ class ProfessionalService:
                     email=user.email,
                     tel=user.tel,
                     blood_type=profile.blood_type,
-                    allergies_summary=profile.allergies_summary,
-                    chronic_conditions_summary=profile.chronic_conditions_summary,
+                    allergies_summary=(", ".join(item.name for item in profile.allergies) or None)
+                    if profile.share_health_data else None,
+                    chronic_conditions_summary=(", ".join(item.condition_name for item in profile.chronic_conditions) or None)
+                    if profile.share_health_data else None,
                 )
                 for user, profile in records
             ],

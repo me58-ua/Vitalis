@@ -27,7 +27,7 @@ def check():
                 model.__table__.to_metadata(metadata)
             metadata.create_all(connection, checkfirst=False)
             factory = sessionmaker(bind=connection, join_transaction_mode="create_savepoint")
-            assert seed_users(factory) == 3
+            assert seed_users(factory, include_demo=False) == 3
             with Session(bind=connection, join_transaction_mode="create_savepoint") as db:
                 users = {row.role: row for row in db.scalars(select(User))}
                 actor = SimpleNamespace(id=users[UserRole.ADMIN].id, role=UserRole.ADMIN)

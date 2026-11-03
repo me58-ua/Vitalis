@@ -43,7 +43,7 @@ class ChronicCondition(Base):
     patient_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("patient_profiles.id", ondelete="CASCADE"), index=True)
     condition_name: Mapped[str] = mapped_column("nombre_condicion", String(200), nullable=False)
     diagnosis_date: Mapped[date | None] = mapped_column("fecha_diagnostico", Date, nullable=True)
-    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    active: Mapped[bool] = mapped_column("activa", Boolean, nullable=False, default=True, server_default="true")
     recorded_at: Mapped[datetime] = mapped_column("fecha_registro", DateTime(timezone=True), server_default=func.now(), nullable=False)
     patient_profile = relationship("PatientProfile", back_populates="chronic_conditions")
 
@@ -58,7 +58,7 @@ class Medication(Base):
     frequency: Mapped[str] = mapped_column("frecuencia", String(150), nullable=False)
     start_date: Mapped[date | None] = mapped_column("fecha_inicio", Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column("fecha_fin", Date, nullable=True)
-    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    active: Mapped[bool] = mapped_column("activa", Boolean, nullable=False, default=True, server_default="true")
     recorded_at: Mapped[datetime] = mapped_column("fecha_registro", DateTime(timezone=True), server_default=func.now(), nullable=False)
     patient_profile = relationship("PatientProfile", back_populates="medications")
 

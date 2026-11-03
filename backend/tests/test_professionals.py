@@ -41,8 +41,9 @@ class ProfessionalListingTests(unittest.TestCase):
         )
         self.patient_profile = SimpleNamespace(
             blood_type="O+",
-            allergies_summary="Penicillin",
-            chronic_conditions_summary="Asthma",
+            allergies=[SimpleNamespace(name="Penicillin")],
+            chronic_conditions=[SimpleNamespace(condition_name="Asthma")],
+            share_health_data=True,
             address="Private address",
         )
         self.professional_user = SimpleNamespace(id=uuid.uuid4(), name="Dr. Garcia")
@@ -81,6 +82,21 @@ class ProfessionalListingTests(unittest.TestCase):
         self.assertNotIn("password_hash", patient.model_dump())
         self.assertEqual(self.repository.captured["patients"]["offset"], 5)
         self.assertEqual(self.repository.captured["patients"]["limit"], 5)
+
+    def test_patient_summaries_respect_health_sharing_consent(self):
+        self.patient_profile.share_health_data = False
+        self.repository.patient_records = [(self.patient, self.patient_profile)]
+        response = list_my_patients(self.professional, self.repository, search=None, page=1, page_size=20)
+        self.assertIsNone(response.patients[0].allergies_summary)
+        self.assertIsNone(response.patients[0].chronic_conditions_summary)
+
+    def test_patient_without_health_records_returns_null_summaries(self):
+        self.patient_profile.allergies = []
+        self.patient_profile.chronic_conditions = []
+        self.repository.patient_records = [(self.patient, self.patient_profile)]
+        response = list_my_patients(self.professional, self.repository, search=None, page=1, page_size=20)
+        self.assertIsNone(response.patients[0].allergies_summary)
+        self.assertIsNone(response.patients[0].chronic_conditions_summary)
 
     def test_public_professional_list_passes_all_filters_and_pagination(self):
         self.repository.professional_records = [(self.professional_user, self.professional_profile)]
