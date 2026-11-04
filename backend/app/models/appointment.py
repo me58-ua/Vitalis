@@ -5,7 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, String, Text, func, text
 from sqlalchemy.dialects.postgresql import ExcludeConstraint, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 from sqlalchemy.sql import literal_column
 
 from app.database import Base
@@ -71,6 +71,18 @@ class Appointment(Base):
         server_default="video",
     )
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Keep the existing database column and its data; expose an unambiguous name.
+    appointment_reason = synonym("reason")
+    status_history = relationship(
+        "AppointmentStatusHistory", lazy="select", viewonly=True,
+        order_by="(AppointmentStatusHistory.changed_at.desc(), AppointmentStatusHistory.id.desc())",
+    )
+
+    @property
+    def cancellation_reason(self) -> str | None:
+        if self.status != AppointmentStatus.CANCELLED:
+            return None
+        return next((entry.reason for entry in self.status_history if entry.new_status == AppointmentStatus.CANCELLED), None)
     room_id: Mapped[str] = mapped_column(
         String(128),
         unique=True,

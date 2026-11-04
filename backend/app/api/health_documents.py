@@ -2,12 +2,13 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.api.deps import (
     get_appointment_repository,
     get_current_patient,
+    get_current_user,
     get_current_professional,
     get_file_storage,
     get_health_document_repository,
@@ -18,7 +19,7 @@ from app.models import HealthDocumentType, User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.health_document_repository import HealthDocumentRepository
 from app.repositories.profile_repository import ProfileRepository
-from app.schemas.health_documents import HealthDocumentListResponse, HealthDocumentResponse
+from app.schemas.health_documents import HealthDocumentListResponse, HealthDocumentResponse, HealthDocumentSearchResponse
 from app.services.file_storage import FileStorage
 from app.services.health_document_service import (
     HealthDocumentAccessError,
@@ -41,6 +42,29 @@ def _service(documents, profiles, appointments, storage):
     return HealthDocumentService(
         documents, profiles, appointments, storage, settings.HEALTH_DOCUMENT_MAX_SIZE_BYTES
     )
+
+
+@router.get("/health/documents/search", response_model=HealthDocumentSearchResponse)
+def search_health_documents(
+    current_user: Annotated[User, Depends(get_current_user)],
+    documents: Documents,
+    profiles: Profiles,
+    appointments: Appointments,
+    storage: Storage,
+    q: str = Query(min_length=1, max_length=100),
+    tipo: HealthDocumentType | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+):
+    """Search document descriptions/types; never file contents or storage paths."""
+    try:
+        return _service(documents, profiles, appointments, storage).search(
+            current_user, q, tipo, page, page_size
+        )
+    except HealthDocumentAccessError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+    except HealthDocumentValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @router.post("/patients/me/health/documents", response_model=HealthDocumentResponse, status_code=status.HTTP_201_CREATED)

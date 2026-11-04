@@ -67,7 +67,7 @@ class FamilyHistoryService:
         profile.family_history_reviewed = True
         self.profiles.session.flush()
         self._record_risk(profile.id)
-        self.audit.record(user.id, UserRole.PATIENT, AuditAction.CREATE, "family_history_entry", entry.id, profile.id)
+        self.audit.record(user.id, UserRole.PATIENT, AuditAction.CREATE, "family_history_entry", entry.id, profile.user_id)
         return entry
 
     def declare_none_from_onboarding(self, user: User) -> None:
@@ -83,7 +83,7 @@ class FamilyHistoryService:
             raise FamilyHistoryNotFoundError("Family history entry not found")
         self.entries.delete(entry)
         self._record_risk(profile.id)
-        self.audit.record(user.id, UserRole.PATIENT, AuditAction.DELETE, "family_history_entry", entry.id, profile.id)
+        self.audit.record(user.id, UserRole.PATIENT, AuditAction.DELETE, "family_history_entry", entry.id, profile.user_id)
 
     def _owned_profile(self, user: User):
         profile = self.profiles.get_patient(user.id)

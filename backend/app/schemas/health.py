@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from app.models.family_history import HereditaryConditions, FamilyRelationship
 from app.models.health import AllergySeverity, HabitType
@@ -66,7 +66,8 @@ class AppointmentHistoryResponse(BaseModel):
     end_time: datetime
     status: str
     type: str
-    reason: str | None
+    appointment_reason: str | None = Field(default=None, validation_alias=AliasChoices("appointment_reason", "reason"))
+    cancellation_reason: str | None = None
 
 
 class ClinicalNoteHistoryResponse(BaseModel):

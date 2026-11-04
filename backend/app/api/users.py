@@ -14,7 +14,7 @@ from app.repositories.audit_repository import AuditRepository
 from app.schemas.users import (
 	AdminUserCreate,
 	AdminUserListResponse,
-	AdminUserResponse,
+	AdminUserDetailResponse,
 	AdminUserUpdate,
 )
 from app.services.admin_user_service import (
@@ -22,6 +22,7 @@ from app.services.admin_user_service import (
 	AdminUserDeleteConflictError,
 	AdminUserNotFoundError,
 	AdminUserService,
+	AdminUserValidationError,
 )
 
 
@@ -105,7 +106,7 @@ def list_users(
 	return AdminUserListResponse(users=records, total=total, page=page, page_size=page_size)
 
 
-@router.post("", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=AdminUserDetailResponse, status_code=status.HTTP_201_CREATED)
 def create_user(data: AdminUserCreate, _: AdminUser, users: Users) -> User:
 	try:
 		return AdminUserService(users).create(data)
@@ -113,7 +114,7 @@ def create_user(data: AdminUserCreate, _: AdminUser, users: Users) -> User:
 		raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
-@router.get("/{user_id}", response_model=AdminUserResponse)
+@router.get("/{user_id}", response_model=AdminUserDetailResponse)
 def get_user(user_id: UUID, _: AdminUser, users: Users) -> User:
 	try:
 		return AdminUserService(users).get(user_id)
@@ -121,11 +122,13 @@ def get_user(user_id: UUID, _: AdminUser, users: Users) -> User:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
-@router.patch("/{user_id}", response_model=AdminUserResponse)
+@router.patch("/{user_id}", response_model=AdminUserDetailResponse)
 def update_user(user_id: UUID, data: AdminUserUpdate, admin: AdminUser, users: Users, audits: Audits) -> User:
 	try:
 		service = AdminUserService(users, audits)
 		return service.update(service.get(user_id), data, admin)
+	except AdminUserValidationError as error:
+		raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
 	except AdminUserNotFoundError as error:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 	except AdminUserConflictError as error:

@@ -115,7 +115,7 @@ class PrescriptionService:
                 action,
                 "prescription",
                 result.id,
-                patient_profile.id,
+                patient_profile.user_id,
             )
             return result
         except ValueError as error:
@@ -153,7 +153,7 @@ class PrescriptionService:
                 AuditAction.CREATE,
                 "prescription_authorization",
                 result.id,
-                patient_profile.id if patient_profile else None,
+                patient_profile.user_id if patient_profile else None,
             )
             return result
         except IntegrityError as error:

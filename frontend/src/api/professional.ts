@@ -1,0 +1,59 @@
+import { api } from './client';
+import type { PatientHealthSnapshot, ProfessionalPrescriptionPage, Prescription, ProfessionalAppointment } from '../types/api';
+
+export async function getProfessionalWeek(fromDate: string, toDate: string, signal: AbortSignal) {
+  const appointments = new Map<string, ProfessionalAppointment>();
+  for (let page = 1; ; page += 1) {
+    const result = await getProfessionalAppointments({ from_date: fromDate, to_date: toDate, upcoming_only: false, page, page_size: 100 }, signal);
+    const before = appointments.size;
+    for (const item of result.appointments) {
+      if (!Number.isFinite(Date.parse(item.start_time)) || !Number.isFinite(Date.parse(item.end_time)) || Date.parse(item.end_time) <= Date.parse(item.start_time)) {
+        throw new Error('Las fechas de una cita no son válidas.');
+      }
+      appointments.set(item.id, item);
+    }
+    if (appointments.size >= result.total) return [...appointments.values()];
+    if (appointments.size === before) throw new Error('No se pudo cargar la semana completa.');
+  }
+}
+
+export async function getPatientSnapshot(patientId: string, signal: AbortSignal) {
+  return (await api.get<PatientHealthSnapshot>(`/professionals/patients/${encodeURIComponent(patientId)}/health-snapshot`, { signal })).data;
+}
+export async function getPatientHistory(professionalId: string, patientId: string, page: number, signal: AbortSignal) {
+  return (await api.get<ProfessionalHistoryPage>(`/professionals/${encodeURIComponent(professionalId)}/appointments/history`, { params: { patient_id: patientId, page, page_size: 10 }, signal })).data;
+}
+export async function getPatientPrescriptions(professionalId: string, patientId: string, page: number, signal: AbortSignal) {
+  return (await api.get<ProfessionalPrescriptionPage>(`/professionals/${encodeURIComponent(professionalId)}/prescriptions`, { params: { patient_id: patientId, page, page_size: 10 }, signal })).data;
+}
+export async function attachPrescription(professionalId: string, appointmentId: string, file: File, notes: string, signal: AbortSignal) {
+  const form = new FormData();
+  form.append('file', file);
+  if (notes.trim()) form.append('notas', notes.trim());
+  return (await api.post<Prescription>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, form, { signal })).data;
+}
+import type { ProfessionalDashboard, ProfessionalAppointmentPage, ProfessionalAppointmentQuery, ProfessionalAppointmentCreate,
+  ProfessionalPatientPage, ProfessionalProfile, ProfessionalHistoryPage, ProfessionalAppointmentCancel } from '../types/api';
+
+export async function getProfessionalDashboard(signal: AbortSignal) {
+  return (await api.get<ProfessionalDashboard>('/professionals/me/dashboard', { signal })).data;
+}
+export async function getProfessionalAppointments(params: ProfessionalAppointmentQuery, signal: AbortSignal) {
+  return (await api.get<ProfessionalAppointmentPage>('/professionals/me/appointments', { params, signal })).data;
+}
+export async function getProfessionalPatients(search: string, page: number, signal: AbortSignal, pageSize = 20) {
+  return (await api.get<ProfessionalPatientPage>('/professionals/me/patients', { params: { search: search || undefined, page, page_size: pageSize }, signal })).data;
+}
+export async function getProfessionalProfile(signal: AbortSignal) {
+  return (await api.get<ProfessionalProfile>('/professionals/me/profile', { signal })).data;
+}
+export async function createProfessionalAppointment(id: string, payload: ProfessionalAppointmentCreate, signal: AbortSignal) {
+  await api.post(`/professionals/${encodeURIComponent(id)}/appointments`, payload, { signal });
+}
+export async function cancelProfessionalAppointment(id: string, appointmentId: string, cancellationReason: string | null, signal: AbortSignal) {
+  const payload: ProfessionalAppointmentCancel = { cancellation_reason: cancellationReason };
+  await api.post(`/professionals/${encodeURIComponent(id)}/appointments/${encodeURIComponent(appointmentId)}/cancel`, payload, { signal });
+}
+export async function getProfessionalHistory(id: string, page: number, signal: AbortSignal) {
+  return (await api.get<ProfessionalHistoryPage>(`/professionals/${encodeURIComponent(id)}/appointments/history`, { params: { page, page_size: 20 }, signal })).data;
+}

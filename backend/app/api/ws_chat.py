@@ -73,6 +73,11 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
                     await websocket.close(code=1000)
                     return
                 message_type = payload.get("type")
+                try:
+                    _authenticate(token)
+                except (InvalidAccessTokenError, JWTError, ValueError):
+                    await websocket.close(code=4401)
+                    return
                 if message_type == "ping":
                     await websocket.send_json({"type": "pong"})
                     continue

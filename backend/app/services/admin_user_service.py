@@ -2,7 +2,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password
-from app.models import User, UserRole
+from app.models import PatientProfile, ProfessionalProfile, ProfessionalApprovalStatus, User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.users import AdminUserCreate, AdminUserUpdate
@@ -16,6 +16,19 @@ class AdminUserConflictError(Exception):
 
 class AdminUserNotFoundError(Exception):
     pass
+
+
+class AdminUserValidationError(Exception):
+    pass
+
+
+def conflict_code(error: IntegrityError) -> str:
+    # Constraint names only; never return raw database errors or personal data.
+    constraint = getattr(getattr(error.orig, "diag", None), "constraint_name", "") or ""
+    for field in ("license_number", "username", "email", "dni"):
+        if field in constraint:
+            return f"DUPLICATE_{field.upper()}"
+    return "USER_IDENTIFIER_CONFLICT"
 
 
 class AdminUserDeleteConflictError(Exception):
@@ -55,19 +68,55 @@ class AdminUserService:
             gender=data.gender,
             is_active=data.role != UserRole.PROFESSIONAL,
         )
+        if data.role == UserRole.PATIENT:
+            values = data.patient_profile.model_dump() if data.patient_profile else {}
+            user.patient_profile = PatientProfile(birth_date=data.birth_date, **values)
+        elif data.role == UserRole.PROFESSIONAL:
+            # The request schema requires professional fields for this role.
+            if data.professional_profile is None:
+                raise AdminUserValidationError("PROFESSIONAL_PROFILE_REQUIRED")
+            user.professional_profile = ProfessionalProfile(**data.professional_profile.model_dump())
         try:
             return self.users.create(user)
         except IntegrityError as error:
             self.users.rollback()
-            raise AdminUserConflictError("Email or username is already registered") from error
+            raise AdminUserConflictError(conflict_code(error)) from error
 
     def update(self, user: User, data: AdminUserUpdate, actor: User | None = None) -> User:
         values = data.model_dump(exclude_unset=True)
+        patient = values.pop("patient_profile", None)
+        professional = values.pop("professional_profile", None)
+        role = data.role or user.role
+        if (patient is not None and role != UserRole.PATIENT) or (professional is not None and role != UserRole.PROFESSIONAL):
+            raise AdminUserValidationError("PROFILE_ROLE_MISMATCH")
+        if role == UserRole.PROFESSIONAL and user.professional_profile is None and professional is None:
+            raise AdminUserValidationError("PROFESSIONAL_PROFILE_REQUIRED")
+        if role == UserRole.PROFESSIONAL:
+            profile = user.professional_profile
+            approved = profile is not None and profile.approval_status == ProfessionalApprovalStatus.APPROVED
+            if data.is_active is True and not approved:
+                raise AdminUserValidationError("PROFESSIONAL_APPROVAL_REQUIRED")
+            if not approved:
+                values["is_active"] = False
         role_or_activation_changed = "role" in values or "is_active" in values
         password = values.pop("password", None)
         if password is not None:
             values["password_hash"] = hash_password(password)
         try:
+            if role == UserRole.PATIENT:
+                if user.patient_profile is None:
+                    user.patient_profile = PatientProfile(birth_date=data.birth_date or user.birth_date)
+                if patient is not None:
+                    for field, value in patient.items():
+                        setattr(user.patient_profile, field, value)
+                if data.birth_date is not None:
+                    user.patient_profile.birth_date = data.birth_date
+            elif role == UserRole.PROFESSIONAL and professional is not None:
+                if user.professional_profile is None:
+                    user.professional_profile = ProfessionalProfile(**professional)
+                else:
+                    for field, value in professional.items():
+                        setattr(user.professional_profile, field, value)
             updated = self.users.update(user, values)
             if role_or_activation_changed and actor is not None:
                 self.audit.record(
@@ -80,7 +129,7 @@ class AdminUserService:
             return updated
         except IntegrityError as error:
             self.users.rollback()
-            raise AdminUserConflictError("Email or username is already registered") from error
+            raise AdminUserConflictError(conflict_code(error)) from error
 
     def delete(self, user_id, actor: User | None = None) -> None:
         user = self.get(user_id)

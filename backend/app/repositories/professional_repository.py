@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     PatientProfile,
@@ -42,6 +42,7 @@ class ProfessionalRepository:
             select(User, PatientProfile)
             .join(ProfessionalPatient, ProfessionalPatient.patient_id == User.id)
             .join(PatientProfile, PatientProfile.user_id == User.id)
+            .options(selectinload(PatientProfile.allergies), selectinload(PatientProfile.chronic_conditions))
             .where(*filters)
             .order_by(User.name.asc())
             .offset(offset)

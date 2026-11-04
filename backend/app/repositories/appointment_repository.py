@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, User
 
@@ -16,10 +16,48 @@ class AppointmentRepository:
         self.session.flush()
         return schedule
 
+    @staticmethod
+    def cancellation_reason_column():
+        latest = (select(AppointmentStatusHistory.reason)
+                  .where(AppointmentStatusHistory.appointment_id == Appointment.id,
+                         AppointmentStatusHistory.new_status == AppointmentStatus.CANCELLED)
+                  .order_by(AppointmentStatusHistory.changed_at.desc(), AppointmentStatusHistory.id.desc())
+                  .limit(1).correlate(Appointment).scalar_subquery())
+        return case((Appointment.status == AppointmentStatus.CANCELLED, latest), else_=None).label("cancellation_reason")
+
+    def list_admin(self, patient_id, professional_id, start, end, statuses, offset, limit):
+        patient, professional = aliased(User), aliased(User)
+        conditions = []
+        for field, value in ((Appointment.patient_id, patient_id), (Appointment.professional_id, professional_id)):
+            if value is not None:
+                conditions.append(field == value)
+        if start is not None:
+            conditions.append(Appointment.start_time >= start)
+        if end is not None:
+            conditions.append(Appointment.start_time < end)
+        if statuses is not None:
+            conditions.append(Appointment.status.in_(statuses))
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(*conditions)) or 0
+        query = (select(Appointment.id, Appointment.patient_id, patient.name.label("patient_name"),
+                        Appointment.professional_id, professional.name.label("professional_name"),
+                        Appointment.start_time, Appointment.end_time, Appointment.type, Appointment.status,
+                        Appointment.reason.label("appointment_reason"), self.cancellation_reason_column())
+                 .join(patient, patient.id == Appointment.patient_id)
+                 .join(professional, professional.id == Appointment.professional_id)
+                 .where(*conditions).order_by(Appointment.start_time.asc(), Appointment.id.asc())
+                 .offset(offset).limit(limit))
+        return list(self.session.execute(query).mappings()), total
+
     def create_appointment(self, appointment: Appointment) -> Appointment:
         self.session.add(appointment)
         self.session.flush()
         return appointment
+
+    def monthly_totals(self, boundaries):
+        counts = [func.count().filter(Appointment.start_time >= start, Appointment.start_time < end)
+                  for start, end in boundaries]
+        return list(self.session.execute(select(*counts).select_from(Appointment)
+                    .where(Appointment.start_time >= boundaries[0][0], Appointment.start_time < boundaries[-1][1])).one())
 
     def get_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.get(Appointment, appointment_id)
@@ -175,7 +213,42 @@ class AppointmentRepository:
     def create_status_history(self, history: AppointmentStatusHistory) -> AppointmentStatusHistory:
         self.session.add(history)
         self.session.flush()
+        appointment = self.session.get(Appointment, history.appointment_id)
+        if appointment is not None:
+            self.session.expire(appointment, ["status_history"])
         return history
+
+    def professional_counts(self, professional_id, day_bounds, week_bounds):
+        today, tomorrow, yesterday = day_bounds
+        active = Appointment.status != AppointmentStatus.CANCELLED
+        def count(start, end, extra=active):
+            return func.count().filter(Appointment.start_time >= start, Appointment.start_time < end, extra)
+        values = [count(today, tomorrow), count(yesterday, today),
+                  count(today, tomorrow, Appointment.status == AppointmentStatus.COMPLETED),
+                  count(today, tomorrow, Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]))]
+        values.extend(count(start, end) for start, end in week_bounds)
+        return tuple(self.session.execute(select(*values).select_from(Appointment)
+                     .where(Appointment.professional_id == professional_id)).one())
+
+    def list_for_professional(self, professional_id, now, start, end, status, upcoming_only, offset, limit):
+        conditions = [Appointment.professional_id == professional_id]
+        if upcoming_only:
+            conditions.extend([Appointment.end_time > now,
+                               Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED])])
+        if start is not None:
+            conditions.append(Appointment.start_time >= start)
+        if end is not None:
+            conditions.append(Appointment.start_time < end)
+        if status is not None:
+            conditions.append(Appointment.status == status)
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(*conditions)) or 0
+        query = (select(Appointment.id, Appointment.patient_id, User.name.label("patient_name"),
+                        User.username.label("patient_username"), Appointment.start_time, Appointment.end_time,
+                        Appointment.type, Appointment.status, Appointment.reason.label("appointment_reason"),
+                        self.cancellation_reason_column())
+                 .join(User, User.id == Appointment.patient_id).where(*conditions)
+                 .order_by(Appointment.start_time.asc(), Appointment.id.asc()).offset(offset).limit(limit))
+        return list(self.session.execute(query).mappings()), total
 
     def create_note(self, note: AppointmentNote) -> AppointmentNote:
         self.session.add(note)

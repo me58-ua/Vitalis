@@ -11,7 +11,6 @@ class PatientProfileBase(BaseModel):
     sex_at_birth: str | None = Field(default=None, max_length=30)
     height_cm: float | None = Field(default=None, ge=100, le=250)
     weight_kg: float | None = Field(default=None, ge=25, le=400)
-    body_measured_at: datetime | None = None
     family_history_reviewed: bool = False
     address: str | None = Field(default=None, max_length=255)
     blood_type: str | None = Field(default=None, max_length=10)
@@ -38,7 +37,6 @@ class PatientProfileUpdate(BaseModel):
     sex_at_birth: str | None = Field(default=None, max_length=30)
     height_cm: float | None = Field(default=None, ge=100, le=250)
     weight_kg: float | None = Field(default=None, ge=25, le=400)
-    body_measured_at: datetime | None = None
 
 
 class PatientProfileResponse(PatientProfileBase):

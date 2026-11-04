@@ -24,3 +24,18 @@ class HealthDocumentListResponse(BaseModel):
 
 class HealthDocumentDescription(BaseModel):
     descripcion: str | None = Field(default=None, max_length=2000)
+
+
+class HealthDocumentSearchItem(BaseModel):
+    id: UUID
+    patient_user_id: UUID
+    tipo: HealthDocumentType
+    descripcion: str | None
+    fecha_subida: datetime
+
+
+class HealthDocumentSearchResponse(BaseModel):
+    documents: list[HealthDocumentSearchItem]
+    total: int
+    page: int
+    page_size: int

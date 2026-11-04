@@ -179,6 +179,10 @@ docker-compose.local.yml
 
 # Frontend dependencies and build output
 node_modules/
+.eslintcache
+/frontend/openapi.json
+/frontend/test-results/
+/frontend/playwright-report/
 .next/
 .vite/
 *.tsbuildinfo
@@ -259,3 +263,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+seguimiento.md
+seguimientoFrontend.md
+frontend/README.md
+/backend/docs/*.md
+/frontend/src/pages/AGENTS.md
+database_schema.dbml

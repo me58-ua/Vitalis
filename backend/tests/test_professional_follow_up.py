@@ -56,7 +56,7 @@ class ProfessionalFollowUpServiceTests(unittest.TestCase):
             end_time=datetime(2026, 9, 20, 11, tzinfo=timezone.utc),
             status=AppointmentStatus.COMPLETED,
             type=AppointmentType.VIDEO,
-            reason="Follow-up",
+            appointment_reason="Follow-up",
             room_id=uuid.uuid4(),
             created_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
             updated_at=datetime(2026, 9, 20, 11, tzinfo=timezone.utc),

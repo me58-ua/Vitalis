@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import HealthDocument
+from app.models import Appointment, HealthDocument, PatientProfile
 
 
 class HealthDocumentRepository:
@@ -31,3 +31,40 @@ class HealthDocumentRepository:
         return self.session.scalar(
             select(func.count()).select_from(HealthDocument).where(HealthDocument.patient_id == patient_id)
         ) or 0
+
+    def search_for_patient(self, user_id, query, document_type, offset, limit):
+        return self._search(
+            PatientProfile.user_id == user_id, query, document_type, offset, limit
+        )
+
+    def search_for_professional(self, professional_id, query, document_type, offset, limit):
+        shared_appointment = select(Appointment.id).where(
+            Appointment.patient_id == PatientProfile.user_id,
+            Appointment.professional_id == professional_id,
+        ).exists()
+        return self._search(
+            PatientProfile.share_health_data.is_(True) & shared_appointment,
+            query, document_type, offset, limit,
+        )
+
+    def _search(self, scope, query, document_type, offset, limit):
+        # Treat wildcard characters as literal user text, not LIKE operators.
+        escaped = query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        pattern = f"%{escaped}%"
+        filters = [scope, or_(
+            HealthDocument.descripcion.ilike(pattern, escape='\\'),
+            HealthDocument.tipo.ilike(pattern, escape='\\'),
+        )]
+        if document_type is not None:
+            filters.append(HealthDocument.tipo == document_type)
+        join = HealthDocument.patient_id == PatientProfile.id
+        total = self.session.scalar(
+            select(func.count()).select_from(HealthDocument).join(PatientProfile, join).where(*filters)
+        ) or 0
+        rows = self.session.execute(
+            select(HealthDocument, PatientProfile.user_id).join(PatientProfile, join)
+            .where(*filters)
+            .order_by(HealthDocument.fecha_subida.desc(), HealthDocument.id.desc())
+            .offset(offset).limit(limit)
+        ).all()
+        return rows, total

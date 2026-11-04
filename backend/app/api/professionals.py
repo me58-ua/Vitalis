@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.api.deps import (
     get_appointment_repository,
@@ -45,6 +45,8 @@ from app.services.professional_service import ProfessionalNotFoundError, Profess
 from app.services.professional_follow_up_service import ProfessionalFollowUpService
 from app.services.schedule_service import ScheduleService
 from app.services.notification_service import NotificationService
+from app.schemas.professional_dashboard import ProfessionalAppointmentsQuery, ProfessionalAppointmentsResponse, ProfessionalDashboardResponse
+from app.services.professional_dashboard_service import ProfessionalDashboardService
 
 
 router = APIRouter(tags=["professionals"])
@@ -56,6 +58,19 @@ Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
+
+
+@router.get("/professionals/me/dashboard", response_model=ProfessionalDashboardResponse)
+def professional_dashboard(current_user: CurrentProfessional, appointments: Appointments, professionals: Professionals, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return ProfessionalDashboardService(appointments, professionals).dashboard(current_user.id)
+
+
+@router.get("/professionals/me/appointments", response_model=ProfessionalAppointmentsResponse)
+def professional_appointments(current_user: CurrentProfessional, appointments: Appointments, professionals: Professionals, response: Response,
+                              query: Annotated[ProfessionalAppointmentsQuery, Query()]):
+    response.headers["Cache-Control"] = "no-store"
+    return ProfessionalDashboardService(appointments, professionals).list_appointments(current_user.id, query)
 
 
 @router.get("/professionals/me/patients", response_model=PatientListResponse)

@@ -32,7 +32,7 @@ class PrivacyService:
         if patient_profile is None and professional_profile is None:
             raise PrivacyAccountNotFoundError("Account profile not found")
 
-        patient_id = patient_profile.id if patient_profile is not None else None
+        patient_id = patient_profile.user_id if patient_profile is not None else None
         if patient_profile is not None:
             file_keys = self.privacy.erase_patient_health(patient_profile.id)
             self.privacy.anonymize_patient_profile(patient_profile)

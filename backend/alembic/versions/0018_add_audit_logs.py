@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     audit_action = postgresql.ENUM(
-        "lectura", "creacion", "modificacion", "eliminacion", name="audit_action"
+        "lectura", "creacion", "modificacion", "eliminacion", name="audit_action", create_type=False
     )
     audit_action.create(op.get_bind(), checkfirst=True)
     op.create_table(
