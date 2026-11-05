@@ -56,12 +56,6 @@
 .consultation-list h2 { margin: 0; font-size: 22px; }
 .consultation-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
 .consultation-list p { color: #404944; line-height: 1.6; }
-.professional-video-action { display: inline-flex; font-size: 11px; font-weight: 600; line-height: 1.5; color: #003527; padding: 8px; background: #d9f8e9; border-radius: 8px; margin-top: 8px; text-decoration: none; overflow-wrap: anywhere; }
-.professional-appointments-table th:first-child { width: 24%; }
-.professional-appointments-table th:nth-child(2) { width: 23%; }
-.professional-appointments-table th:nth-child(3) { width: 18%; }
-.professional-appointments-table th:nth-child(4) { width: 17%; }
-.professional-appointments-table th:last-child { width: 18%; }
 .patient-video-entry { margin: 28px 0; max-width: 680px; padding: 24px; border-radius: 14px; background: #eff4ff; }
 .patient-video-entry label { display: grid; gap: 8px; margin-bottom: 16px; }
 .patient-video-entry input { width: 100%; min-width: 0; border: 1px solid #bfc9c3; padding: 12px; border-radius: 8px; }

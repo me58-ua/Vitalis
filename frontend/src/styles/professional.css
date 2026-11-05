@@ -66,6 +66,10 @@
 .professional-patient-select .professional-search-form { margin: 16px 0; }
 .professional-appointment-details p { line-height: 1.6; overflow-wrap: anywhere; }
 .professional-appointment-details form { margin-top: 24px; }
+.professional-appointment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 24px; }
+.professional-appointment-actions form { flex-basis: 100%; margin-top: 0; }
+.professional-appointment-actions .professional-cancel { background: #ba1a1a; border: 1px solid #ba1a1a; color: #fff; }
+.professional-appointment-actions .professional-cancel:hover:not(:disabled) { background: #93000a; border-color: #93000a; }
 .professional-profile dt { font-weight: 600; margin-top: 20px; }
 .professional-profile dd { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; line-height: 1.6; }
 @media (max-width: 1400px) { .professional-main { padding: 24px; } .professional-grid { grid-template-columns: minmax(0, 1.8fr) minmax(245px, 1fr); } .professional-stats article { flex-direction: column; } }

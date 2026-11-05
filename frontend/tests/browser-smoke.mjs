@@ -343,7 +343,7 @@ try {
   assert.equal(fixture.state.professionalCreates[0].type, 'in_person');
   await click('.professional-appointments-table tbody tr .professional-more');
   await until(`document.querySelector('.professional-appointment-details') !== null`);
-  await click('.professional-appointment-details > button');
+  await click('.professional-appointment-actions > button');
   await fill('cancellation_reason', 'Cambio de horario sintético');
   fixture.state.failProfessionalCancel = true;
   await click('dialog button[type="submit"]');
@@ -435,7 +435,7 @@ try {
   await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 960, deviceScaleFactor: 1, mobile: false });
   // Exercise SPA navigation without losing the in-memory session.
   await evaluate(`history.pushState(null, '', '/patientPanel'); window.dispatchEvent(new PopStateEvent('popstate'))`);
-  await until(`location.pathname === '/professionalDashboard'`);
+  await until(`location.pathname === '/professionalDashboard' && document.querySelector('main h1')?.textContent === 'Panel del profesional'`);
   assert.equal(await evaluate(`document.querySelector('main h1').textContent`), 'Panel del profesional');
   await evaluate(`history.pushState(null, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate'))`);
   await until(`location.pathname === '/professionalDashboard'`);
@@ -465,8 +465,11 @@ try {
   await command('Fetch.enable', { patterns: [{ urlPattern: 'https://jitsi.fixture.invalid/external_api.js', requestStage: 'Request' }] });
   fixture.state.videoTestAppointment = { id: '00000000-0000-4000-8000-000000000990', patient_id: fixture.participants.patient.id, patient_name: 'Paciente de videoconsulta', patient_username: 'video_fixture', professional_id: fixture.account.id, type: 'video', status: 'confirmed', start_time: '2030-11-04T10:00:00Z', end_time: '2030-11-04T10:30:00Z', appointment_reason: 'Consulta de prueba', cancellation_reason: null };
   await fill('identifier', 'test_user'); await fill('password', 'TestPassword!'); await click('button[type="submit"]');
-  await until(`document.querySelector('.professional-video-action[href*="000000000990"]') !== null`);
-  await click('.professional-video-action[href*="000000000990"]');
+  await until(`document.querySelector('.professional-more[aria-label="Ver cita de Paciente de videoconsulta"]') !== null`);
+  assert.equal(await evaluate(`document.querySelector('.professional-appointments-table a[href*="/videoconsulta/"]') === null`), true);
+  await click('.professional-more[aria-label="Ver cita de Paciente de videoconsulta"]');
+  await until(`document.querySelector('.professional-appointment-actions a') !== null`);
+  await click('.professional-appointment-actions a');
   await until(`document.querySelector('.consultation-prejoin button')?.textContent.includes('Entrar')`);
   assert.equal(fixture.state.videoJoinCalls, 0);
   assert.equal(await evaluate(`document.querySelector('dialog') === null && !document.body.textContent.includes('Confirmar cita')`), true);
@@ -760,6 +763,7 @@ try {
   for (const [name, value] of Object.entries({ ...newAccount, name: 'Profesional de prueba creado', dni: 'TEST-NEW-2', username: 'created_professional', email: 'pro-created@example.invalid', specialty: 'Especialidad sintética', license_number: 'TEST-NEW-COL', practice_phone: '000000000' })) await fill(name, value);
   await click('dialog button[type="submit"]');
   await until(`document.querySelector('dialog') === null && document.body.textContent.includes('Pendiente de aprobación')`);
+  await until(`document.querySelector('.users-table tbody tr .user-manage') !== null`);
   await click('.users-table tbody tr .user-manage');
   await until(`document.querySelector('.user-account-actions')?.textContent.includes('Aprobar profesional')`);
   await command('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 1, mobile: true });
