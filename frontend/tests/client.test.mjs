@@ -15,7 +15,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const output = path.join(root, 'test-results', 'client');
   await mkdir(output, { recursive: true });
-  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors', 'professional', 'professionalErrors']) {
+  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors', 'professional', 'professionalErrors', 'consultations', 'jitsi']) {
     const source = (await readFile(path.join(root, 'src/api', `${name}.ts`), 'utf8'))
       .replace('import.meta.env.VITE_API_BASE_URL', JSON.stringify(fixture.url));
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText
@@ -32,6 +32,8 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const { adminUserError } = await load('adminUserErrors');
   const admin = await load('admin');
   const professional = await load('professional');
+  const consultations = await load('consultations');
+  const { jitsiOrigin } = await load('jitsi');
 
   await t.test('URL-encoded login and account lookup', async () => {
     const tokens = await auth.login('test_user', 'TestPassword!');
@@ -139,7 +141,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
     const dashboard = await professional.getProfessionalDashboard(signal);
     assert.equal(dashboard.weekly_distribution.length, 7);
     assert.equal(dashboard.timezone, 'Europe/Madrid');
-    assert.ok(dashboard.upcoming_appointments.every(item => ['pending', 'confirmed'].includes(item.status)));
+    assert.ok(dashboard.upcoming_appointments.every(item => ['confirmed'].includes(item.status)));
     const payload = { patient_id: '00000000-0000-4000-8000-000000000201', start_time: '2030-11-05T10:00:00Z', end_time: '2030-11-05T10:30:00Z', type: 'in_person', appointment_reason: 'Motivo original sintético' };
     await professional.createProfessionalAppointment(fixture.account.id, payload, signal);
     assert.deepEqual(fixture.state.professionalCreates.at(-1), payload);
@@ -177,5 +179,41 @@ test('Axios follows authentication and notification contracts', async (t) => {
     api.defaults.adapter = async config => ({ data: { appointments: [], total: 1, page: config.params.page, page_size: 100 }, status: 200, statusText: 'OK', headers: {}, config });
     try { await assert.rejects(professional.getProfessionalWeek('2026-11-02', '2026-11-08', new AbortController().signal)); }
     finally { api.defaults.adapter = adapter; }
+  });
+  await t.test('video entry starts from automatically confirmed bookings and preserves date-based reload lookup', async () => {
+    fixture.state.videoTestAppointment = { id: '00000000-0000-4000-8000-000000000990', patient_id: fixture.participants.patient.id, patient_name: 'Paciente de videoconsulta', patient_username: 'video_fixture', professional_id: fixture.account.id, type: 'video', status: 'confirmed', start_time: '2030-11-04T10:00:00Z', end_time: '2030-11-04T10:30:00Z', appointment_reason: 'Consulta de prueba', cancellation_reason: null };
+    const id = fixture.state.videoTestAppointment.id, signal = new AbortController().signal;
+    assert.equal((await consultations.findVideoAppointment(id, '2030-11-04', signal)).status, 'confirmed');
+    const joined = await consultations.joinVideo(id, signal);
+    assert.equal(joined.domain, 'jitsi.fixture.invalid');
+    assert.ok(Date.parse(joined.expires_at) > Date.now());
+    fixture.state.videoDenied = true;
+    await assert.rejects(consultations.joinVideo(id, signal), error => /horario/.test(consultations.consultationError(error)));
+    assert.equal(fixture.state.videoTestAppointment.status, 'confirmed');
+    fixture.state.videoDenied = false;
+  });
+  await t.test('native chat protocol broadcasts persisted messages and completed chat becomes read-only', async () => {
+    const id = fixture.state.videoTestAppointment.id, signal = new AbortController().signal;
+    assert.equal((await consultations.getChatRoom(id, signal)).can_write, true);
+    const url = consultations.chatSocketUrl(id, session.read().access_token);
+    assert.equal(new URL(url).protocol, 'ws:');
+    const socket = new WebSocket(url);
+    await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
+    try {
+      const receive = new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('Chat fixture timeout')), 2000); socket.addEventListener('message', event => { clearTimeout(timer); resolve(JSON.parse(String(event.data))); }, { once: true }); });
+      socket.send(JSON.stringify({ type: 'message', content: 'Mensaje de prueba' }));
+      const result = await receive;
+      assert.equal(result.type, 'message'); assert.equal(result.content, 'Mensaje de prueba');
+      const rows = await consultations.getChatMessages(id, signal);
+      assert.equal(rows.at(-1).id, result.id);
+    } finally { socket.close(); }
+    await consultations.updateConsultationStatus(fixture.account.id, id, 'completed', signal);
+    assert.equal((await consultations.getChatRoom(id, signal)).can_write, false);
+  });
+  await t.test('Jitsi origins reject unexpected protocols, credentials and paths', () => {
+    assert.equal(jitsiOrigin('localhost:8443').origin, 'https://localhost:8443');
+    assert.throws(() => jitsiOrigin('http://video.example.invalid'));
+    assert.throws(() => jitsiOrigin('https://video.example.invalid/other'));
+    assert.throws(() => jitsiOrigin('https://user:password@video.example.invalid'));
   });
 });

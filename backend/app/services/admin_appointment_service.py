@@ -26,7 +26,7 @@ class AdminAppointmentQueryService:
             month_start, month_end = self.month_bounds(now or datetime.now(timezone.utc))
             start = max(start, month_start) if start else month_start
             end = min(end, month_end) if end else month_end
-            statuses = [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]
+            statuses = [AppointmentStatus.CONFIRMED]
         items, total = self.appointments.list_admin(query.patient_id, query.professional_id, start, end, statuses,
                                                      (query.page - 1) * query.page_size, query.page_size)
         return AdminAppointmentListResponse(appointments=items, total=total, page=query.page, page_size=query.page_size)

@@ -120,7 +120,7 @@ export function AdminAppointmentsPage() {
       {state.error && <div role="alert" className="error-state"><p>{state.error}</p><button className="text-button" onClick={state.retry}>Reintentar</button></div>}
       {data && <><p role="status">{data.total} citas encontradas.</p>{data.appointments.length === 0 ? <p>No se han encontrado citas con estos filtros.</p> : <ul className="admin-appointments-list">{data.appointments.map(item => <li key={item.id}>
         <div><h3>{item.patient_name}</h3><p>Profesional: {item.professional_name}</p><p><time dateTime={item.start_time}>{appointmentDate(item.start_time)}</time> — <time dateTime={item.end_time}>{appointmentDate(item.end_time)}</time></p><p>{appointmentTypes[item.type]} · <strong>{appointmentStatuses[item.status]}</strong></p>{item.status === 'cancelled' && <p>Motivo de anulación: {item.cancellation_reason || 'No indicado'}</p>}</div>
-        {(item.status === 'pending' || item.status === 'confirmed') && <button className="button secondary" onClick={() => { setSuccess(''); setDialog(item); }}>Anular cita</button>}
+        {(item.status === 'confirmed') && <button className="button secondary" onClick={() => { setSuccess(''); setDialog(item); }}>Anular cita</button>}
       </li>)}</ul>}
       <nav className="pagination" aria-label="Paginación de citas"><button disabled={data.page <= 1} onClick={() => setQuery({ ...query, page: data.page - 1 })}>Anterior</button><span>Página {data.page} de {Math.max(1, Math.ceil(data.total / data.page_size))}</span><button disabled={data.page * data.page_size >= data.total} onClick={() => setQuery({ ...query, page: data.page + 1 })}>Siguiente</button></nav></>}
     </section>

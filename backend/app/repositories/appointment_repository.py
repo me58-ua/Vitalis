@@ -225,7 +225,7 @@ class AppointmentRepository:
             return func.count().filter(Appointment.start_time >= start, Appointment.start_time < end, extra)
         values = [count(today, tomorrow), count(yesterday, today),
                   count(today, tomorrow, Appointment.status == AppointmentStatus.COMPLETED),
-                  count(today, tomorrow, Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]))]
+                  count(today, tomorrow, Appointment.status.in_([AppointmentStatus.CONFIRMED]))]
         values.extend(count(start, end) for start, end in week_bounds)
         return tuple(self.session.execute(select(*values).select_from(Appointment)
                      .where(Appointment.professional_id == professional_id)).one())
@@ -234,7 +234,7 @@ class AppointmentRepository:
         conditions = [Appointment.professional_id == professional_id]
         if upcoming_only:
             conditions.extend([Appointment.end_time > now,
-                               Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED])])
+                               Appointment.status.in_([AppointmentStatus.CONFIRMED])])
         if start is not None:
             conditions.append(Appointment.start_time >= start)
         if end is not None:

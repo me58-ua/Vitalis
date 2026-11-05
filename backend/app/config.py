@@ -37,7 +37,6 @@ class Settings(BaseSettings):
     JITSI_APP_SECRET: str = ""
     JITSI_TOKEN_TTL_SECONDS: int = 3600
     VIDEO_JOIN_EARLY_MINUTES: int = 10
-    VIDEO_JOIN_LATE_MINUTES: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

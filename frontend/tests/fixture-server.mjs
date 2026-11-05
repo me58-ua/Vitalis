@@ -1,5 +1,6 @@
 // Synthetic fixtures are restricted to test code. Never imported by src/.
 import http from 'node:http';
+import { createHash, randomUUID } from 'node:crypto';
 
 export async function fixtureServer(origin = 'http://localhost:3000') {
   const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0, logouts: 0, failLogout: false, failSearch: false, searchEmpty: false, downloads: 0, failTotals: false, failAudits: false, auditEmpty: false, auditQueries: [], failAppointments: false, failCreateAppointment: false, failCancelAppointment: false, appointmentCreates: [], appointmentPatches: [], appointmentQueries: [] };
@@ -18,8 +19,10 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
   const detailUser = item => ({ ...item, patient_profile: item.patient_profile ?? (item.role === 'patient' ? { address: null, blood_type: null, timezone: 'Europe/Madrid', sex_at_birth: null, height_cm: null, weight_kg: null } : null),
     professional_profile: item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
   const demoSessions = [];
-  const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'pending', appointment_reason: 'Motivo sintético de cita', cancellation_reason: null }));
-  const professionalAppointments = appointments.map((item, index) => ({ ...item, patient_username: participants.patient.username, type: index ? 'video' : 'in_person', status: index ? 'confirmed' : 'pending' }));
+  const chatConnections = new Map();
+  state.chatMessages = []; state.videoJoinCalls = 0; state.videoStatusWrites = [];
+  const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'confirmed', appointment_reason: 'Motivo sintético de cita', cancellation_reason: null }));
+  const professionalAppointments = appointments.map((item, index) => ({ ...item, patient_username: participants.patient.username, type: index ? 'video' : 'in_person', status: 'confirmed' }));
   Object.assign(state, { failProfessionalDashboard: false, emptyProfessionalDashboard: false, failProfessionalCreate: false, failProfessionalCancel: false, professionalCreates: [], professionalCancels: [] });
   const notification = {
     id: '00000000-0000-4000-8000-000000000002', type: 'test', title: 'Aviso de prueba', message: 'Mensaje sintético para verificar la interfaz.',
@@ -70,12 +73,33 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
+    if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, { ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
+    if (path.startsWith('/appointments/')) {
+      const id = path.split('/')[2];
+      const item = state.videoTestAppointment?.id === id ? state.videoTestAppointment : professionalAppointments.find(item => item.id === id);
+      if (!item || state.chatForbidden) return send(state.chatForbidden ? 403 : 404, { detail: 'User does not participate in this appointment' });
+      if (path.endsWith('/video/join')) {
+        state.videoJoinCalls += 1;
+        if (state.videoDenied) return send(403, { detail: 'Video join window is closed' });
+        if (item.status !== 'confirmed' || item.type !== 'video') return send(403, { detail: 'Video is unavailable for this appointment' });
+        return send(200, { domain: 'jitsi.fixture.invalid', room_name: `fixture-room-${id}`, jwt: 'test-video-jwt', expires_at: new Date(Date.now() + 3600000).toISOString() });
+      }
+      if (path.endsWith('/chat')) return send(200, { appointment_id: id, status: item.status, can_write: item.status === 'confirmed', participants: [{ id: (demoLogin?.user ?? account).role === 'patient' ? (demoLogin?.user ?? account).id : participants.patient.id, role: 'patient' }, { id: (demoLogin?.user ?? account).role === 'professional' ? (demoLogin?.user ?? account).id : participants.professional.id, role: 'professional' }] });
+      if (path.endsWith('/chat/messages')) {
+        const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+        const rows = state.chatMessages.filter(message => message.appointment_id === id);
+        const before = rows.findIndex(message => message.id === params.get('before_id'));
+        const after = rows.findIndex(message => message.id === params.get('after_id'));
+        const limit = Number(params.get('limit') || 50);
+        return send(200, { messages: before >= 0 ? rows.slice(Math.max(0, before - limit), before) : after >= 0 ? rows.slice(after + 1, after + 1 + limit) : rows.slice(-limit) });
+      }
+    }
     if (path.startsWith('/professionals/')) {
       const actor = demoLogin?.user ?? account;
       if (actor.role !== 'professional') return send(403, { detail: 'PROFESSIONAL_REQUIRED' });
       if (path === '/professionals/me/dashboard') {
         if (state.failProfessionalDashboard) return send(503, { detail: 'TEST_UNAVAILABLE' });
-        const rows = state.emptyProfessionalDashboard ? [] : professionalAppointments.filter(item => ['pending', 'confirmed'].includes(item.status));
+        const rows = state.emptyProfessionalDashboard ? [] : [...professionalAppointments, ...(state.videoTestAppointment ? [state.videoTestAppointment] : [])].filter(item => ['confirmed'].includes(item.status));
         return send(200, { timezone: 'Europe/Madrid', generated_at: '2030-10-28T12:00:00Z', date: '2030-10-28', week_start: '2030-10-28', week_end: '2030-11-03',
           appointments_today: state.emptyProfessionalDashboard ? 0 : 3, appointments_yesterday: state.emptyProfessionalDashboard ? 0 : 2, scheduled_today: state.emptyProfessionalDashboard ? 0 : 2, completed_today: state.emptyProfessionalDashboard ? 0 : 1, assigned_patients: state.emptyProfessionalDashboard ? 0 : 21,
           weekly_distribution: ['2030-10-28', '2030-10-29', '2030-10-30', '2030-10-31', '2030-11-01', '2030-11-02', '2030-11-03'].map((date, index) => ({ date, count: state.emptyProfessionalDashboard ? 0 : index === 0 ? 3 : index === 5 ? 1 : 0 })), upcoming_appointments: rows.slice(0, 5), upcoming_total: rows.length });
@@ -105,9 +129,16 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (path === '/professionals/me/appointments') {
         if (state.failProfessionalAppointments) return send(503, { detail: 'TEST_UNAVAILABLE' });
         const params = new URL(req.url, 'http://fixture.invalid').searchParams;
-        const rows = professionalAppointments.filter(item => (params.get('upcoming_only') === 'false' || ['pending', 'confirmed'].includes(item.status)) && (!params.get('status') || item.status === params.get('status')) && (!params.get('from_date') || item.start_time.slice(0, 10) >= params.get('from_date')) && (!params.get('to_date') || item.start_time.slice(0, 10) <= params.get('to_date')));
+        const rows = [...professionalAppointments, ...(state.videoTestAppointment ? [state.videoTestAppointment] : [])].filter(item => (params.get('upcoming_only') === 'false' || ['confirmed'].includes(item.status)) && (!params.get('status') || item.status === params.get('status')) && (!params.get('from_date') || item.start_time.slice(0, 10) >= params.get('from_date')) && (!params.get('to_date') || item.start_time.slice(0, 10) <= params.get('to_date')));
         const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);
         return send(200, { appointments: rows.slice((page - 1) * size, page * size), total: rows.length, page, page_size: size });
+      }
+      if (req.method === 'PATCH' && path.endsWith('/status')) {
+        const id = path.split('/')[4];
+        const item = state.videoTestAppointment?.id === id ? state.videoTestAppointment : professionalAppointments.find(item => item.id === id);
+        if (!item) return send(404, { detail: 'Appointment not found' });
+        const body = JSON.parse(raw); state.videoStatusWrites.push(body); item.status = body.status;
+        return send(200, item);
       }
       if (path.endsWith('/appointments/history')) return send(200, { appointments: [{ ...professionalAppointments[0], id: '00000000-0000-4000-8000-000000000499', status: 'cancelled', start_time: '2025-10-01T09:00:00Z', end_time: '2025-10-01T09:30:00Z', cancellation_reason: 'Cancelación sintética', room_id: 'synthetic-room', created_at: '2025-09-01T09:00:00Z', updated_at: '2025-10-01T09:00:00Z', patient_email: participants.patient.email }], total: 1, page: 1, page_size: 20 });
       if (req.method === 'POST' && path.endsWith('/cancel')) {
@@ -120,7 +151,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (req.method === 'POST' && path.endsWith('/appointments')) {
         if (state.failProfessionalCreate) return send(409, { detail: 'TEST_CONFLICT' });
         const body = JSON.parse(raw); state.professionalCreates.push(body);
-        const item = { ...body, id: `00000000-0000-4000-8000-${String(901 + state.professionalCreates.length).padStart(12, '0')}`, professional_id: actor.id, patient_name: participants.patient.name, patient_username: participants.patient.username, status: 'pending', cancellation_reason: null };
+        const item = { ...body, id: `00000000-0000-4000-8000-${String(901 + state.professionalCreates.length).padStart(12, '0')}`, professional_id: actor.id, patient_name: participants.patient.name, patient_username: participants.patient.username, status: 'confirmed', cancellation_reason: null };
         professionalAppointments.unshift(item); return send(201, item);
       }
     }
@@ -188,7 +219,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       return send(200, { users: [account], total: params.get('role') === 'patient' ? 5 : params.get('role') === 'professional' ? 2 : 8, page: 1, page_size: 1 });
     }
     if (path === '/admin/appointments/upcoming-month') {
-      const rows = appointments.filter(item => item.status === 'pending' || item.status === 'confirmed');
+      const rows = appointments.filter(item => item.status === 'confirmed');
       return send(200, { appointments: rows.slice(0, 3), total: rows.length, period_start: '2030-11-01T00:00:00Z', period_end: '2030-12-01T00:00:00Z', timezone: 'Europe/Madrid' });
     }
     if (path === '/admin/appointments') {
@@ -196,13 +227,13 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (req.method === 'POST') {
         if (state.failCreateAppointment) return send(409, { detail: 'TEST_CONFLICT' });
         const body = JSON.parse(raw); state.appointmentCreates.push(body);
-        const item = { ...body, id: `00000000-0000-4000-8000-${String(400 + state.appointmentCreates.length).padStart(12, '0')}`, patient_name: participants.patient.name, professional_name: participants.professional.name, status: 'pending', appointment_reason: body.appointment_reason ?? null, cancellation_reason: null };
+        const item = { ...body, id: `00000000-0000-4000-8000-${String(400 + state.appointmentCreates.length).padStart(12, '0')}`, patient_name: participants.patient.name, professional_name: participants.professional.name, status: 'confirmed', appointment_reason: body.appointment_reason ?? null, cancellation_reason: null };
         appointments.push(item); return send(201, item);
       }
       if (state.failAppointments) return send(503, { detail: 'TEST_UNAVAILABLE' });
       const params = new URL(req.url, 'http://fixture.invalid').searchParams;
       state.appointmentQueries.push(Object.fromEntries(params));
-      let rows = appointments.filter(item => (!params.get('patient_id') || item.patient_id === params.get('patient_id')) && (!params.get('professional_id') || item.professional_id === params.get('professional_id')) && (!params.get('from_date') || item.start_time.slice(0, 10) >= params.get('from_date')) && (!params.get('to_date') || item.start_time.slice(0, 10) <= params.get('to_date')) && (params.get('upcoming_month') !== 'true' || ['pending', 'confirmed'].includes(item.status)));
+      let rows = appointments.filter(item => (!params.get('patient_id') || item.patient_id === params.get('patient_id')) && (!params.get('professional_id') || item.professional_id === params.get('professional_id')) && (!params.get('from_date') || item.start_time.slice(0, 10) >= params.get('from_date')) && (!params.get('to_date') || item.start_time.slice(0, 10) <= params.get('to_date')) && (params.get('upcoming_month') !== 'true' || ['confirmed'].includes(item.status)));
       const page = Number(params.get('page') || 1), size = Number(params.get('page_size') || 20);
       return send(200, { appointments: rows.slice((page - 1) * size, page * size), total: rows.length, page, page_size: size });
     }
@@ -255,8 +286,52 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     }
     send(404, { detail: 'TEST_NOT_FOUND' });
   });
+  server.on('upgrade', (req, socket) => {
+    const url = new URL(req.url, 'http://fixture.invalid');
+    const token = url.searchParams.get('token');
+    const login = state.independentSessions ? demoSessions.find(item => item.access === token && !item.revoked) : null;
+    if ((state.independentSessions ? !login : token !== state.access) || !url.pathname.startsWith('/ws/chat/')) { socket.destroy(); return; }
+    const actor = login?.user ?? account;
+    const appointmentId = url.pathname.split('/').at(-1);
+    const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+    chatConnections.set(socket, appointmentId);
+    function write(target, message) {
+      const data = Buffer.from(JSON.stringify(message));
+      const header = Buffer.alloc(data.length < 126 ? 2 : 4); header[0] = 0x81;
+      if (data.length < 126) header[1] = data.length;
+      else { header[1] = 126; header.writeUInt16BE(data.length, 2); }
+      target.write(Buffer.concat([header, data]));
+    }
+    let buffer = Buffer.alloc(0);
+    socket.on('data', chunk => {
+      buffer = Buffer.concat([buffer, chunk]);
+      while (buffer.length >= 2) {
+        const opcode = buffer[0] & 15, masked = Boolean(buffer[1] & 128);
+        let length = buffer[1] & 127, offset = 2;
+        if (length === 126) { if (buffer.length < 4) return; length = buffer.readUInt16BE(2); offset = 4; }
+        if (length === 127) { socket.destroy(); return; }
+        if (buffer.length < offset + (masked ? 4 : 0) + length) return;
+        const mask = masked ? buffer.subarray(offset, offset + 4) : null; if (masked) offset += 4;
+        const data = Buffer.from(buffer.subarray(offset, offset + length));
+        if (mask) for (let i = 0; i < data.length; i += 1) data[i] ^= mask[i % 4];
+        buffer = buffer.subarray(offset + length);
+        if (opcode === 8) { socket.end(Buffer.from([0x88, 0])); return; }
+        if (opcode !== 1) continue;
+        let message; try { message = JSON.parse(data.toString()); } catch { continue; }
+        if (message.type === 'ping') { write(socket, { type: 'pong' }); continue; }
+        if (message.type === 'message') {
+          const item = { id: randomUUID(), appointment_id: appointmentId, sender_id: actor.id, content: message.content, created_at: new Date().toISOString() };
+          state.chatMessages.push(item);
+          for (const [target, room] of chatConnections) if (room === appointmentId) write(target, { type: 'message', ...item });
+        }
+      }
+    });
+    socket.on('close', () => chatConnections.delete(socket));
+    socket.on('error', () => chatConnections.delete(socket));
+  });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Test server address missing');
-  return { state, account, notification, url: `http://127.0.0.1:${address.port}`, close: () => new Promise((resolve) => server.close(resolve)) };
+  return { state, account, participants, notification, chatConnections, url: `http://127.0.0.1:${address.port}`, close: () => { for (const socket of chatConnections.keys()) socket.destroy(); return new Promise((resolve) => server.close(resolve)); } };
 }

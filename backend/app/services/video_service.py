@@ -50,21 +50,16 @@ class VideoService:
 
         now = datetime.now(timezone.utc)
         start = appointment.start_time.astimezone(ZoneInfo("Europe/Madrid"))
-        end = appointment.end_time.astimezone(ZoneInfo("Europe/Madrid"))
         local_now = now.astimezone(ZoneInfo("Europe/Madrid"))
         window_start = start - timedelta(minutes=settings.VIDEO_JOIN_EARLY_MINUTES)
-        window_end = end + timedelta(minutes=settings.VIDEO_JOIN_LATE_MINUTES)
-        if not window_start <= local_now <= window_end:
+        if local_now < window_start:
             raise VideoForbiddenError("Video join window is closed")
 
         if not isinstance(appointment.room_id, str) or len(appointment.room_id) < 32:
             appointment.room_id = secrets.token_urlsafe(24)
             self.appointments.save(appointment)
 
-        expires_at = min(
-            now + timedelta(seconds=settings.JITSI_TOKEN_TTL_SECONDS),
-            window_end.astimezone(timezone.utc),
-        )
+        expires_at = now + timedelta(seconds=settings.JITSI_TOKEN_TTL_SECONDS)
         payload = {
             "aud": "jitsi",
             "iss": settings.JITSI_APP_ID,

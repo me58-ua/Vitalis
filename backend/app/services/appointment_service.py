@@ -394,6 +394,7 @@ class AppointmentService:
         return user
 
     def _create_appointment(self, appointment: Appointment) -> Appointment:
+        appointment.status = AppointmentStatus.CONFIRMED
         try:
             return self.appointments.create_appointment(appointment)
         except IntegrityError as error:

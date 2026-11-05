@@ -51,7 +51,6 @@ class VideoServiceTests(unittest.TestCase):
             JITSI_APP_SECRET="test-secret",
             JITSI_TOKEN_TTL_SECONDS=3600,
             VIDEO_JOIN_EARLY_MINUTES=10,
-            VIDEO_JOIN_LATE_MINUTES=30,
         )
         self.config.start()
 
@@ -82,11 +81,30 @@ class VideoServiceTests(unittest.TestCase):
         with self.assertRaises(VideoForbiddenError):
             self.service.create_join_session(self.appointment.id, self.patient)
 
-    def test_join_outside_time_window_is_rejected(self):
-        self.appointment.start_time = datetime.now(timezone.utc) - timedelta(hours=2)
-        self.appointment.end_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    def test_join_more_than_ten_minutes_early_is_rejected(self):
+        self.appointment.start_time = datetime.now(timezone.utc) + timedelta(minutes=11)
+        self.appointment.end_time = self.appointment.start_time + timedelta(minutes=30)
         with self.assertRaises(VideoForbiddenError):
             self.service.create_join_session(self.appointment.id, self.patient)
+
+    def test_join_inside_early_window_is_allowed(self):
+        self.appointment.start_time = datetime.now(timezone.utc) + timedelta(minutes=9)
+        self.appointment.end_time = self.appointment.start_time + timedelta(minutes=30)
+        self.assertIn('jwt', self.service.create_join_session(self.appointment.id, self.patient))
+
+    def test_late_join_is_allowed_and_token_still_has_a_finite_lifetime(self):
+        for age in (timedelta(hours=8), timedelta(days=40)):
+            self.appointment.start_time = datetime.now(timezone.utc) - age
+            self.appointment.end_time = self.appointment.start_time + timedelta(minutes=30)
+            result = self.service.create_join_session(self.appointment.id, self.patient)
+            self.assertGreater(result['expires_at'], datetime.now(timezone.utc))
+            self.assertLessEqual(result['expires_at'], datetime.now(timezone.utc) + timedelta(seconds=3600))
+
+    def test_completed_cancelled_and_no_show_appointments_cannot_join(self):
+        for status in (AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW):
+            self.appointment.status = status
+            with self.assertRaises(VideoForbiddenError):
+                self.service.create_join_session(self.appointment.id, self.patient)
 
 
 if __name__ == "__main__":

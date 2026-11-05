@@ -139,7 +139,7 @@ def _seed_appointments(session, users, now):
                 appointment = Appointment(
                     id=appointment_id, patient_id=patient.id, professional_id=professional.id,
                     start_time=start, end_time=end,
-                    status=AppointmentStatus.CONFIRMED if patient_index % 2 == 0 else AppointmentStatus.PENDING,
+                    status=AppointmentStatus.CONFIRMED,
                     type=AppointmentType.VIDEO,
                     appointment_reason="Consulta de seguimiento",
                 )
@@ -162,7 +162,7 @@ def _seed_appointments(session, users, now):
                 Appointment.professional_id == professional.id, Appointment.patient_id == patient.id,
                 or_(Appointment.status == AppointmentStatus.COMPLETED,
                     (Appointment.start_time >= now) & Appointment.status.in_([
-                        AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED,
+                        AppointmentStatus.CONFIRMED,
                     ])),
             ).limit(1))
             if qualifying and session.get(ProfessionalPatient, (professional.id, patient.id)) is None:

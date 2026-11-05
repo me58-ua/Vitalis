@@ -25,7 +25,6 @@
 .agenda-event-time { font-size: 10px; line-height: 13px; font-variant-numeric: tabular-nums; }
 .agenda-event strong { font-size: 12px; line-height: 15px; }
 .agenda-event-status { font-size: 10px; line-height: 12px; }
-.agenda-event-pending { background: #fff3d5; color: #6a4900; border-color: #ddc27e; }
 .agenda-event-completed { background: #e6eeff; color: #243b65; border-color: #9fb5db; }
 .agenda-event-cancelled, .agenda-event-no_show { background: #f1f2f4; color: #626b66; border-color: #bfc9c3; }
 .agenda-event-cancelled strong { text-decoration: line-through; }

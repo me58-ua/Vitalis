@@ -107,7 +107,7 @@ class AppointmentServiceTests(unittest.TestCase):
             professional_id=self.professional_id,
             start_time=datetime(2026, 9, 22, 10, tzinfo=timezone.utc),
             end_time=datetime(2026, 9, 22, 11, tzinfo=timezone.utc),
-            status=AppointmentStatus.PENDING,
+            status=AppointmentStatus.CONFIRMED,
             type=AppointmentType.VIDEO,
             reason=None,
         )
@@ -241,19 +241,19 @@ class AppointmentServiceTests(unittest.TestCase):
         result = self.service.update_as_admin(
             self.appointment_id,
             AdminAppointmentUpdate(
-                status=AppointmentStatus.CONFIRMED,
-                reason="Patient confirmed",
+                status=AppointmentStatus.COMPLETED,
+                reason="Consultation completed",
             ),
             self.admin,
         )
 
-        self.assertEqual(result.status, AppointmentStatus.CONFIRMED)
+        self.assertEqual(result.status, AppointmentStatus.COMPLETED)
         self.assertEqual(len(self.repository.history), 1)
         history = self.repository.history[0]
-        self.assertEqual(history.old_status, AppointmentStatus.PENDING)
-        self.assertEqual(history.new_status, AppointmentStatus.CONFIRMED)
+        self.assertEqual(history.old_status, AppointmentStatus.CONFIRMED)
+        self.assertEqual(history.new_status, AppointmentStatus.COMPLETED)
         self.assertEqual(history.changed_by, self.admin_id)
-        self.assertEqual(history.reason, "Patient confirmed")
+        self.assertEqual(history.reason, "Consultation completed")
 
     def test_professional_can_book_assigned_patient(self):
         data = ProfessionalAppointmentCreate(
@@ -269,7 +269,7 @@ class AppointmentServiceTests(unittest.TestCase):
 
         self.assertEqual(result.patient_id, self.patient_id)
         self.assertEqual(result.professional_id, self.professional_id)
-        self.assertEqual(result.status, None)
+        self.assertEqual(result.status, AppointmentStatus.CONFIRMED)
         self.assertEqual(len(self.repository.created_appointments), 1)
 
     def test_professional_cannot_write_note_for_another_professional(self):
@@ -316,7 +316,7 @@ class AppointmentServiceTests(unittest.TestCase):
         )
 
         self.assertEqual(result.status, AppointmentStatus.COMPLETED)
-        self.assertEqual(self.repository.history[-1].old_status, AppointmentStatus.PENDING)
+        self.assertEqual(self.repository.history[-1].old_status, AppointmentStatus.CONFIRMED)
         self.assertEqual(self.repository.history[-1].changed_by, self.professional_id)
 
     def test_consultation_note_update_does_not_change_appointment_id(self):
@@ -368,7 +368,7 @@ class AppointmentServiceTests(unittest.TestCase):
 
         self.assertEqual(result.status, AppointmentStatus.CANCELLED)
         history = self.repository.history[-1]
-        self.assertEqual(history.old_status, AppointmentStatus.PENDING)
+        self.assertEqual(history.old_status, AppointmentStatus.CONFIRMED)
         self.assertEqual(history.new_status, AppointmentStatus.CANCELLED)
         self.assertEqual(history.changed_by, self.patient_id)
         self.assertEqual(history.reason, "Schedule changed")
@@ -431,7 +431,7 @@ class AppointmentServiceTests(unittest.TestCase):
                 AppointmentCancelRequest(reason="Too late"),
                 enforce_patient_notice=True,
             )
-        self.assertEqual(self.appointment.status, AppointmentStatus.PENDING)
+        self.assertEqual(self.appointment.status, AppointmentStatus.CONFIRMED)
         self.assertEqual(self.repository.history, [])
 
     def test_professional_can_cancel_without_24_hour_restriction(self):

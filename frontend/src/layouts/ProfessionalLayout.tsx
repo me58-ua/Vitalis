@@ -45,7 +45,7 @@ export function ProfessionalLayout() {
         <Link to="/professionalDashboard" className={location.pathname === '/professionalDashboard' && !panel ? 'active' : ''} onClick={close}><img src={dashboard} alt="" />Panel del profesional</Link>
         <Link to="/professionalDashboard/agenda" className={location.pathname === '/professionalDashboard/agenda' ? 'active' : ''} onClick={close}><img src={agenda} alt="" />Agenda</Link>
         <Link to="/professionalDashboard/misPacientes" className={location.pathname === '/professionalDashboard/misPacientes' ? 'active' : ''} onClick={close}><img src={patients} alt="" />Mis pacientes</Link>
-        <span className="admin-nav-unavailable" aria-disabled="true"><img src={video} alt="" /><span>Videoconsulta<small>Próximamente</small></span></span>
+        <Link to="/professionalDashboard/videoconsulta" className={location.pathname.startsWith('/professionalDashboard/videoconsulta') ? 'active' : ''} onClick={close}><img src={video} alt="" />Videoconsulta</Link>
         <span className="admin-nav-unavailable" aria-disabled="true"><img src={chat} alt="" /><span>Chat<small>Próximamente</small></span></span>
         <Link to="/professionalDashboard?panel=profile" className={panel === 'profile' ? 'active' : ''} onClick={close}><img src={profile} alt="" />Perfil profesional</Link>
       </nav>

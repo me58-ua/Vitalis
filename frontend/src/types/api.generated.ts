@@ -1975,7 +1975,7 @@ export interface components {
          * AppointmentStatus
          * @enum {string}
          */
-        AppointmentStatus: "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
+        AppointmentStatus: "confirmed" | "cancelled" | "completed" | "no_show";
         /**
          * AppointmentType
          * @enum {string}

@@ -46,7 +46,7 @@ export function ProfessionalAgendaPage() {
     if (selectedButton.current?.isConnected) selectedButton.current.focus();
   }
   function changeStatus(value: string) {
-    if (value === 'all' || value === 'pending' || value === 'confirmed' || value === 'completed' || value === 'cancelled' || value === 'no_show') {
+    if (value === 'all' || value === 'confirmed' || value === 'completed' || value === 'cancelled' || value === 'no_show') {
       setStatus(value); setSelectedId(null);
     }
   }
