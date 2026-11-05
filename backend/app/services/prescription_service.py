@@ -174,6 +174,21 @@ class PrescriptionService:
             raise PrescriptionNotFoundError("Prescription file not found")
         return prescription, path
 
+    def download_for_professional(self, professional_id: UUID, appointment_id: UUID, current_user: User):
+        self._require_identity(professional_id, current_user.id)
+        appointment = self.appointments.get_appointment(appointment_id)
+        if appointment is None:
+            raise PrescriptionNotFoundError("Appointment not found")
+        if appointment.professional_id != professional_id:
+            raise PrescriptionAccessError("Appointment does not belong to this professional")
+        prescription = self.prescriptions.get_by_appointment(appointment_id)
+        if prescription is None:
+            raise PrescriptionNotFoundError("Prescription not found")
+        path = self.storage.path_for(prescription.file_url)
+        if not path.is_file():
+            raise PrescriptionNotFoundError("Prescription file not found")
+        return prescription, path
+
     def list_for_patient_view(
         self, patient_id: UUID, current_user: User, professional_id: UUID | None = None
     ) -> list[dict]:

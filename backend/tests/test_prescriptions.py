@@ -10,6 +10,7 @@ from app.schemas.prescriptions import PrescriptionAuthorizationCreate
 from app.services.file_storage import LocalFileStorage
 from app.services.prescription_service import (
     PrescriptionAccessError,
+    PrescriptionNotFoundError,
     PrescriptionService,
     PrescriptionValidationError,
 )
@@ -242,6 +243,55 @@ class PrescriptionServiceTests(unittest.TestCase):
     def test_patient_prescription_view_rejects_another_patient(self):
         with self.assertRaises(PrescriptionAccessError):
             self.service.list_for_patient_view(uuid.uuid4(), self.patient)
+
+    def test_professional_downloads_linked_file_even_after_emission_window(self):
+        uploaded = self.service.upload(self.professional_id, self.professional, self.appointment_id,
+            io.BytesIO(b"linked-pdf"), "prescription.pdf", "application/pdf", None)
+        self.appointment.end_time = self.now - timedelta(days=30)
+        result, path = self.service.download_for_professional(self.professional_id, self.appointment_id, self.professional)
+        self.assertEqual(result.id, uploaded.id)
+        self.assertEqual(path.read_bytes(), b"linked-pdf")
+
+    def test_professional_download_rejects_identity_or_ownership_mismatch(self):
+        with self.assertRaises(PrescriptionAccessError):
+            self.service.download_for_professional(uuid.uuid4(), self.appointment_id, self.professional)
+        self.appointment.professional_id = uuid.uuid4()
+        with self.assertRaises(PrescriptionAccessError):
+            self.service.download_for_professional(self.professional_id, self.appointment_id, self.professional)
+
+    def test_professional_download_reports_missing_appointment_recipe_or_file(self):
+        with self.assertRaises(PrescriptionNotFoundError):
+            self.service.download_for_professional(self.professional_id, uuid.uuid4(), self.professional)
+        with self.assertRaises(PrescriptionNotFoundError):
+            self.service.download_for_professional(self.professional_id, self.appointment_id, self.professional)
+
+        self.prescriptions.prescription = SimpleNamespace(appointment_id=self.appointment_id, file_url='prescriptions/missing.pdf')
+        with self.assertRaises(PrescriptionNotFoundError):
+            self.service.download_for_professional(self.professional_id, self.appointment_id, self.professional)
+
+    def test_download_route_streams_file_and_rejects_patient_role(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from app.api.prescriptions import router
+        from app.api import deps
+        self.service.upload(self.professional_id, self.professional, self.appointment_id,
+            io.BytesIO(b"downloaded-pdf"), "prescription.pdf", "application/pdf", None)
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[deps.get_current_user] = lambda: self.professional
+        app.dependency_overrides[deps.get_appointment_repository] = lambda: self.appointments
+        app.dependency_overrides[deps.get_profile_repository] = lambda: self.profiles
+        app.dependency_overrides[deps.get_prescription_repository] = lambda: self.prescriptions
+        app.dependency_overrides[deps.get_file_storage] = lambda: self.storage
+        client = TestClient(app)
+        path = f'/professionals/{self.professional_id}/appointments/{self.appointment_id}/prescription'
+        response = client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"downloaded-pdf")
+        self.assertEqual(response.headers['cache-control'], 'no-store')
+        self.assertIn('attachment;', response.headers['content-disposition'])
+        app.dependency_overrides[deps.get_current_user] = lambda: self.patient
+        self.assertEqual(client.get(path).status_code, 403)
 
 
 if __name__ == "__main__":

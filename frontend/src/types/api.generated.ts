@@ -940,7 +940,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Download Professional Prescription */
+        get: operations["download_professional_prescription_professionals__professional_id__appointments__appointment_id__prescription_get"];
         put?: never;
         /** Upload Prescription */
         post: operations["upload_prescription_professionals__professional_id__appointments__appointment_id__prescription_post"];
@@ -5617,6 +5618,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_professional_prescription_professionals__professional_id__appointments__appointment_id__prescription_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

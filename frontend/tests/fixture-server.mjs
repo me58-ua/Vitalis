@@ -128,6 +128,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       }
       if (path.endsWith('/health-snapshot')) return send(200, { consent_shared: false, message_code: 'HEALTH_DATA_NOT_SHARED', allergies: [], medications: [], appointments: [], clinical_notes: [], prescriptions: [] });
       if (path.endsWith('/prescriptions')) return send(200, { prescriptions: state.patientRecipes || [], total: (state.patientRecipes || []).length, page: 1, page_size: 10 });
+      if (req.method === 'GET' && path.endsWith('/prescription')) {
+        if (state.failRecipeDownload) return send(404, { detail: 'Prescription file not found' });
+        const recipe = (state.patientRecipes || []).find(item => item.appointment_id === path.split('/')[4]);
+        if (!recipe) return send(404, { detail: 'Prescription not found' });
+        state.recipeDownloads = (state.recipeDownloads || 0) + 1;
+        res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="fixture.pdf"' });
+        res.end('%PDF-1.4 synthetic test'); return;
+      }
       if (req.method === 'POST' && path.endsWith('/prescription')) {
         if (state.rejectRecipe) return send(403, { detail: 'ventana de emisión de receta expirada' });
         state.recipeUploads = (state.recipeUploads || 0) + 1;

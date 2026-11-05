@@ -32,6 +32,21 @@ export async function attachPrescription(professionalId: string, appointmentId: 
   if (notes.trim()) form.append('notas', notes.trim());
   return (await api.post<Prescription>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, form, { signal })).data;
 }
+
+export async function getAppointmentPrescription(professionalId: string, patientId: string, appointmentId: string, signal: AbortSignal) {
+  for (let page = 1, loaded = 0; ; page += 1) {
+    const result = await getPatientPrescriptions(professionalId, patientId, page, signal);
+    const found = result.prescriptions.find(item => item.appointment_id === appointmentId);
+    if (found) return found;
+    loaded += result.prescriptions.length;
+    if (loaded >= result.total) return null;
+    if (result.prescriptions.length === 0) throw new Error('No se pudieron recuperar todas las recetas.');
+  }
+}
+
+export async function downloadProfessionalPrescription(professionalId: string, appointmentId: string, signal: AbortSignal) {
+  return (await api.get<Blob>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, { responseType: 'blob', signal })).data;
+}
 import type { ProfessionalDashboard, ProfessionalAppointmentPage, ProfessionalAppointmentQuery, ProfessionalAppointmentCreate,
   ProfessionalPatientPage, ProfessionalProfile, ProfessionalHistoryPage, ProfessionalAppointmentCancel } from '../types/api';
 
