@@ -43,3 +43,6 @@ export type ChatMessagePage = components['schemas']['ChatMessageListResponse'];
 export type AppointmentStatusUpdate = components['schemas']['ProfessionalAppointmentStatusUpdate'];
 export type AppointmentResponse = components['schemas']['AppointmentResponse'];
 export type PublicProfessional = components['schemas']['ProfessionalPublicResponse'];
+export type PatientAppointmentPage = components['schemas']['PatientAppointmentPage'];
+export type VideoAttendanceRequest = components['schemas']['VideoAttendanceRequest'];
+export type VideoAttendanceResponse = components['schemas']['VideoAttendanceResponse'];

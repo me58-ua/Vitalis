@@ -2,9 +2,17 @@ import axios from 'axios';
 import { api } from './client';
 import { getProfessionalAppointments } from './professional';
 import { errorMessage } from './errors';
+import type { PatientAppointmentPage, VideoAttendanceRequest, VideoAttendanceResponse } from '../types/api';
 import type { AppointmentResponse, AppointmentStatusUpdate, ChatMessagePage, ChatRoom, ProfessionalAppointment, PublicProfessional, VideoJoin } from '../types/api';
 
 export class ConsultationStateError extends Error {}
+
+export async function getPatientAppointments(page: number, signal: AbortSignal) {
+  return (await api.get<PatientAppointmentPage>('/patients/me/appointments', { params: { page, page_size: 20 }, signal })).data;
+}
+export async function recordVideoAttendance(appointmentId: string, event: VideoAttendanceRequest['event'], signal: AbortSignal) {
+  return (await api.post<VideoAttendanceResponse>(`/appointments/${encodeURIComponent(appointmentId)}/video/attendance`, { event }, { signal })).data;
+}
 
 export async function listVideoAppointments(signal: AbortSignal) {
   const found = new Map<string, ProfessionalAppointment>();

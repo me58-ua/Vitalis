@@ -62,6 +62,21 @@ class AppointmentRepository:
     def get_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.get(Appointment, appointment_id)
 
+    def lock_appointment(self, appointment_id: UUID) -> Appointment | None:
+        return self.session.scalar(select(Appointment).where(Appointment.id == appointment_id)
+                                   .with_for_update().execution_options(populate_existing=True))
+
+    def list_patient_appointments(self, patient_id: UUID, offset: int, limit: int):
+        conditions = Appointment.patient_id == patient_id
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(conditions)) or 0
+        rows = self.session.execute(select(
+            Appointment.id, Appointment.professional_id, User.name.label("professional_name"),
+            Appointment.start_time, Appointment.end_time, Appointment.type, Appointment.status,
+            Appointment.reason.label("appointment_reason"),
+        ).join(User, User.id == Appointment.professional_id).where(conditions)
+            .order_by(Appointment.start_time.desc(), Appointment.id.desc()).offset(offset).limit(limit)).mappings()
+        return list(rows), total
+
     def get_schedule(self, schedule_id: UUID) -> ProfessionalSchedule | None:
         return self.session.get(ProfessionalSchedule, schedule_id)
 

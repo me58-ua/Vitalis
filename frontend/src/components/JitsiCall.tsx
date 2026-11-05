@@ -7,9 +7,10 @@ import camera from '../assets/figma/video/camera.svg';
 import share from '../assets/figma/video/share.svg';
 import hangup from '../assets/figma/video/hangup.svg';
 
-export function JitsiCall({ access, displayName, onJoined, onClosed }: { access: VideoJoin; displayName: string; onJoined: () => void; onClosed: () => void }) {
+export function JitsiCall({ access, displayName, onJoined, onClosed }: { access: VideoJoin; displayName: string; onJoined: () => void; onClosed: (intentional: boolean) => void }) {
   const parent = useRef<HTMLDivElement>(null);
   const instance = useRef<JitsiInstance | null>(null);
+  const intentionalExit = useRef(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
   const [audioMuted, setAudioMuted] = useState(false);
@@ -26,7 +27,7 @@ export function JitsiCall({ access, displayName, onJoined, onClosed }: { access:
     let disposed = false, closed = false;
     let api: JitsiInstance | null = null;
     const listeners: Array<[string, JitsiListener]> = [];
-    const end = () => { if (!disposed && !closed) { closed = true; onClosed(); } };
+    const end = () => { if (!disposed && !closed) { closed = true; onClosed(intentionalExit.current); } };
     const listen = (name: string, callback: JitsiListener) => { api?.addListener(name, callback); listeners.push([name, callback]); };
     void Promise.resolve().then(() => loadJitsi(access.domain)).then(Constructor => {
       if (disposed || !parent.current) return;
@@ -52,18 +53,18 @@ export function JitsiCall({ access, displayName, onJoined, onClosed }: { access:
   }, [access, displayName, onJoined, onClosed]);
 
   function command(name: JitsiCommand) {
-    try { instance.current?.executeCommand(name); if (name === 'hangup') onClosed(); }
+    try { if (name === 'hangup') intentionalExit.current = true; instance.current?.executeCommand(name); }
     catch { setError('No se pudo realizar esta acción en la llamada.'); }
   }
   return <section className="jitsi-call" aria-label="Videollamada">
     <div className="jitsi-status" role="status">{connected ? <>En llamada · {String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}</> : 'Preparando cámara y micrófono…'}</div>
     <div ref={parent} className="jitsi-mount" />
-    {error && <div className="jitsi-error" role="alert"><p>{error}</p><p><a href={jitsiOrigin(access.domain).origin} target="_blank" rel="noopener noreferrer">Abrir el servidor de videollamada para comprobar su conexión</a></p><button type="button" className="button secondary" onClick={onClosed}>Volver a preparar la llamada</button></div>}
+    {error && <div className="jitsi-error" role="alert"><p>{error}</p><p><a href={jitsiOrigin(access.domain).origin} target="_blank" rel="noopener noreferrer">Abrir el servidor de videollamada para comprobar su conexión</a></p><button type="button" className="button secondary" onClick={() => onClosed(false)}>Volver a preparar la llamada</button></div>}
     <div className="jitsi-controls" aria-label="Controles de la llamada">
       <button type="button" disabled={!connected} aria-pressed={audioMuted} onClick={() => command('toggleAudio')}><span><img src={microphone} alt="" /></span>{audioMuted ? 'Activar audio' : 'Silenciar'}</button>
       <button type="button" disabled={!connected} aria-pressed={!videoMuted} onClick={() => command('toggleVideo')}><span><img src={camera} alt="" /></span>{videoMuted ? 'Activar cámara' : 'Cámara'}</button>
       <button type="button" disabled={!connected} aria-pressed={sharing} onClick={() => command('toggleShareScreen')}><span><img src={share} alt="" /></span>{sharing ? 'Dejar de compartir' : 'Compartir'}</button>
-      <button type="button" className="jitsi-hangup" onClick={() => command('hangup')}><span><img src={hangup} alt="" /></span>Salir de llamada</button>
+      <button type="button" className="jitsi-hangup" onClick={() => command('hangup')}><span><img src={hangup} alt="" /></span>{connected ? 'Terminar mi llamada' : 'Volver'}</button>
     </div>
   </section>;
 }

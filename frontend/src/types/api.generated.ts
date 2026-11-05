@@ -341,7 +341,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Patient Appointments */
+        get: operations["patient_appointments_patients_me_appointments_get"];
         put?: never;
         /** Create Patient Appointment */
         post: operations["create_patient_appointment_patients_me_appointments_post"];
@@ -1203,6 +1204,23 @@ export interface paths {
         put?: never;
         /** Create Chat Message */
         post: operations["create_chat_message_appointments__appointment_id__chat_messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointment_id}/video/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Video Attendance */
+        post: operations["video_attendance_appointments__appointment_id__video_attendance_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2735,6 +2753,46 @@ export interface components {
             /** Appointment Reason */
             appointment_reason?: string | null;
         };
+        /** PatientAppointmentPage */
+        PatientAppointmentPage: {
+            /** Appointments */
+            appointments: components["schemas"]["PatientAppointmentSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /** PatientAppointmentSummary */
+        PatientAppointmentSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Professional Name */
+            professional_name: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+            type: components["schemas"]["AppointmentType"];
+            status: components["schemas"]["AppointmentStatus"];
+            /** Appointment Reason */
+            appointment_reason: string | null;
+        };
         /** PatientListResponse */
         PatientListResponse: {
             /** Patients */
@@ -3580,6 +3638,18 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VideoAttendanceRequest */
+        VideoAttendanceRequest: {
+            /**
+             * Event
+             * @enum {string}
+             */
+            event: "joined" | "left";
+        };
+        /** VideoAttendanceResponse */
+        VideoAttendanceResponse: {
+            status: components["schemas"]["AppointmentStatus"];
+        };
         /** VideoJoinResponse */
         VideoJoinResponse: {
             /** Domain */
@@ -4326,6 +4396,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AvailabilityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patient_appointments_patients_me_appointments_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientAppointmentPage"];
                 };
             };
             /** @description Validation Error */
@@ -6078,6 +6180,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatMessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    video_attendance_appointments__appointment_id__video_attendance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoAttendanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoAttendanceResponse"];
                 };
             };
             /** @description Validation Error */

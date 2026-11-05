@@ -73,6 +73,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
+    if (path === '/patients/me/appointments' && req.method === 'GET') {
+      if ((demoLogin?.user ?? account).role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
+      if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      const page = Number(params.get('page') || 1), pageSize = Number(params.get('page_size') || 20);
+      const rows = state.patientAppointmentsEmpty || !state.videoTestAppointment ? [] : [{ ...state.videoTestAppointment, professional_name: participants.professional.name }];
+      return send(200, { appointments: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize });
+    }
     if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, { ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
     if (path.startsWith('/appointments/')) {
       const id = path.split('/')[2];
@@ -83,6 +91,12 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         if (state.videoDenied) return send(403, { detail: 'Video join window is closed' });
         if (item.status !== 'confirmed' || item.type !== 'video') return send(403, { detail: 'Video is unavailable for this appointment' });
         return send(200, { domain: 'jitsi.fixture.invalid', room_name: `fixture-room-${id}`, jwt: 'test-video-jwt', expires_at: new Date(Date.now() + 3600000).toISOString() });
+      }
+      if (path.endsWith('/video/attendance')) {
+        if (state.attendanceFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
+        const body = JSON.parse(raw);
+        if (body.event === 'left') { item.status = 'completed'; state.videoStatusWrites.push({ status: 'completed' }); }
+        return send(200, { status: item.status });
       }
       if (path.endsWith('/chat')) return send(200, { appointment_id: id, status: item.status, can_write: item.status === 'confirmed', participants: [{ id: (demoLogin?.user ?? account).role === 'patient' ? (demoLogin?.user ?? account).id : participants.patient.id, role: 'patient' }, { id: (demoLogin?.user ?? account).role === 'professional' ? (demoLogin?.user ?? account).id : participants.professional.id, role: 'professional' }] });
       if (path.endsWith('/chat/messages')) {

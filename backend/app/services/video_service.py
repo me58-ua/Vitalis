@@ -7,7 +7,8 @@ import secrets
 from jose import jwt
 
 from app.config import settings
-from app.models import Appointment, AppointmentStatus, AppointmentType, User, UserRole, VideoSessionEvent
+from app.models import Appointment, AppointmentStatus, AppointmentStatusHistory, AppointmentType, AuditAction, User, UserRole, VideoSessionEvent
+from app.services.audit_service import AuditService
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.video_session_repository import VideoSessionRepository
 
@@ -25,9 +26,39 @@ class VideoConfigurationError(Exception):
 
 
 class VideoService:
-    def __init__(self, appointments: AppointmentRepository, events: VideoSessionRepository):
+    def __init__(self, appointments: AppointmentRepository, events: VideoSessionRepository, audits=None):
         self.appointments = appointments
         self.events = events
+        self.audit = AuditService(audits)
+
+    def record_attendance(self, appointment_id: UUID, user: User, event: str):
+        # Serialize concurrent departures so completion/history are written once.
+        appointment = self.appointments.lock_appointment(appointment_id)
+        if appointment is None:
+            raise VideoNotFoundError("Appointment not found")
+        if not user.is_active or user.id not in (appointment.patient_id, appointment.professional_id):
+            raise VideoForbiddenError("User cannot join this appointment")
+        if appointment.type != AppointmentType.VIDEO or appointment.status not in (AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED):
+            raise VideoForbiddenError("Video is unavailable for this appointment")
+        # The browser reports the SDK's local joined event; token issuance alone
+        # must never mark an unattended appointment completed.
+        if not self.events.has_event(appointment_id, user.id, "token_issued"):
+            raise VideoForbiddenError("No video access was issued for this participant")
+        if event == "left" and not self.events.has_event(appointment_id, user.id, "joined"):
+            raise VideoForbiddenError("Participant has not joined this video appointment")
+        if not self.events.has_event(appointment_id, user.id, event):
+            self.events.create(VideoSessionEvent(appointment_id=appointment_id, user_id=user.id, event=event))
+        if event == "left" and appointment.status == AppointmentStatus.CONFIRMED:
+            appointment.status = AppointmentStatus.COMPLETED
+            self.appointments.save(appointment)
+            self.appointments.create_status_history(AppointmentStatusHistory(
+                appointment_id=appointment_id, old_status=AppointmentStatus.CONFIRMED,
+                new_status=AppointmentStatus.COMPLETED, changed_by=user.id,
+                reason="Participant ended the attended video consultation",
+            ))
+            self.audit.record(user.id, user.role, AuditAction.UPDATE, "appointment", appointment_id, appointment.patient_id)
+        # No command is sent to Jitsi: the other participant keeps their session.
+        return {"status": appointment.status}
 
     def create_join_session(self, appointment_id: UUID, user: User) -> dict:
         appointment = self.appointments.get_appointment(appointment_id)

@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RequireRole } from './auth/RequireRole';
 import { PatientPanelPage } from './pages/patient/PatientPanelPage';
+import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage';
 import { ProfessionalDashboardPage } from './pages/professional/ProfessionalDashboardPage';
 import { AdminPanelPage } from './pages/admin/AdminPanelPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -24,6 +25,7 @@ export function App() {
     <Route path="/login" element={<LoginPage />} />
     <Route element={<RequireRole role="patient" />}>
       <Route path="/patientPanel" element={<PatientPanelPage />} />
+      <Route path="/patientPanel/misCitas" element={<PatientAppointmentsPage />} />
       <Route path="/patientPanel/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />

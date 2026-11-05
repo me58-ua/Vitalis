@@ -14,12 +14,19 @@ from app.services.video_service import VideoForbiddenError, VideoService
 class FakeAppointmentRepository:
     def __init__(self, appointment):
         self.appointment = appointment
+        self.history = []
 
     def get_appointment(self, appointment_id):
         return self.appointment if self.appointment.id == appointment_id else None
 
     def save(self, appointment):
         return appointment
+
+    def lock_appointment(self, appointment_id):
+        return self.get_appointment(appointment_id)
+
+    def create_status_history(self, history):
+        self.history.append(history)
 
 
 class FakeEventRepository:
@@ -29,6 +36,9 @@ class FakeEventRepository:
     def create(self, event):
         self.events.append(event)
         return event
+
+    def has_event(self, appointment_id, user_id, event):
+        return any(item.appointment_id == appointment_id and item.user_id == user_id and item.event == event for item in self.events)
 
 
 class VideoServiceTests(unittest.TestCase):
@@ -105,6 +115,53 @@ class VideoServiceTests(unittest.TestCase):
             self.appointment.status = status
             with self.assertRaises(VideoForbiddenError):
                 self.service.create_join_session(self.appointment.id, self.patient)
+
+    def test_token_or_loading_alone_does_not_complete_appointment(self):
+        self.service.create_join_session(self.appointment.id, self.patient)
+        with self.assertRaises(VideoForbiddenError):
+            self.service.record_attendance(self.appointment.id, self.patient, 'left')
+        self.assertEqual(self.appointment.status, AppointmentStatus.CONFIRMED)
+
+    def test_joined_requires_previously_issued_access(self):
+        with self.assertRaises(VideoForbiddenError):
+            self.service.record_attendance(self.appointment.id, self.patient, 'joined')
+
+    def test_patient_departure_completes_once_and_professional_can_leave_independently(self):
+        for user in (self.patient, self.professional):
+            self.service.create_join_session(self.appointment.id, user)
+            self.service.record_attendance(self.appointment.id, user, 'joined')
+        result = self.service.record_attendance(self.appointment.id, self.patient, 'left')
+        self.assertEqual(result['status'], AppointmentStatus.COMPLETED)
+        self.assertFalse(self.events.has_event(self.appointment.id, self.professional.id, 'left'))
+        self.service.record_attendance(self.appointment.id, self.patient, 'left')
+        self.service.record_attendance(self.appointment.id, self.professional, 'left')
+        self.assertEqual(len(self.service.appointments.history), 1)
+        self.assertEqual(self.service.appointments.history[0].changed_by, self.patient.id)
+        self.assertEqual(sum(item.event == 'left' for item in self.events.events), 2)
+
+    def test_professional_can_finish_first_without_marking_patient_departed(self):
+        self.service.create_join_session(self.appointment.id, self.professional)
+        self.service.record_attendance(self.appointment.id, self.professional, 'joined')
+        self.service.record_attendance(self.appointment.id, self.professional, 'left')
+        self.assertEqual(self.appointment.status, AppointmentStatus.COMPLETED)
+        self.assertFalse(self.events.has_event(self.appointment.id, self.patient.id, 'left'))
+
+    def test_third_party_and_inactive_user_cannot_report_attendance(self):
+        outsider = SimpleNamespace(id=uuid.uuid4(), is_active=True)
+        for user in (outsider, SimpleNamespace(id=self.patient.id, is_active=False)):
+            with self.assertRaises(VideoForbiddenError):
+                self.service.record_attendance(self.appointment.id, user, 'joined')
+
+    def test_cancelled_or_non_video_cannot_be_completed_by_departure(self):
+        self.service.create_join_session(self.appointment.id, self.patient)
+        self.service.record_attendance(self.appointment.id, self.patient, 'joined')
+        self.appointment.status = AppointmentStatus.CANCELLED
+        with self.assertRaises(VideoForbiddenError):
+            self.service.record_attendance(self.appointment.id, self.patient, 'left')
+        self.appointment.status = AppointmentStatus.CONFIRMED
+        self.appointment.type = AppointmentType.IN_PERSON
+        with self.assertRaises(VideoForbiddenError):
+            self.service.record_attendance(self.appointment.id, self.patient, 'left')
 
 
 if __name__ == "__main__":
