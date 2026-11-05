@@ -417,6 +417,14 @@ try {
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
   await click('.prescription-form .record-actions button[type="button"]');
   assert.equal(await evaluate(`document.activeElement.classList.contains('prescription-link-action')`), true);
+  await until(`document.querySelector('.appointment-prescription-summary .prescription-download button') !== null`);
+  await click('.agenda-detail-heading button');
+  await click('.agenda-event-completed');
+  await until(`document.querySelector('.appointment-prescription-summary')?.textContent.includes('Esta cita ya tiene una receta vinculada.')`);
+  assert.equal(await evaluate(`document.querySelector('.prescription-form') === null`), true);
+  await click('.appointment-prescription-summary .prescription-download button');
+  await until(`document.querySelector('.appointment-prescription-summary .prescription-download button:not([disabled])') !== null`);
+  assert.equal(fixture.state.recipeDownloads, 3);
   fixture.state.videoTestAppointment = null;
   await click('.agenda-toolbar > button');
   await until(`document.querySelector('.agenda-event-completed') === null`);

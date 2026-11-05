@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getProfessionalProfile } from '../api/professional';
+import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getProfessionalProfile, getAppointmentPrescription } from '../api/professional';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import { Modal } from './Modal';
 import { Link } from 'react-router-dom';
 import { madridDay } from '../utils/agenda';
-import { PrescriptionAttachment } from './PrescriptionAttachment';
+import { PrescriptionAttachment, PrescriptionDownloadButton } from './PrescriptionAttachment';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from './AppointmentSummary';
 import type { ProfessionalAppointment, ProfessionalAppointmentCreate, ProfessionalAppointmentQuery, ProfessionalPatientPage } from '../types/api';
 
@@ -87,6 +87,11 @@ export function ProfessionalAppointmentDetails({ item, onBusy, onChanged }: { it
   const [error, setError] = useState('');
   const [prescriptionOpen, setPrescriptionOpen] = useState(false);
   const [prescriptionFocus, setPrescriptionFocus] = useState(0);
+  const professionalId = user?.id ?? '';
+  const loadPrescription = useCallback((signal: AbortSignal) => professionalId
+    ? getAppointmentPrescription(professionalId, item.patient_id, item.id, signal)
+    : Promise.resolve(null), [professionalId, item.patient_id, item.id]);
+  const prescription = useAdminQuery(loadPrescription, professionalError);
   const prescriptionButton = useRef<HTMLButtonElement>(null);
   const locked = useRef(false);
   const controller = useRef<AbortController | null>(null);
@@ -101,13 +106,18 @@ export function ProfessionalAppointmentDetails({ item, onBusy, onChanged }: { it
     finally { locked.current = false; if (!abort.signal.aborted) { setBusy(false); onBusy(false); } }
   }
   return <div className="professional-appointment-details"><h3>{item.patient_name}</h3><p>@{item.patient_username}</p><p><time dateTime={item.start_time}>{appointmentDate(item.start_time)}</time> — <time dateTime={item.end_time}>{appointmentDate(item.end_time)}</time></p><p>{appointmentTypes[item.type]} · <strong>{appointmentStatuses[item.status]}</strong></p><p><strong>Motivo de la cita:</strong> {item.appointment_reason || 'Motivo no indicado'}</p>{item.status === 'cancelled' && <p><strong>Motivo de cancelación:</strong> {item.cancellation_reason || 'No indicado'}</p>}
+    {!prescriptionOpen && <div className="appointment-prescription-summary">
+      {prescription.loading && <p role="status">Comprobando si la cita tiene receta…</p>}
+      {prescription.error && <div className="error-state" role="alert"><p>{prescription.error}</p><button type="button" className="button secondary" onClick={prescription.retry}>Reintentar</button></div>}
+      {prescription.data && <div className="prescription-current"><p>Esta cita ya tiene una receta vinculada.</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={item.id} /></div>}
+    </div>}
     <div className="professional-appointment-actions">
     {(item.status === 'completed' || item.status === 'confirmed') && <button ref={prescriptionButton} type="button" className="button secondary prescription-link-action" disabled={item.status !== 'completed' || busy} aria-expanded={prescriptionOpen} onClick={() => { setPrescriptionOpen(true); setPrescriptionFocus(value => value + 1); }}>Vincular receta</button>}
     {item.status === 'confirmed' && item.type === 'video' && <Link className="button primary" to={`/professionalDashboard/videoconsulta/${encodeURIComponent(item.id)}?fecha=${madridDay(item.start_time)}`}>Atender videoconsulta</Link>}
     {(item.status === 'confirmed') && (!confirming ? <button className="button professional-cancel" onClick={() => setConfirming(true)}>Cancelar cita</button> : <form aria-busy={busy} onSubmit={event => { void cancel(event); }}><fieldset className="form-grid" disabled={busy}><p className="full">Confirma que quieres cancelar esta cita. El motivo original de la cita se conservará.</p><label className="full">Motivo de cancelación (opcional)<textarea name="cancellation_reason" rows={3} /></label><button className="button professional-cancel" type="submit">{busy ? 'Cancelando…' : 'Confirmar cancelación'}</button><button className="button secondary" type="button" onClick={() => setConfirming(false)}>Volver</button></fieldset>{error && <p className="error-state" role="alert">{error}</p>}</form>)}
     </div>
     {item.status === 'confirmed' && <p className="field-help">Podrás vincular una receta cuando la cita esté finalizada.</p>}
-    {prescriptionOpen && user && item.status === 'completed' && <PrescriptionAttachment focusRequest={prescriptionFocus} professionalId={user.id} appointment={item} onBusy={onBusy} onCancel={() => { setPrescriptionOpen(false); prescriptionButton.current?.focus(); }} />}
+    {prescriptionOpen && user && item.status === 'completed' && <PrescriptionAttachment focusRequest={prescriptionFocus} professionalId={user.id} appointment={item} onBusy={onBusy} onSaved={prescription.retry} onCancel={() => { setPrescriptionOpen(false); prescriptionButton.current?.focus(); }} />}
   </div>;
 }
 
