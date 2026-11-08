@@ -32,6 +32,9 @@ class PrivacyService:
         if patient_profile is None and professional_profile is None:
             raise PrivacyAccountNotFoundError("Account profile not found")
 
+        for file_key in self.privacy.erase_spontaneous_chats(current_user.id):
+            self.storage.path_for(file_key).unlink(missing_ok=True)
+
         patient_id = patient_profile.user_id if patient_profile is not None else None
         if patient_profile is not None:
             file_keys = self.privacy.erase_patient_health(patient_profile.id)

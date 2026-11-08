@@ -58,3 +58,11 @@
 .agenda-unavailable { position: absolute; left: 3px; right: 3px; padding: 6px; overflow: hidden; border: 1px dashed #7b647b; border-radius: 6px; color: #493749; background: repeating-linear-gradient(135deg, #f2eaf2, #f2eaf2 8px, #e9dfe9 8px, #e9dfe9 16px); font-size: .8rem; display: flex; flex-direction: column; gap: 3px; }
 .agenda-time-blocks fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .agenda-block-heading { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.agenda-working-hours { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid #c5d8cf; border-radius: 12px; background: #fff; }
+.agenda-working-hours summary { cursor: pointer; font-weight: 700; padding: .5rem 0; }
+.working-hours-tabs, .working-hours-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
+.working-hours-tabs [aria-pressed="true"] { background: #003e31; color: white; }
+.working-hours-list { padding-left: 1.2rem; }
+.working-hours-list li { margin: 1rem 0; }
+.working-hours-form { margin: 1rem 0; }
+.working-hours-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }

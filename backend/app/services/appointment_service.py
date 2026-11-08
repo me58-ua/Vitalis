@@ -188,7 +188,7 @@ class AppointmentService:
         except IntegrityError as error:
             self.appointments.rollback()
             raise AppointmentConflictError(
-                "Appointment conflicts with an existing booking"
+                "OUTSIDE_WORKING_HOURS" if "OUTSIDE_WORKING_HOURS" in str(error.orig) else "Appointment conflicts with an existing booking or blocked time"
             ) from error
 
     def create_for_professional(
@@ -400,7 +400,7 @@ class AppointmentService:
         except IntegrityError as error:
             self.appointments.rollback()
             raise AppointmentConflictError(
-                "Appointment conflicts with an existing booking"
+                "OUTSIDE_WORKING_HOURS" if "OUTSIDE_WORKING_HOURS" in str(error.orig) else "Appointment conflicts with an existing booking or blocked time"
             ) from error
 
     def _note_edit_window_expired(self, note: AppointmentNote) -> bool:

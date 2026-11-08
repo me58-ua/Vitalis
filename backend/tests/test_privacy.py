@@ -9,6 +9,8 @@ from app.services.privacy_service import PrivacyService
 
 
 class FakePrivacyRepository:
+    def erase_spontaneous_chats(self, user_id):
+        return []
     def __init__(self, document_keys=None):
         self.document_keys = document_keys or []
         self.erased_patient_id = None

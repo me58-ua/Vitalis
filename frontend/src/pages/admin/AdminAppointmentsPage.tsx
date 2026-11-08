@@ -10,6 +10,7 @@ import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../co
 import type { AppointmentQuery, AppointmentSummary, CreateAppointment } from '../../types/api';
 
 function appointmentError(error: unknown) {
+  if (axios.isAxiosError(error) && error.response?.data?.detail === 'OUTSIDE_WORKING_HOURS') return 'La cita queda fuera del horario configurado por el profesional. Elige otro intervalo.';
   return axios.isAxiosError(error) && error.response?.status === 409
     ? 'La cita entra en conflicto con otra reserva. Revisa el horario e inténtalo de nuevo.' : errorMessage(error);
 }

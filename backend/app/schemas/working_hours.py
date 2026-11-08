@@ -4,12 +4,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.appointments import AdminScheduleCreate, ProfessionalScheduleUpdate
+from app.schemas.appointments import ScheduleFields, ProfessionalScheduleUpdate
 
 
-class WorkingHoursCreate(AdminScheduleCreate):
-    # Ownership is always taken from the authenticated account, never the body.
-    professional_id: UUID = Field(default=UUID(int=0), exclude=True)
+class WorkingHoursCreate(ScheduleFields):
     slot_duration_min: int = Field(default=30, gt=0, le=1440)
     is_active: bool = True
     model_config = ConfigDict(extra="forbid")

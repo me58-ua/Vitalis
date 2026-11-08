@@ -7,8 +7,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 from app.models import AppointmentStatus, AppointmentType
 
 
-class AdminScheduleCreate(BaseModel):
-    professional_id: UUID
+class ScheduleFields(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
     start_time: time
     end_time: time
@@ -24,13 +23,17 @@ class AdminScheduleCreate(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_time_range(self) -> "AdminScheduleCreate":
+    def validate_time_range(self) -> "ScheduleFields":
         if self.end_time <= self.start_time:
             raise ValueError("end_time must be after start_time")
         duration = (self.end_time.hour * 60 + self.end_time.minute) - (self.start_time.hour * 60 + self.start_time.minute)
         if self.channel == "consultation" and self.slot_duration_min > duration:
             raise ValueError("SCHEDULE_SLOT_TOO_LONG")
         return self
+
+
+class AdminScheduleCreate(ScheduleFields):
+    professional_id: UUID
 
 
 class AdminScheduleResponse(AdminScheduleCreate):

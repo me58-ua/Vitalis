@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProfessionalTimeBlocks } from '../../hooks/useProfessionalTimeBlocks';
 import { ProfessionalTimeBlocks } from '../../components/ProfessionalTimeBlocks';
+import { ProfessionalWorkingHours } from '../../components/ProfessionalWorkingHours';
 import { useSearchParams } from 'react-router-dom';
 import { useProfessionalWeek } from '../../hooks/useProfessionalWeek';
 import { ProfessionalAppointmentDetails } from '../../components/ProfessionalPanels';
@@ -65,6 +66,7 @@ export function ProfessionalAgendaPage() {
       <button type="button" className="button secondary" disabled={busy || state.loading || timeBlocks.loading} onClick={() => { setSelectedId(null); state.retry(); timeBlocks.retry(); }}>Actualizar</button>
     </section>
     {notice && <p className="success-state" role="status">{notice}</p>}
+    <ProfessionalWorkingHours onBusy={setBusy} onChanged={state.retry} />
     {timeBlocks.loading && <p role="status">Cargando bloqueos…</p>}
     {timeBlocks.error && <div className="error-state" role="alert"><p>No se pudieron cargar los horarios no disponibles. {timeBlocks.error}</p><button className="button secondary" onClick={timeBlocks.retry}>Reintentar bloqueos</button></div>}
     <ProfessionalTimeBlocks blocks={timeBlocks.data ?? []} ready={Boolean(timeBlocks.data)} onBusy={setBusy} onChanged={() => { timeBlocks.retry(); state.retry(); }} />

@@ -246,6 +246,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/professionals/me/working-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Working Hours */
+        get: operations["list_working_hours_professionals_me_working_hours_get"];
+        put?: never;
+        /** Create Working Hours */
+        post: operations["create_working_hours_professionals_me_working_hours_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/professionals/me/working-hours/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Working Hours */
+        delete: operations["delete_working_hours_professionals_me_working_hours__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Working Hours */
+        patch: operations["update_working_hours_professionals_me_working_hours__schedule_id__patch"];
+        trace?: never;
+    };
+    "/professionals/{professional_id}/chat-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chat Availability */
+        get: operations["chat_availability_professionals__professional_id__chat_availability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spontaneous-chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chats */
+        get: operations["list_chats_spontaneous_chats_get"];
+        put?: never;
+        /** Start Chat */
+        post: operations["start_chat_spontaneous_chats_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spontaneous-chats/{chat_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat */
+        get: operations["get_chat_spontaneous_chats__chat_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spontaneous-chats/{chat_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close Chat */
+        post: operations["close_chat_spontaneous_chats__chat_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spontaneous-chats/{chat_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Messages */
+        get: operations["messages_spontaneous_chats__chat_id__messages_get"];
+        put?: never;
+        /** Send Message */
+        post: operations["send_message_spontaneous_chats__chat_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spontaneous-chats/{chat_id}/messages/{message_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Attachment */
+        get: operations["download_attachment_spontaneous_chats__chat_id__messages__message_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users": {
         parameters: {
             query?: never;
@@ -1716,11 +1856,6 @@ export interface components {
         };
         /** AdminScheduleCreate */
         AdminScheduleCreate: {
-            /**
-             * Professional Id
-             * Format: uuid
-             */
-            professional_id: string;
             /** Day Of Week */
             day_of_week: number;
             /**
@@ -1737,14 +1872,20 @@ export interface components {
             slot_duration_min: number;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Channel
+             * @default consultation
+             * @enum {string}
+             */
+            channel: "consultation" | "chat";
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
         };
         /** AdminScheduleResponse */
         AdminScheduleResponse: {
-            /**
-             * Professional Id
-             * Format: uuid
-             */
-            professional_id: string;
             /** Day Of Week */
             day_of_week: number;
             /**
@@ -1761,6 +1902,17 @@ export interface components {
             slot_duration_min: number;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Channel
+             * @default consultation
+             * @enum {string}
+             */
+            channel: "consultation" | "chat";
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
             /**
              * Id
              * Format: uuid
@@ -2195,6 +2347,21 @@ export interface components {
              */
             client_secret?: string | null;
         };
+        /** Body_send_message_spontaneous_chats__chat_id__messages_post */
+        Body_send_message_spontaneous_chats__chat_id__messages_post: {
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /**
+             * Content
+             * @default
+             */
+            content: string;
+            /** File */
+            file?: string | null;
+        };
         /** Body_upload_health_document_patients_me_health_documents_post */
         Body_upload_health_document_patients_me_health_documents_post: {
             tipo: components["schemas"]["HealthDocumentType"];
@@ -2216,6 +2383,33 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /** ChatAvailabilityResponse */
+        ChatAvailabilityResponse: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Available */
+            available: boolean;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "available" | "outside_hours" | "blocked" | "busy" | "unavailable";
+            /**
+             * Timezone
+             * @default Europe/Madrid
+             */
+            timezone: string;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Closes At */
+            closes_at?: string | null;
         };
         /** ChatMessageCreate */
         ChatMessageCreate: {
@@ -3460,11 +3654,6 @@ export interface components {
         };
         /** ProfessionalScheduleResponse */
         ProfessionalScheduleResponse: {
-            /**
-             * Professional Id
-             * Format: uuid
-             */
-            professional_id: string;
             /** Day Of Week */
             day_of_week: number;
             /**
@@ -3481,6 +3670,17 @@ export interface components {
             slot_duration_min: number;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Channel
+             * @default consultation
+             * @enum {string}
+             */
+            channel: "consultation" | "chat";
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
             /**
              * Id
              * Format: uuid
@@ -3504,6 +3704,8 @@ export interface components {
             slot_duration_min?: number | null;
             /** Is Active */
             is_active?: boolean | null;
+            /** Channel */
+            channel?: ("consultation" | "chat") | null;
         };
         /** ProfileChangeDecision */
         ProfileChangeDecision: {
@@ -3617,6 +3819,108 @@ export interface components {
             sources: {
                 [key: string]: string;
             };
+        };
+        /** SpontaneousChatPage */
+        SpontaneousChatPage: {
+            /** Chats */
+            chats: components["schemas"]["SpontaneousChatResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /** SpontaneousChatResponse */
+        SpontaneousChatResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Patient Name */
+            patient_name: string;
+            /** Professional Name */
+            professional_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "closed";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Can Write */
+            can_write: boolean;
+            availability: components["schemas"]["ChatAvailabilityResponse"];
+        };
+        /** SpontaneousMessagePage */
+        SpontaneousMessagePage: {
+            /** Messages */
+            messages: components["schemas"]["SpontaneousMessageResponse"][];
+            /** Has More */
+            has_more: boolean;
+        };
+        /** SpontaneousMessageResponse */
+        SpontaneousMessageResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Chat Id
+             * Format: uuid
+             */
+            chat_id: string;
+            /**
+             * Sender Id
+             * Format: uuid
+             */
+            sender_id: string;
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /** Content */
+            content: string;
+            /** File Name */
+            file_name: string | null;
+            /** Content Type */
+            content_type: string | null;
+            /** File Size */
+            file_size: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** StartSpontaneousChat */
+        StartSpontaneousChat: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
         };
         /** TimeBlockCreate */
         TimeBlockCreate: {
@@ -3828,6 +4132,91 @@ export interface components {
             date: string;
             /** Count */
             count: number;
+        };
+        /** WorkingHoursCreate */
+        WorkingHoursCreate: {
+            /** Day Of Week */
+            day_of_week: number;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            /**
+             * Slot Duration Min
+             * @default 30
+             */
+            slot_duration_min: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /**
+             * Channel
+             * @default consultation
+             * @enum {string}
+             */
+            channel: "consultation" | "chat";
+        };
+        /** WorkingHoursResponse */
+        WorkingHoursResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "consultation" | "chat";
+            /** Day Of Week */
+            day_of_week: number;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            /** Slot Duration Min */
+            slot_duration_min: number;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** WorkingHoursUpdate */
+        WorkingHoursUpdate: {
+            /** Day Of Week */
+            day_of_week?: number | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** End Time */
+            end_time?: string | null;
+            /** Slot Duration Min */
+            slot_duration_min?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Channel */
+            channel?: ("consultation" | "chat") | null;
         };
     };
     responses: never;
@@ -4284,6 +4673,383 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfessionalProfileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_working_hours_professionals_me_working_hours_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingHoursResponse"][];
+                };
+            };
+        };
+    };
+    create_working_hours_professionals_me_working_hours_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkingHoursCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingHoursResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_working_hours_professionals_me_working_hours__schedule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_working_hours_professionals_me_working_hours__schedule_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkingHoursUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingHoursResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_availability_professionals__professional_id__chat_availability_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatAvailabilityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chats_spontaneous_chats_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpontaneousChatPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_chat_spontaneous_chats_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartSpontaneousChat"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpontaneousChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_spontaneous_chats__chat_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpontaneousChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_chat_spontaneous_chats__chat_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpontaneousChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    messages_spontaneous_chats__chat_id__messages_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before_id?: string | null;
+                after_id?: string | null;
+            };
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpontaneousMessagePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_message_spontaneous_chats__chat_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_send_message_spontaneous_chats__chat_id__messages_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpontaneousMessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_attachment_spontaneous_chats__chat_id__messages__message_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

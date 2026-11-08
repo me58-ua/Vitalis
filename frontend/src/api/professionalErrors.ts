@@ -6,6 +6,9 @@ export function professionalError(error: unknown): string {
   const status = error.response?.status;
   const body = error.response?.data;
   const detail = typeof body === 'object' && body !== null && 'detail' in body ? body.detail : undefined;
+  if (detail === 'OUTSIDE_WORKING_HOURS') return 'La cita queda fuera del horario de citas del profesional. Configura una franja en Agenda o elige otra hora.';
+  if (detail === 'SCHEDULE_OVERLAP') return 'Esta franja se solapa con otro horario activo del mismo canal y día. Revisa las horas o desactiva la otra franja.';
+  if (detail === 'SCHEDULE_INVALID_RANGE_OR_SLOT') return 'Revisa el intervalo y la duración: el fin debe ser posterior al inicio y debe caber al menos una cita completa.';
   if (detail === 'TIME_BLOCK_CONFLICT') return 'El intervalo coincide con una cita existente o con otro bloqueo. Reprograma o cancela la cita antes de bloquear; no se cancelará automáticamente.';
   if (detail === 'PROFILE_CHANGE_EMPTY') return 'No has cambiado ningún dato del perfil vigente.';
   if (detail === 'PROFESSIONAL_APPROVAL_REQUIRED') return 'El perfil debe estar aprobado antes de solicitar cambios.';

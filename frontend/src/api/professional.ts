@@ -1,4 +1,16 @@
 import { api } from './client';
+import type { WorkingHours, WorkingHoursCreate, WorkingHoursUpdate } from '../types/api';
+
+export async function getWorkingHours(signal: AbortSignal) {
+  return (await api.get<WorkingHours[]>('/professionals/me/working-hours', { signal })).data;
+}
+export async function saveWorkingHours(payload: WorkingHoursCreate | WorkingHoursUpdate, id: string | null, signal: AbortSignal) {
+  return id ? (await api.patch<WorkingHours>(`/professionals/me/working-hours/${encodeURIComponent(id)}`, payload, { signal })).data
+    : (await api.post<WorkingHours>('/professionals/me/working-hours', payload, { signal })).data;
+}
+export async function deleteWorkingHours(id: string, signal: AbortSignal) {
+  await api.delete(`/professionals/me/working-hours/${encodeURIComponent(id)}`, { signal });
+}
 import type { ProfessionalProfileUpdate, ProfessionalTimeBlock, ProfessionalTimeBlockCreate } from '../types/api';
 
 export async function updateProfessionalProfile(payload: ProfessionalProfileUpdate, signal: AbortSignal) {

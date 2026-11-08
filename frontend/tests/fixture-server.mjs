@@ -20,6 +20,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     professional_profile: state.profileByUser?.[item.id] ?? item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
   const demoSessions = [];
   state.timeBlocks = []; state.profileUpdates = []; state.profileByUser = {};
+  state.workingHours = []; state.quickChats = []; state.quickMessages = []; state.quickAvailable = true; state.quickUploads = 0;
   const chatConnections = new Map();
   state.chatMessages = []; state.videoJoinCalls = 0; state.videoStatusWrites = [];
   const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'confirmed', appointment_reason: 'Motivo sintético de cita', cancellation_reason: null }));
@@ -74,6 +75,62 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
+    const quickActor = demoLogin?.user ?? account;
+    const availability = professionalId => ({ professional_id: professionalId, available: state.quickAvailable, reason: state.quickAvailable ? 'available' : 'outside_hours', evaluated_at: new Date().toISOString(), timezone: 'Europe/Madrid', closes_at: null });
+    if (path === '/professionals/me/working-hours' && req.method === 'GET') return send(200, state.workingHours);
+    if (path.startsWith('/professionals/me/working-hours') && req.method !== 'GET') {
+      const id = path.split('/')[4];
+      if (req.method === 'DELETE') { state.workingHours = state.workingHours.filter(item => item.id !== id); return send(204, null); }
+      const body = JSON.parse(raw), previous = id ? state.workingHours.find(item => item.id === id) : null;
+      const item = { id: randomUUID(), professional_id: quickActor.id, created_at: new Date().toISOString(), slot_duration_min: 30, is_active: true, ...previous, ...body };
+      if (state.workingHours.some(other => other.id !== item.id && other.channel === item.channel && other.day_of_week === item.day_of_week && other.is_active && item.is_active && other.start_time < item.end_time && other.end_time > item.start_time)) return send(409, { detail: 'SCHEDULE_OVERLAP' });
+      state.workingHours = [...state.workingHours.filter(other => other.id !== item.id), item];
+      return send(id ? 200 : 201, item);
+    }
+    if (path === '/professionals') return send(200, { professionals: [{ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name }], total: 1, page: 1, page_size: 10 });
+    if (path.endsWith('/chat-availability')) return send(200, availability(path.split('/')[2]));
+    const quickResponse = chat => ({ ...chat, availability: availability(chat.professional_id), can_write: chat.status === 'open' && state.quickAvailable });
+    if (path === '/spontaneous-chats') {
+      if (req.method === 'GET') {
+        const chats = state.quickChats.filter(chat => [chat.patient_id, chat.professional_id].includes(quickActor.id));
+        return send(200, { chats: chats.map(quickResponse), total: chats.length, page: 1, page_size: 20 });
+      }
+      if (!state.quickAvailable) return send(409, { detail: 'CHAT_OUTSIDE_AVAILABILITY' });
+      const body = JSON.parse(raw);
+      let chat = state.quickChats.find(item => item.patient_id === quickActor.id && item.professional_id === body.professional_id && item.status === 'open');
+      if (!chat) { chat = { id: randomUUID(), patient_id: quickActor.id, professional_id: body.professional_id, patient_name: quickActor.name, professional_name: participants.professional.name, status: 'open', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }; state.quickChats.push(chat); }
+      return send(201, quickResponse(chat));
+    }
+    if (path.startsWith('/spontaneous-chats/')) {
+      const id = path.split('/')[2], chat = state.quickChats.find(item => item.id === id);
+      if (!chat || ![chat.patient_id, chat.professional_id].includes(quickActor.id)) return send(404, { detail: 'CHAT_NOT_FOUND' });
+      if (path.endsWith('/file')) {
+        const item = state.quickMessages.find(message => message.id === path.split('/')[4] && message.chat_id === id);
+        if (!item?.file_name) return send(404, { detail: 'CHAT_FILE_NOT_FOUND' });
+        res.writeHead(200, { 'Content-Type': item.content_type, 'Cache-Control': 'no-store' });
+        res.end(item.content_type === 'image/png' ? Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') : '%PDF-1.4 fixture'); return;
+      }
+      if (path.endsWith('/close')) { chat.status = 'closed'; return send(200, quickResponse(chat)); }
+      if (path.endsWith('/messages')) {
+        const rows = state.quickMessages.filter(message => message.chat_id === id);
+        if (req.method === 'GET') {
+          const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+          const before = params.get('before_id'), after = params.get('after_id'), limit = Number(params.get('limit') || 50);
+          const cursor = before || after, boundary = cursor ? rows.findIndex(item => item.id === cursor) : -1;
+          const filtered = cursor ? rows.filter((_, index) => before ? index < boundary : index > boundary) : rows;
+          return send(200, { messages: after ? filtered.slice(0, limit) : filtered.slice(-limit), has_more: filtered.length > limit });
+        }
+        const field = name => raw.match(new RegExp(`name="${name}"\\r\\n\\r\\n([\\s\\S]*?)\\r\\n--`))?.[1] || '';
+        const clientId = field('client_id'), existing = rows.find(item => item.client_id === clientId && item.sender_id === quickActor.id);
+        if (existing) return send(201, existing);
+        if (!state.quickAvailable || chat.status === 'closed') return send(403, { detail: 'CHAT_OUTSIDE_AVAILABILITY' });
+        const filename = raw.match(/filename="([^"]+)"/)?.[1];
+        const item = { id: randomUUID(), chat_id: id, sender_id: quickActor.id, client_id: clientId, content: field('content'), file_name: filename || null, content_type: filename ? raw.match(/Content-Type: ([^\r]+)/)?.[1] || 'application/pdf' : null, file_size: filename ? 100 : null, created_at: new Date(Date.now() + rows.length).toISOString() };
+        state.quickMessages.push(item); if (filename) state.quickUploads += 1;
+        return send(201, item);
+      }
+      return send(200, quickResponse(chat));
+    }
     if (path === '/admin/professionals/profile-changes') return send(200, Object.values(state.profileByUser).filter(item => item.change_status === 'pending'));
     if (/^\/admin\/professionals\/[^/]+\/profile-change\/(approve|reject)$/.test(path)) {
       const body = JSON.parse(raw), id = path.split('/')[3], profile = state.profileByUser[id];
