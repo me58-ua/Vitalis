@@ -29,6 +29,14 @@ function minutes(value: string): number {
   const parts = clockFormatter.formatToParts(new Date(value));
   return Number(parts.find(item => item.type === 'hour')?.value ?? 0) * 60 + Number(parts.find(item => item.type === 'minute')?.value ?? 0);
 }
+export function clipInterval(interval: { start_time: string; end_time: string }, day: string) {
+  const first = madridDay(interval.start_time), last = madridDay(interval.end_time);
+  if (day < first || day > last) return null;
+  const start = day === first ? minutes(interval.start_time) : 0;
+  let end = day === last ? minutes(interval.end_time) : 1440;
+  if (end <= start && first === last) end = Math.min(1440, start + (Date.parse(interval.end_time) - Date.parse(interval.start_time)) / 60000);
+  return end > start ? { start, end } : null;
+}
 export function minuteLabel(value: number): string {
   return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 }
@@ -45,13 +53,8 @@ export interface AgendaBlock {
 export function blocksForDay(appointments: ProfessionalAppointment[], day: string): AgendaBlock[] {
   const blocks: AgendaBlock[] = [];
   for (const appointment of appointments) {
-    const first = madridDay(appointment.start_time), last = madridDay(appointment.end_time);
-    if (day < first || day > last) continue;
-    const start = day === first ? minutes(appointment.start_time) : 0;
-    let end = day === last ? minutes(appointment.end_time) : 1440;
-    // A repeated local hour at the autumn clock change still has real duration.
-    if (end <= start && first === last) end = Math.min(1440, start + (Date.parse(appointment.end_time) - Date.parse(appointment.start_time)) / 60000);
-    if (end > start) blocks.push({ appointment, start, end, column: 0, columns: 1 });
+    const interval = clipInterval(appointment, day);
+    if (interval) blocks.push({ appointment, ...interval, column: 0, columns: 1 });
   }
   blocks.sort((a, b) => a.start - b.start || a.end - b.end || a.appointment.id.localeCompare(b.appointment.id));
   let group: AgendaBlock[] = [], ends: number[] = [], groupEnd = -1;

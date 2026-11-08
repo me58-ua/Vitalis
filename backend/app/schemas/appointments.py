@@ -1,7 +1,8 @@
 from datetime import date, datetime, time
 from uuid import UUID
+from typing import Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator, field_validator
 
 from app.models import AppointmentStatus, AppointmentType
 
@@ -11,13 +12,24 @@ class AdminScheduleCreate(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
     start_time: time
     end_time: time
-    slot_duration_min: int = Field(gt=0)
+    slot_duration_min: int = Field(gt=0, le=1440)
     is_active: bool
+    channel: Literal["consultation", "chat"] = "consultation"
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def local_clock(cls, value):
+        if value.tzinfo is not None or value.second or value.microsecond:
+            raise ValueError("SCHEDULE_LOCAL_MINUTES_REQUIRED")
+        return value
 
     @model_validator(mode="after")
     def validate_time_range(self) -> "AdminScheduleCreate":
         if self.end_time <= self.start_time:
             raise ValueError("end_time must be after start_time")
+        duration = (self.end_time.hour * 60 + self.end_time.minute) - (self.start_time.hour * 60 + self.start_time.minute)
+        if self.channel == "consultation" and self.slot_duration_min > duration:
+            raise ValueError("SCHEDULE_SLOT_TOO_LONG")
         return self
 
 
@@ -114,11 +126,26 @@ class ConsultationNoteCreate(BaseModel):
 
 
 class ProfessionalScheduleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     day_of_week: int | None = Field(default=None, ge=0, le=6)
     start_time: time | None = None
     end_time: time | None = None
-    slot_duration_min: int | None = Field(default=None, gt=0)
+    slot_duration_min: int | None = Field(default=None, gt=0, le=1440)
     is_active: bool | None = None
+    channel: Literal["consultation", "chat"] | None = None
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def local_clock(cls, value):
+        if value is not None and (value.tzinfo is not None or value.second or value.microsecond):
+            raise ValueError("SCHEDULE_LOCAL_MINUTES_REQUIRED")
+        return value
+
+    @model_validator(mode="after")
+    def required_values(self):
+        if any(getattr(self, name) is None for name in self.model_fields_set):
+            raise ValueError("REQUIRED_FIELD_NULL")
+        return self
 
 
 class ProfessionalAppointmentStatusUpdate(BaseModel):

@@ -1,4 +1,12 @@
 import { api } from './client';
+import type { ProfessionalProfile, ProfileChangeDecision } from '../types/api';
+
+export async function getPendingProfileChanges(signal: AbortSignal) {
+  return (await api.get<ProfessionalProfile[]>('/admin/professionals/profile-changes', { signal })).data;
+}
+export async function decideProfileChange(id: string, approve: boolean, payload: ProfileChangeDecision, signal: AbortSignal) {
+  return (await api.post<ProfessionalProfile>(`/admin/professionals/${encodeURIComponent(id)}/profile-change/${approve ? 'approve' : 'reject'}`, payload, { signal })).data;
+}
 import type { AdminUserDetail, AdminUserQuery, CreateAdminUser, UpdateAdminUser } from '../types/api';
 import type { AdminUserPage, AuditPage, AuditQuery, AppointmentList, UpcomingAppointments, AppointmentQuery, CreateAppointment, UpdateAppointment, AdminMonthlyMetrics } from '../types/api';
 

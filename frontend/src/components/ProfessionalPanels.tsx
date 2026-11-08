@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getProfessionalProfile, getAppointmentPrescription } from '../api/professional';
+import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getAppointmentPrescription } from '../api/professional';
+import { ProfessionalProfileEditor } from './ProfessionalProfileEditor';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
@@ -149,7 +150,5 @@ export function ProfessionalHistoryDialog({ onClose }: { onClose: () => void }) 
 }
 
 export function ProfessionalProfileDialog({ onClose }: { onClose: () => void }) {
-  const state = useAdminQuery(getProfessionalProfile, professionalError);
-  const profile = state.data;
-  return <Modal title="Perfil profesional" onClose={onClose}><QueryFeedback {...state} />{profile && <dl className="professional-profile"><dt>Especialidad</dt><dd>{profile.specialty}</dd><dt>Número de colegiación</dt><dd>{profile.license_number}</dd><dt>Presentación</dt><dd>{profile.bio || 'No indicada'}</dd><dt>Dirección de consulta</dt><dd>{profile.practice_address || 'No indicada'}</dd><dt>Teléfono de consulta</dt><dd>{profile.practice_phone || 'No indicado'}</dd><dt>Duración de consulta</dt><dd>{profile.default_consultation_duration_minutes} minutos</dd><dt>Acepta nuevos pacientes</dt><dd>{profile.is_accepting_new_patients ? 'Sí' : 'No'}</dd><dt>Ofrece teleconsultas</dt><dd>{profile.telehealth_enabled ? 'Sí' : 'No'}</dd><dt>Aprobación</dt><dd>{profile.approval_status === 'approved' ? 'Aprobado' : profile.approval_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</dd></dl>}</Modal>;
+  return <ProfessionalProfileEditor onClose={onClose} />;
 }

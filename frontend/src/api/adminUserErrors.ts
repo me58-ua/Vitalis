@@ -12,6 +12,9 @@ export const userFieldLabels: Record<string, string> = {
   search: 'Búsqueda', page: 'Página', page_size: 'Usuarios por página', is_active: 'Estado de la cuenta',
 };
 const codes: Record<string, string> = {
+  PROFILE_CHANGE_STALE: 'Esta solicitud ya fue revisada o reemplazada. Cierra la ventana y actualiza la lista antes de revisarla.',
+  PROFILE_CHANGE_IDENTIFIER_CONFLICT: 'El número de colegiación ya está en uso. La solicitud sigue pendiente; recházala indicando el motivo o pide su corrección.',
+  PROFILE_CHANGE_REASON_REQUIRED: 'Indica el motivo del rechazo.',
   DUPLICATE_EMAIL: 'Este correo electrónico ya está registrado. Utiliza otro.',
   DUPLICATE_USERNAME: 'Este nombre de usuario ya está registrado. Elige otro.',
   DUPLICATE_DNI: 'Este DNI / NIE ya está registrado. Revisa si la cuenta ya existe.',

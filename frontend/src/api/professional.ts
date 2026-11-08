@@ -1,4 +1,18 @@
 import { api } from './client';
+import type { ProfessionalProfileUpdate, ProfessionalTimeBlock, ProfessionalTimeBlockCreate } from '../types/api';
+
+export async function updateProfessionalProfile(payload: ProfessionalProfileUpdate, signal: AbortSignal) {
+  return (await api.patch<ProfessionalProfile>('/professionals/me/profile', payload, { signal })).data;
+}
+export async function getTimeBlocks(from: string, to: string, signal: AbortSignal) {
+  return (await api.get<ProfessionalTimeBlock[]>('/professionals/me/time-blocks', { params: { from_date: from, to_date: to }, signal })).data;
+}
+export async function createTimeBlock(payload: ProfessionalTimeBlockCreate, signal: AbortSignal) {
+  return (await api.post<ProfessionalTimeBlock>('/professionals/me/time-blocks', payload, { signal })).data;
+}
+export async function deleteTimeBlock(id: string, signal: AbortSignal) {
+  await api.delete(`/professionals/me/time-blocks/${encodeURIComponent(id)}`, { signal });
+}
 import type { PatientHealthSnapshot, ProfessionalPrescriptionPage, Prescription, ProfessionalAppointment } from '../types/api';
 
 export async function getProfessionalWeek(fromDate: string, toDate: string, signal: AbortSignal) {

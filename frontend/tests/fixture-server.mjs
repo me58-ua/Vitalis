@@ -17,8 +17,9 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
   const managedUsers = [participants.patient, ...Array.from({ length: 20 }, (_, index) => ({ ...participants.patient,
     id: `00000000-0000-4000-8000-${String(601 + index).padStart(12, '0')}`, name: `Paciente de prueba ${index + 2}`, username: `patient_test_${index + 2}` })), participants.professional, account];
   const detailUser = item => ({ ...item, patient_profile: item.patient_profile ?? (item.role === 'patient' ? { address: null, blood_type: null, timezone: 'Europe/Madrid', sex_at_birth: null, height_cm: null, weight_kg: null } : null),
-    professional_profile: item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
+    professional_profile: state.profileByUser?.[item.id] ?? item.professional_profile ?? (item.role === 'professional' ? { specialty: 'Especialidad sintética', license_number: 'TEST-COL', bio: null, practice_address: null, practice_phone: null, is_accepting_new_patients: true, default_consultation_duration_minutes: 30, telehealth_enabled: true, approval_status: 'approved', rejection_reason: null, reviewed_at: null, reviewed_by: null, id: item.id, user_id: item.id } : null) });
   const demoSessions = [];
+  state.timeBlocks = []; state.profileUpdates = []; state.profileByUser = {};
   const chatConnections = new Map();
   state.chatMessages = []; state.videoJoinCalls = 0; state.videoStatusWrites = [];
   const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'confirmed', appointment_reason: 'Motivo sintético de cita', cancellation_reason: null }));
@@ -73,6 +74,26 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
+    if (path === '/admin/professionals/profile-changes') return send(200, Object.values(state.profileByUser).filter(item => item.change_status === 'pending'));
+    if (/^\/admin\/professionals\/[^/]+\/profile-change\/(approve|reject)$/.test(path)) {
+      const body = JSON.parse(raw), id = path.split('/')[3], profile = state.profileByUser[id];
+      if (!profile || profile.change_status !== 'pending' || profile.change_request_id !== body.request_id) return send(409, { detail: 'PROFILE_CHANGE_STALE' });
+      if (path.endsWith('/reject') && !body.reason?.trim()) return send(422, { detail: 'PROFILE_CHANGE_REASON_REQUIRED' });
+      if (path.endsWith('/approve')) { Object.assign(profile, profile.pending_changes); profile.pending_changes = null; profile.change_status = 'approved'; }
+      else { profile.change_status = 'rejected'; profile.change_rejection_reason = body.reason; }
+      return send(200, profile);
+    }
+    if (path === '/professionals/me/time-blocks') {
+      if (req.method === 'POST') {
+        if (state.blockConflict) return send(409, { detail: 'TIME_BLOCK_CONFLICT' });
+        const block = { ...JSON.parse(raw), id: randomUUID(), professional_id: account.id, created_at: new Date().toISOString() };
+        state.timeBlocks.push(block); return send(201, block);
+      }
+      return send(200, state.timeBlocks);
+    }
+    if (path.startsWith('/professionals/me/time-blocks/') && req.method === 'DELETE') {
+      state.timeBlocks = state.timeBlocks.filter(item => item.id !== path.split('/').at(-1)); return send(204, null);
+    }
     if (path === '/patients/me/appointments' && req.method === 'GET') {
       if ((demoLogin?.user ?? account).role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
       if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
@@ -147,7 +168,16 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         const patientId = new URL(req.url, 'http://fixture.invalid').searchParams.get('patient_id');
         return send(200, { appointments: [{ ...professionalAppointments[0], patient_id: patientId, id: '00000000-0000-4000-8000-000000000498', status: 'completed', start_time: '2026-11-03T09:00:00Z', end_time: '2026-11-03T09:30:00Z', patient_email: participants.patient.email }], total: 1, page: 1, page_size: 10 });
       }
-      if (path === '/professionals/me/profile') return send(200, detailUser(actor).professional_profile);
+      if (path === '/professionals/me/profile') {
+        const profile = state.profileByUser[actor.id] ??= detailUser(actor).professional_profile;
+        if (req.method === 'PATCH') {
+          const payload = JSON.parse(raw);
+          state.profileUpdates.push(payload);
+          profile.pending_changes = Object.fromEntries(Object.entries(payload).filter(([key, value]) => value !== profile[key]));
+          profile.change_request_id = randomUUID(); profile.change_status = 'pending';
+        }
+        return send(200, profile);
+      }
       if (path === '/professionals/me/appointments') {
         if (state.failProfessionalAppointments) return send(503, { detail: 'TEST_UNAVAILABLE' });
         const params = new URL(req.url, 'http://fixture.invalid').searchParams;

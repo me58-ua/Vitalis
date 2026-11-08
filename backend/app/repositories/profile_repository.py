@@ -21,6 +21,10 @@ class ProfileRepository:
             select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
         )
 
+    def lock_professional(self, user_id):
+        return self.session.scalar(select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+                                   .with_for_update().execution_options(populate_existing=True))
+
     def update(self, profile: PatientProfile | ProfessionalProfile, values: dict):
         for field, value in values.items():
             setattr(profile, field, value)

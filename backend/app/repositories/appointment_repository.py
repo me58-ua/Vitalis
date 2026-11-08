@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, User
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, ProfessionalTimeBlock, User
 
 
 class AppointmentRepository:
@@ -88,6 +88,7 @@ class AppointmentRepository:
                     ProfessionalSchedule.professional_id == professional_id,
                     ProfessionalSchedule.day_of_week == day_of_week,
                     ProfessionalSchedule.is_active.is_(True),
+                    ProfessionalSchedule.channel == "consultation",
                 )
                 .order_by(ProfessionalSchedule.start_time)
             )
@@ -104,7 +105,10 @@ class AppointmentRepository:
                     Appointment.end_time > start,
                 )
             )
-        )
+        ) + list(self.session.scalars(select(ProfessionalTimeBlock).where(
+            ProfessionalTimeBlock.professional_id == professional_id,
+            ProfessionalTimeBlock.start_time < end, ProfessionalTimeBlock.end_time > start,
+        )))
 
     def list_upcoming(self, start: datetime, end: datetime) -> list[Appointment]:
         return list(

@@ -72,6 +72,6 @@ class ProfileService:
         profile.ai_consent_code = "AI_CONSENT_REQUIRED" if not consent else None
         return profile
 
-    def update_professional_profile(self, user: User, data: ProfessionalProfileUpdate):
-        profile = self.get_professional_profile(user)
-        return self.profiles.update(profile, data.model_dump(exclude_unset=True))
+    def update_professional_profile(self, user: User, data: ProfessionalProfileUpdate, audits=None):
+        from app.services.profile_change_service import ProfileChangeService
+        return ProfileChangeService(self.profiles, audits).submit(user, data)

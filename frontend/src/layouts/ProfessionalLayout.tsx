@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Notifications } from '../components/Notifications';
-import { DocumentSearch } from '../components/DocumentSearch';
 import logo from '../../assets/vitalis logo.png';
 import dashboard from '../assets/figma/professional/nav-dashboard.svg';
 import agenda from '../assets/figma/professional/nav-agenda.svg';
@@ -54,7 +53,7 @@ export function ProfessionalLayout() {
     <div className="admin-workspace"><header className="admin-header professional-header"><div className="admin-header-title">
       <button ref={menuButton} className="icon-button admin-menu-toggle" aria-expanded={menuOpen} aria-controls="professional-sidebar" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMenuOpen(!menuOpen)}><img src={menu} alt="" /></button>
       <div><p className="admin-eyebrow">PORTAL PROFESIONAL</p><p>Bienvenido, <strong>{user.name}</strong></p></div>
-    </div><div className="admin-header-tools"><DocumentSearch key={`${user.id}:documents`} user={user} /><Notifications key={`${user.id}:notifications`} userId={user.id} />
+    </div><div className="admin-header-tools"><Notifications key={`${user.id}:notifications`} userId={user.id} />
       <details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong><span>Profesional</span><p className="field-help">Se cerrará esta sesión. Las demás sesiones seguirán abiertas.</p>{logoutError && <p className="error-state" role="alert">{logoutError}</p>}<button className="professional-logout admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div></details>
     </div></header><div key={user.id}><Outlet /></div></div>
   </div>;

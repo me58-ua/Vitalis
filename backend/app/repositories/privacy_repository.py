@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     AlcoholLog, Allergy, ChronicCondition, FamilyHistoryEntry, HabitLog, HealthDocument,
     Medication, PatientProfile, User,
-    RiskSnapshot,
+    RiskSnapshot, ProfessionalTimeBlock,
 )
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
@@ -40,6 +40,13 @@ class PrivacyRepository:
         self.session.flush()
 
     def anonymize_professional_profile(self, profile) -> None:
+        profile.pending_changes = None
+        profile.change_request_id = None
+        profile.change_status = None
+        profile.change_requested_at = None
+        profile.change_reviewed_at = None
+        profile.change_reviewed_by = None
+        profile.change_rejection_reason = None
         profile.specialty = "Cuenta eliminada"
         profile.bio = None
         profile.practice_address = None
@@ -47,6 +54,7 @@ class PrivacyRepository:
         profile.license_number = f"deleted-{profile.user_id.hex[:12]}"
         profile.is_accepting_new_patients = False
         profile.telehealth_enabled = False
+        self.session.execute(delete(ProfessionalTimeBlock).where(ProfessionalTimeBlock.professional_id == profile.user_id))
         self.session.flush()
 
     def revoke_user_sessions(self, user_id: UUID) -> None:
