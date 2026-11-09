@@ -6,12 +6,17 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import EmailStatus, Notification
+from app.models import EmailStatus, Notification, User, UserRole
 
 
 class NotificationRepository:
     def __init__(self, session: Session):
         self.session = session
+
+    def active_admin_ids(self) -> list[UUID]:
+        return list(self.session.scalars(
+            select(User.id).where(User.role == UserRole.ADMIN, User.is_active.is_(True))
+        ))
 
     def create(self, notification: Notification) -> Notification:
         self.session.add(notification)

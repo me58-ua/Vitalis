@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Notifications } from '../components/Notifications';
-import { DocumentSearch } from '../components/DocumentSearch';
 import logo from '../../assets/vitalis logo.png';
 import dashboard from '../assets/figma/professional/nav-dashboard.svg';
 import agenda from '../assets/figma/professional/nav-agenda.svg';
@@ -45,17 +44,17 @@ export function ProfessionalLayout() {
         <Link to="/professionalDashboard" className={location.pathname === '/professionalDashboard' && !panel ? 'active' : ''} onClick={close}><img src={dashboard} alt="" />Panel del profesional</Link>
         <Link to="/professionalDashboard/agenda" className={location.pathname === '/professionalDashboard/agenda' ? 'active' : ''} onClick={close}><img src={agenda} alt="" />Agenda</Link>
         <Link to="/professionalDashboard/misPacientes" className={location.pathname === '/professionalDashboard/misPacientes' ? 'active' : ''} onClick={close}><img src={patients} alt="" />Mis pacientes</Link>
-        <span className="admin-nav-unavailable" aria-disabled="true"><img src={video} alt="" /><span>Videoconsulta<small>Próximamente</small></span></span>
-        <span className="admin-nav-unavailable" aria-disabled="true"><img src={chat} alt="" /><span>Chat<small>Próximamente</small></span></span>
-        <Link to="/professionalDashboard?panel=profile" className={panel === 'profile' ? 'active' : ''} onClick={close}><img src={profile} alt="" />Perfil profesional</Link>
+        <Link to="/professionalDashboard/videoconsulta" className={location.pathname.startsWith('/professionalDashboard/videoconsulta') ? 'active' : ''} onClick={close}><img src={video} alt="" />Videoconsulta</Link>
+        <Link to="/professionalDashboard/chats" className={location.pathname === '/professionalDashboard/chats' ? 'active' : ''} onClick={close}><img src={chat} alt="" />Mensajes</Link>
+        <Link to="/professionalDashboard/perfil" className={location.pathname === '/professionalDashboard/perfil' ? 'active' : ''} onClick={close}><img src={profile} alt="" />Perfil profesional</Link>
       </nav>
     </aside>
     {menuOpen && <button className="admin-menu-backdrop" aria-label="Cerrar menú" onClick={close} />}
     <div className="admin-workspace"><header className="admin-header professional-header"><div className="admin-header-title">
       <button ref={menuButton} className="icon-button admin-menu-toggle" aria-expanded={menuOpen} aria-controls="professional-sidebar" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMenuOpen(!menuOpen)}><img src={menu} alt="" /></button>
       <div><p className="admin-eyebrow">PORTAL PROFESIONAL</p><p>Bienvenido, <strong>{user.name}</strong></p></div>
-    </div><div className="admin-header-tools"><DocumentSearch key={`${user.id}:documents`} user={user} /><Notifications key={`${user.id}:notifications`} userId={user.id} />
-      <details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong><span>Profesional</span><p className="field-help">Se cerrará esta sesión. Las demás sesiones seguirán abiertas.</p>{logoutError && <p className="error-state" role="alert">{logoutError}</p>}<button className="professional-logout admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div></details>
+    </div><div className="admin-header-tools"><Notifications key={`${user.id}:notifications`} userId={user.id} />
+      <details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong><span>Profesional</span>{logoutError && <p className="error-state" role="alert">{logoutError}</p>}<button className="professional-logout admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div></details>
     </div></header><div key={user.id}><Outlet /></div></div>
   </div>;
 }

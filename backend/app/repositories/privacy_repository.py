@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     AlcoholLog, Allergy, ChronicCondition, FamilyHistoryEntry, HabitLog, HealthDocument,
     Medication, PatientProfile, User,
-    RiskSnapshot,
+    RiskSnapshot, ProfessionalTimeBlock, ProfessionalSchedule, SpontaneousChat, SpontaneousChatMessage,
 )
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
@@ -15,6 +15,14 @@ from app.models.refresh_token import RefreshToken
 class PrivacyRepository:
     def __init__(self, session: Session):
         self.session = session
+
+    def erase_spontaneous_chats(self, user_id):
+        chats = select(SpontaneousChat.id).where((SpontaneousChat.patient_id == user_id) | (SpontaneousChat.professional_id == user_id))
+        keys = list(self.session.scalars(select(SpontaneousChatMessage.file_key).where(
+            SpontaneousChatMessage.chat_id.in_(chats), SpontaneousChatMessage.file_key.is_not(None))))
+        self.session.execute(delete(SpontaneousChat).where(SpontaneousChat.id.in_(chats)))
+        self.session.flush()
+        return keys
 
     def erase_patient_health(self, patient_id: UUID) -> list[str]:
         documents = list(
@@ -40,6 +48,16 @@ class PrivacyRepository:
         self.session.flush()
 
     def anonymize_professional_profile(self, profile) -> None:
+        profile.pending_changes = None
+        profile.change_request_id = None
+        profile.change_status = None
+        profile.change_requested_at = None
+        profile.change_reviewed_at = None
+        profile.change_reviewed_by = None
+        profile.change_rejection_reason = None
+        profile.languages = []
+        profile.years_experience = None
+        profile.email_notifications_enabled = False
         profile.specialty = "Cuenta eliminada"
         profile.bio = None
         profile.practice_address = None
@@ -47,6 +65,8 @@ class PrivacyRepository:
         profile.license_number = f"deleted-{profile.user_id.hex[:12]}"
         profile.is_accepting_new_patients = False
         profile.telehealth_enabled = False
+        self.session.execute(delete(ProfessionalTimeBlock).where(ProfessionalTimeBlock.professional_id == profile.user_id))
+        self.session.execute(delete(ProfessionalSchedule).where(ProfessionalSchedule.professional_id == profile.user_id))
         self.session.flush()
 
     def revoke_user_sessions(self, user_id: UUID) -> None:

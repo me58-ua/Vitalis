@@ -61,7 +61,7 @@ class ProfessionalDashboardTests(unittest.TestCase):
         self.db.flush()
         return user
 
-    def appointment(self, start, status=AppointmentStatus.PENDING, professional=None):
+    def appointment(self, start, status=AppointmentStatus.CONFIRMED, professional=None):
         item = Appointment(patient_id=self.patient.id, professional_id=(professional or self.professional).id,
                            start_time=start, end_time=start + timedelta(minutes=30), status=status,
                            type=AppointmentType.VIDEO, appointment_reason="Original appointment motive")
@@ -70,7 +70,7 @@ class ProfessionalDashboardTests(unittest.TestCase):
         return item
 
     def test_counts_include_seven_days_zeroes_and_only_own_non_cancelled_appointments(self):
-        for index, status in enumerate((AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED,
+        for index, status in enumerate((AppointmentStatus.CONFIRMED, AppointmentStatus.CONFIRMED,
                                         AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW, AppointmentStatus.CANCELLED)):
             self.appointment(self.now + timedelta(hours=index), status)
         self.appointment(self.now - timedelta(days=1))

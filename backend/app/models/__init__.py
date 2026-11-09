@@ -6,6 +6,8 @@ from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.appointment import Appointment, AppointmentStatus, AppointmentType
 from app.models.professional_schedule import ProfessionalSchedule
+from app.models.professional_time_block import ProfessionalTimeBlock
+from app.models.spontaneous_chat import SpontaneousChat, SpontaneousChatMessage
 from app.models.appointment_status_history import AppointmentStatusHistory
 from app.models.chat_message import ChatMessage
 from app.models.appointment_note import AppointmentNote
@@ -31,6 +33,9 @@ __all__ = [
 	"AppointmentStatus",
 	"AppointmentType",
 	"ProfessionalSchedule",
+	"ProfessionalTimeBlock",
+	"SpontaneousChat",
+	"SpontaneousChatMessage",
 	"AppointmentStatusHistory",
 	"ChatMessage",
 	"AppointmentNote",

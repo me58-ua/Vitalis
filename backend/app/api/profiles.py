@@ -7,6 +7,7 @@ from app.api.deps import (
     get_current_professional,
     get_profile_repository,
     get_user_repository,
+    get_notification_service,
 )
 from app.models import AuditAction, User
 from app.api.deps import get_audit_repository
@@ -21,14 +22,17 @@ from app.schemas.profiles import (
     PatientProfileUpdate,
     ProfessionalProfileResponse,
     ProfessionalProfileUpdate,
+    ProfessionalNotificationSettings,
 )
 from app.schemas.health import AIConsentUpdate
 from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
 from app.services.profile_service import (
     InvalidCurrentPasswordError,
     ProfileNotFoundError,
     ProfileService,
 )
+from app.services.profile_change_service import ProfileChangeValidation
 
 
 router = APIRouter(tags=["profiles"])
@@ -111,11 +115,35 @@ def update_professional_profile(
     data: ProfessionalProfileUpdate,
     current_user: CurrentProfessional,
     profiles: Profiles,
+    audits: Audits,
+    notifications: Annotated[NotificationService, Depends(get_notification_service)] = None,
 ):
     try:
-        return ProfileService(None, profiles).update_professional_profile(current_user, data)
+        return ProfileService(None, profiles).update_professional_profile(current_user, data, audits, notifications)
     except ProfileNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except ProfileChangeValidation as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.get("/professionals/me/notification-settings", response_model=ProfessionalNotificationSettings)
+def professional_notification_settings(current_user: CurrentProfessional, profiles: Profiles):
+    try:
+        return ProfileService(None, profiles).get_professional_profile(current_user)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.patch("/professionals/me/notification-settings", response_model=ProfessionalNotificationSettings)
+def update_professional_notification_settings(data: ProfessionalNotificationSettings, current_user: CurrentProfessional, profiles: Profiles, audits: Audits):
+    try:
+        profile = ProfileService(None, profiles).get_professional_profile(current_user)
+    except ProfileNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    profile.email_notifications_enabled = data.email_notifications_enabled
+    profiles.session.flush()
+    AuditService(audits).record(current_user.id, current_user.role, AuditAction.UPDATE, "professional_notification_settings", profile.id)
+    return profile
 
 
 @router.patch("/professionals/me", response_model=UserResponse)

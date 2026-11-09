@@ -27,6 +27,7 @@ class ScheduleService:
             end_time=data.end_time,
             slot_duration_min=data.slot_duration_min,
             is_active=data.is_active,
+            channel=data.channel,
         )
         try:
             return self.appointments.create_schedule(schedule)
@@ -54,6 +55,11 @@ class ScheduleService:
         end_time = values.get("end_time", schedule.end_time)
         if end_time <= start_time:
             raise AppointmentValidationError("end_time must be after start_time")
+        channel = values.get("channel", getattr(schedule, "channel", "consultation"))
+        slot = values.get("slot_duration_min", schedule.slot_duration_min)
+        minutes = (end_time.hour * 60 + end_time.minute) - (start_time.hour * 60 + start_time.minute)
+        if channel == "consultation" and slot > minutes:
+            raise AppointmentValidationError("SCHEDULE_SLOT_TOO_LONG")
         try:
             return self.appointments.update_schedule(schedule, values)
         except IntegrityError as error:

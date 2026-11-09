@@ -1,4 +1,38 @@
 import { api } from './client';
+import type { WorkingHours, WorkingHoursCreate, WorkingHoursUpdate } from '../types/api';
+import type { WorkingHoursBatch } from '../types/api';
+
+export async function saveWorkingHoursBatch(payload: WorkingHoursBatch, signal: AbortSignal) {
+  return (await api.post<WorkingHours[]>('/professionals/me/working-hours/batch', payload, { signal })).data;
+}
+export async function deleteWorkingHoursBatch(ids: string[], signal: AbortSignal) {
+  await api.post('/professionals/me/working-hours/batch-delete', { schedule_ids: ids }, { signal });
+}
+
+export async function getWorkingHours(signal: AbortSignal) {
+  return (await api.get<WorkingHours[]>('/professionals/me/working-hours', { signal })).data;
+}
+export async function saveWorkingHours(payload: WorkingHoursCreate | WorkingHoursUpdate, id: string | null, signal: AbortSignal) {
+  return id ? (await api.patch<WorkingHours>(`/professionals/me/working-hours/${encodeURIComponent(id)}`, payload, { signal })).data
+    : (await api.post<WorkingHours>('/professionals/me/working-hours', payload, { signal })).data;
+}
+export async function deleteWorkingHours(id: string, signal: AbortSignal) {
+  await api.delete(`/professionals/me/working-hours/${encodeURIComponent(id)}`, { signal });
+}
+import type { ProfessionalProfileUpdate, ProfessionalTimeBlock, ProfessionalTimeBlockCreate } from '../types/api';
+
+export async function updateProfessionalProfile(payload: ProfessionalProfileUpdate, signal: AbortSignal) {
+  return (await api.patch<ProfessionalProfile>('/professionals/me/profile', payload, { signal })).data;
+}
+export async function getTimeBlocks(from: string, to: string, signal: AbortSignal) {
+  return (await api.get<ProfessionalTimeBlock[]>('/professionals/me/time-blocks', { params: { from_date: from, to_date: to }, signal })).data;
+}
+export async function createTimeBlock(payload: ProfessionalTimeBlockCreate, signal: AbortSignal) {
+  return (await api.post<ProfessionalTimeBlock>('/professionals/me/time-blocks', payload, { signal })).data;
+}
+export async function deleteTimeBlock(id: string, signal: AbortSignal) {
+  await api.delete(`/professionals/me/time-blocks/${encodeURIComponent(id)}`, { signal });
+}
 import type { PatientHealthSnapshot, ProfessionalPrescriptionPage, Prescription, ProfessionalAppointment } from '../types/api';
 
 export async function getProfessionalWeek(fromDate: string, toDate: string, signal: AbortSignal) {
@@ -31,6 +65,21 @@ export async function attachPrescription(professionalId: string, appointmentId: 
   form.append('file', file);
   if (notes.trim()) form.append('notas', notes.trim());
   return (await api.post<Prescription>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, form, { signal })).data;
+}
+
+export async function getAppointmentPrescription(professionalId: string, patientId: string, appointmentId: string, signal: AbortSignal) {
+  for (let page = 1, loaded = 0; ; page += 1) {
+    const result = await getPatientPrescriptions(professionalId, patientId, page, signal);
+    const found = result.prescriptions.find(item => item.appointment_id === appointmentId);
+    if (found) return found;
+    loaded += result.prescriptions.length;
+    if (loaded >= result.total) return null;
+    if (result.prescriptions.length === 0) throw new Error('No se pudieron recuperar todas las recetas.');
+  }
+}
+
+export async function downloadProfessionalPrescription(professionalId: string, appointmentId: string, signal: AbortSignal) {
+  return (await api.get<Blob>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, { responseType: 'blob', signal })).data;
 }
 import type { ProfessionalDashboard, ProfessionalAppointmentPage, ProfessionalAppointmentQuery, ProfessionalAppointmentCreate,
   ProfessionalPatientPage, ProfessionalProfile, ProfessionalHistoryPage, ProfessionalAppointmentCancel } from '../types/api';

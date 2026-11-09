@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Modal } from './Modal';
 import { searchDocuments, downloadDocument, type DocumentSearch as SearchPage, type DocumentItem, type DocumentType } from '../api/documents';
 import { errorMessage } from '../api/errors';
+import { dateFormat as formatter } from '../utils/dateTime';
 import type { User } from '../types/api';
 import searchIcon from '../assets/figma/imgMargin.svg';
 
@@ -14,7 +15,6 @@ export function DocumentSearch({ user }: { user: User }) {
 }
 
 const types: Record<DocumentType, string> = { informe: 'Informe', analitica: 'Analítica', otro: 'Otro' };
-const formatter = new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeZone: 'Europe/Madrid' });
 function date(value: string) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? 'Fecha no disponible' : formatter.format(parsed);

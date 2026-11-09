@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { approveAdminProfessional, deleteAdminUser, getAdminUser, getAdminUsers, updateAdminUser } from '../../api/admin';
+import { useSearchParams } from 'react-router-dom';
+import { approveAdminProfessional, deleteAdminUser, getAdminUser, getAdminUsers, updateAdminUser, getPendingProfileChanges } from '../../api/admin';
+import { ProfileChangeReview } from '../../components/ProfileChangeReview';
 import { adminUserError } from '../../api/adminUserErrors';
 import { useAuth } from '../../auth/AuthContext';
 import { AdminUserForm } from '../../components/AdminUserForm';
 import { Modal } from '../../components/Modal';
+import { dateFormat } from '../../utils/dateTime';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import type { AdminUser, AdminUserDetail, User } from '../../types/api';
 import addIcon from '../../assets/figma/admin-users/add.svg';
@@ -18,7 +21,7 @@ const roles: { value: User['role']; label: string }[] = [
 const describeError = (error: unknown) => adminUserError(error).summary;
 function registrationDate(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' }).format(date);
+  return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : dateFormat.format(date);
 }
 
 function ManageUserDialog({ id, ownId, initialAction = null, onClose, onChanged }: {
@@ -58,7 +61,8 @@ function ManageUserDialog({ id, ownId, initialAction = null, onClose, onChanged 
       <div className="user-form-actions"><button className={`button ${action === 'delete' ? 'user-danger' : 'primary'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Procesando…' : action === 'delete' ? 'Eliminar definitivamente' : 'Confirmar'}</button><button className="button secondary" disabled={busy} onClick={() => { setAction(null); setError(''); }}>Volver</button></div>
     </div> : <>
       <p className="user-detail-id">ID: {item.id}</p>
-      <AdminUserForm item={item} initialRole={item.role} ownAccount={item.id === ownId} onBusy={setBusy} onClose={onClose} onSaved={saved => onChanged(saved.role === 'admin' ? 'Cuenta administradora guardada correctamente.' : 'Cuenta y perfil guardados correctamente.', saved)} />
+      {item.professional_profile && <fieldset className="profile-review-fieldset" disabled={busy}><ProfileChangeReview professionalId={item.id} profile={item.professional_profile} onBusy={setBusy} onChanged={onChanged} /></fieldset>}
+      <fieldset className="profile-review-fieldset" disabled={busy}><AdminUserForm item={item} initialRole={item.role} ownAccount={item.id === ownId} onBusy={setBusy} onClose={onClose} onSaved={saved => onChanged(saved.role === 'admin' ? 'Cuenta administradora guardada correctamente.' : 'Cuenta y perfil guardados correctamente.', saved)} /></fieldset>
       {item.id !== ownId && <section className="user-account-actions" aria-label="Acceso y eliminación de la cuenta"><h3>Acceso a la plataforma</h3>
         <p>Estado actual: <strong>{item.is_active ? 'Activo' : 'Inactivo'}</strong>.</p>
         {needsApproval && !item.professional_profile && <p className="user-notice">Esta cuenta todavía no tiene perfil profesional. Completa y guarda los campos profesionales antes de aprobarla.</p>}
@@ -79,7 +83,12 @@ function CreateUserDialog({ role, onClose, onSaved }: { role: User['role']; onCl
 
 export function AdminUsersPage() {
   const { user, refreshUser } = useAuth();
-  const [role, setRole] = useState<User['role']>('patient');
+  const [params, setParams] = useSearchParams();
+  const selectedRole = params.get('role');
+  const role: User['role'] = selectedRole === 'professional' || selectedRole === 'admin' ? selectedRole : 'patient';
+  function setRole(value: User['role']) {
+    setParams(previous => { const next = new URLSearchParams(previous); next.set('role', value); return next; });
+  }
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState({ search: '', page: 1, page_size: 20 });
   const [revision, setRevision] = useState(0);
@@ -97,6 +106,9 @@ export function AdminUsersPage() {
     return Promise.all(roles.map(async ({ value }) => ({ role: value, total: (await getAdminUsers({ role: value, page: 1, page_size: 1 }, signal)).total })));
   }, [revision]);
   const counts = useAdminQuery(loadCounts, describeError);
+  const loadChanges = useCallback((signal: AbortSignal) => { void revision; return getPendingProfileChanges(signal); }, [revision]);
+  const changes = useAdminQuery(loadChanges, describeError);
+  const [reviewId, setReviewId] = useState<string | null>(null);
   const data = state.data;
   function refresh() { setRevision(value => value + 1); }
   async function changed(message: string, item?: AdminUserDetail) {
@@ -124,6 +136,7 @@ export function AdminUsersPage() {
         <div className="users-search-tools"><form className="users-search" role="search" onSubmit={applySearch}><label className="sr-only" htmlFor="user-search">Buscar por nombre, correo o usuario</label><img src={searchIcon} alt="" /><input id="user-search" name="search" value={search} onChange={event => setSearch(event.target.value)} maxLength={100} placeholder="Buscar por nombre o email…" /><button type="submit" aria-label="Buscar usuarios">Buscar</button></form></div>
       </div>
       {counts.error && <div className="users-count-error" role="alert"><span>No se pudieron cargar los totales. {counts.error}</span><button className="text-button" onClick={counts.retry}>Reintentar totales</button></div>}
+      {role === 'professional' && <section className="profile-change-queue" aria-label="Solicitudes de cambios de perfil"><h2>Perfiles pendientes de revisión</h2>{changes.loading && <p role="status">Cargando solicitudes…</p>}{changes.error && <div className="error-state" role="alert"><p>{changes.error}</p><button onClick={changes.retry}>Reintentar solicitudes</button></div>}{changes.data?.length === 0 && <p>No hay cambios de perfil pendientes.</p>}{changes.data?.map(profile => <p key={profile.id}><strong>{profile.specialty}</strong> · {profile.license_number} <button className="button secondary" onClick={() => setReviewId(profile.user_id)}>Revisar cambios</button></p>)}</section>}
       <div className="users-results" aria-busy={state.loading}>
         {state.loading && <p className="user-list-state" role="status">Cargando usuarios…</p>}
         {state.error && <div className="user-list-state error-state" role="alert"><p>{state.error}</p><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}
@@ -139,5 +152,6 @@ export function AdminUsersPage() {
     </section>
     {dialog === 'create' && <CreateUserDialog role={role} onClose={() => setDialog(null)} onSaved={item => { void changed(item.role === 'professional' ? 'Cuenta y perfil profesional creados. Pendiente de aprobación: abre «Gestionar» para aprobarlo.' : item.role === 'admin' ? 'Cuenta administradora creada correctamente.' : 'Cuenta y perfil creados correctamente.', item); }} />}
     {dialog && dialog !== 'create' && <ManageUserDialog id={dialog.id} ownId={user.id} initialAction={directDelete ? 'delete' : null} onClose={() => setDialog(null)} onChanged={(message, item) => { void changed(message, item); }} />}
+    {reviewId && <ManageUserDialog id={reviewId} ownId={user.id} onClose={() => setReviewId(null)} onChanged={message => { setReviewId(null); void changed(message); }} />}
   </main>;
 }

@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import admin_reporting
+from app.api import professional_management
+from app.api import working_hours
+from app.api import spontaneous_chat
 from app.api import appointments, auth, chat, habits, health_documents, notifications, patient_health, prescriptions, privacy, professionals, profiles, risk, users, video, ws_chat
 
 from app.database import SessionLocal
@@ -58,6 +61,9 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin_reporting.router)
+app.include_router(professional_management.router)
+app.include_router(working_hours.router)
+app.include_router(spontaneous_chat.router)
 app.include_router(users.router)
 app.include_router(users.professional_approval_router)
 app.include_router(appointments.router)

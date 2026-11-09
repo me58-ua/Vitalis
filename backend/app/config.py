@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     PRESCRIPTION_EMISSION_WINDOW_HOURS: int = 8
     PRESCRIPTION_MAX_SIZE_BYTES: int = 10 * 1024 * 1024
     HEALTH_DOCUMENT_MAX_SIZE_BYTES: int = 10 * 1024 * 1024
+    SPONTANEOUS_CHAT_MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024
     CHAT_WRITE_WINDOW_HOURS: int = 24
     CHAT_MESSAGE_MAX_LENGTH: int = 2000
     CHAT_CONNECTION_IDLE_TIMEOUT_SECONDS: int = 60
@@ -37,7 +38,6 @@ class Settings(BaseSettings):
     JITSI_APP_SECRET: str = ""
     JITSI_TOKEN_TTL_SECONDS: int = 3600
     VIDEO_JOIN_EARLY_MINUTES: int = 10
-    VIDEO_JOIN_LATE_MINUTES: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

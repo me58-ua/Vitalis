@@ -25,7 +25,6 @@
 .agenda-event-time { font-size: 10px; line-height: 13px; font-variant-numeric: tabular-nums; }
 .agenda-event strong { font-size: 12px; line-height: 15px; }
 .agenda-event-status { font-size: 10px; line-height: 12px; }
-.agenda-event-pending { background: #fff3d5; color: #6a4900; border-color: #ddc27e; }
 .agenda-event-completed { background: #e6eeff; color: #243b65; border-color: #9fb5db; }
 .agenda-event-cancelled, .agenda-event-no_show { background: #f1f2f4; color: #626b66; border-color: #bfc9c3; }
 .agenda-event-cancelled strong { text-decoration: line-through; }
@@ -53,3 +52,21 @@
   .agenda-calendar-scroll { max-height: 580px; }
   .agenda-detail { padding: 18px; }
 }
+.agenda-time-blocks { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid #ccd5da; border-radius: 12px; background: #fff; }
+.agenda-block-list { padding-left: 1.2rem; }
+.agenda-block-list li { margin: 1rem 0; }
+.agenda-unavailable { position: absolute; left: 3px; right: 3px; padding: 6px; overflow: hidden; border: 1px dashed #7b647b; border-radius: 6px; color: #493749; background: repeating-linear-gradient(135deg, #f2eaf2, #f2eaf2 8px, #e9dfe9 8px, #e9dfe9 16px); font-size: .8rem; display: flex; flex-direction: column; gap: 3px; }
+.agenda-time-blocks fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.agenda-block-heading { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.agenda-working-hours { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid #c5d8cf; border-radius: 12px; background: #fff; }
+.agenda-working-hours summary { cursor: pointer; font-weight: 700; padding: .5rem 0; }
+.working-hours-tabs, .working-hours-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
+.working-hours-tabs [aria-pressed="true"] { background: #003e31; color: white; }
+.working-hours-list { padding-left: 1.2rem; }
+.working-hours-list li { margin: 1rem 0; }
+.working-hours-form { margin: 1rem 0; }
+.working-hours-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.working-day-picker { display: flex; flex-wrap: wrap; gap: .75rem 1rem; }
+.working-day-picker legend { margin-bottom: .5rem; }
+.working-day-picker label { display: inline-flex; align-items: center; gap: .4rem; }
+.working-day-picker input { width: auto; }

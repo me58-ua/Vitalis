@@ -21,13 +21,21 @@ export function addDays(day: string, amount: number): string {
 export function mondayOf(day: string): string {
   return addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
 }
-export function dayLabel(day: string, options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }) {
+export function dayLabel(day: string, options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' }) {
   return new Intl.DateTimeFormat('es-ES', { ...options, timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
 }
 export function clock(value: string): string { return clockFormatter.format(new Date(value)); }
 function minutes(value: string): number {
   const parts = clockFormatter.formatToParts(new Date(value));
   return Number(parts.find(item => item.type === 'hour')?.value ?? 0) * 60 + Number(parts.find(item => item.type === 'minute')?.value ?? 0);
+}
+export function clipInterval(interval: { start_time: string; end_time: string }, day: string) {
+  const first = madridDay(interval.start_time), last = madridDay(interval.end_time);
+  if (day < first || day > last) return null;
+  const start = day === first ? minutes(interval.start_time) : 0;
+  let end = day === last ? minutes(interval.end_time) : 1440;
+  if (end <= start && first === last) end = Math.min(1440, start + (Date.parse(interval.end_time) - Date.parse(interval.start_time)) / 60000);
+  return end > start ? { start, end } : null;
 }
 export function minuteLabel(value: number): string {
   return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
@@ -45,13 +53,8 @@ export interface AgendaBlock {
 export function blocksForDay(appointments: ProfessionalAppointment[], day: string): AgendaBlock[] {
   const blocks: AgendaBlock[] = [];
   for (const appointment of appointments) {
-    const first = madridDay(appointment.start_time), last = madridDay(appointment.end_time);
-    if (day < first || day > last) continue;
-    const start = day === first ? minutes(appointment.start_time) : 0;
-    let end = day === last ? minutes(appointment.end_time) : 1440;
-    // A repeated local hour at the autumn clock change still has real duration.
-    if (end <= start && first === last) end = Math.min(1440, start + (Date.parse(appointment.end_time) - Date.parse(appointment.start_time)) / 60000);
-    if (end > start) blocks.push({ appointment, start, end, column: 0, columns: 1 });
+    const interval = clipInterval(appointment, day);
+    if (interval) blocks.push({ appointment, ...interval, column: 0, columns: 1 });
   }
   blocks.sort((a, b) => a.start - b.start || a.end - b.end || a.appointment.id.localeCompare(b.appointment.id));
   let group: AgendaBlock[] = [], ends: number[] = [], groupEnd = -1;

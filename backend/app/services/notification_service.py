@@ -29,6 +29,19 @@ class NotificationService:
         self.repository = repository
         self.max_email_attempts = max_email_attempts
 
+    def notify_professional_review(self, user, *, profile_change: bool = False) -> None:
+        now = datetime.now(timezone.utc)
+        notification_type = "professional_profile_change_pending" if profile_change else "professional_registration_pending"
+        title = "Cambio de perfil pendiente" if profile_change else "Nuevo profesional pendiente de aprobación"
+        message = (
+            f"{user.name} ha solicitado cambios en su perfil profesional. Revisa la solicitud en Gestión de usuarios."
+            if profile_change else
+            f"{user.name} se ha registrado como profesional y necesita tu aprobación. Revisa la solicitud en Gestión de usuarios."
+        )
+        for admin_id in self.repository.active_admin_ids():
+            self.notify(admin_id, notification_type, entity="professional", entity_id=user.id,
+                        scheduled_for=now, title=title, message=message)
+
     def notify(
         self,
         recipient_id: UUID,

@@ -87,6 +87,8 @@ class ProfessionalService:
             id=user.id,
             name=user.name,
             specialty=profile.specialty,
+            years_experience=getattr(profile, "years_experience", None),
+            languages=getattr(profile, "languages", None) or [],
             bio=profile.bio,
             practice_address=profile.practice_address,
             practice_phone=profile.practice_phone,

@@ -43,7 +43,7 @@ class AdminAppointmentTests(unittest.TestCase):
         self.db.add(self.profile)
         self.now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
         self.rows = []
-        for delta, status in [(1, AppointmentStatus.PENDING), (2, AppointmentStatus.CONFIRMED), (-1, AppointmentStatus.PENDING), (3, AppointmentStatus.CANCELLED), (4, AppointmentStatus.COMPLETED), (60, AppointmentStatus.PENDING)]:
+        for delta, status in [(1, AppointmentStatus.CONFIRMED), (2, AppointmentStatus.CONFIRMED), (-1, AppointmentStatus.CONFIRMED), (3, AppointmentStatus.CANCELLED), (4, AppointmentStatus.COMPLETED), (60, AppointmentStatus.CONFIRMED)]:
             row = Appointment(patient_id=self.users[UserRole.PATIENT].id, professional_id=self.users[UserRole.PROFESSIONAL].id,
                               start_time=self.now + timedelta(hours=delta), end_time=self.now + timedelta(hours=delta, minutes=30),
                               status=status, type=AppointmentType.VIDEO)
@@ -57,7 +57,7 @@ class AdminAppointmentTests(unittest.TestCase):
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 
-    def test_month_only_future_pending_confirmed_and_summary_fields(self):
+    def test_month_only_future_confirmed_and_summary_fields(self):
         service = AdminAppointmentQueryService(AppointmentRepository(self.db))
         result = service.list(AdminAppointmentsQuery(upcoming_month=True), now=self.now)
         self.assertEqual(result.total, 2)

@@ -10,7 +10,16 @@ const output = path.join(root, 'test-results', 'agenda');
 await mkdir(output, { recursive: true });
 const source = await readFile(path.join(root, 'src/utils/agenda.ts'), 'utf8');
 await writeFile(path.join(output, 'agenda.mjs'), ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText);
-const { addDays, mondayOf, madridDay, validCalendarDay, blocksForDay } = await import(pathToFileURL(path.join(output, 'agenda.mjs')).href);
+const { addDays, mondayOf, madridDay, validCalendarDay, blocksForDay, clipInterval } = await import(pathToFileURL(path.join(output, 'agenda.mjs')).href);
+
+test('vacations span full Madrid days and exclude the midnight end boundary', () => {
+  const block = { start_time: '2030-07-01T22:00:00Z', end_time: '2030-07-05T22:00:00Z' };
+  assert.equal(clipInterval(block, '2030-07-01'), null);
+  assert.deepEqual(clipInterval(block, '2030-07-02'), { start: 0, end: 1440 });
+  assert.deepEqual(clipInterval(block, '2030-07-05'), { start: 0, end: 1440 });
+  assert.equal(clipInterval(block, '2030-07-06'), null);
+  assert.deepEqual(clipInterval({ start_time: '2030-07-02T08:00:00Z', end_time: '2030-07-02T10:30:00Z' }, '2030-07-02'), { start: 600, end: 750 });
+});
 
 test('calendar weeks stay on Monday across DST and year boundaries', () => {
   assert.equal(mondayOf('2026-03-29'), '2026-03-23');

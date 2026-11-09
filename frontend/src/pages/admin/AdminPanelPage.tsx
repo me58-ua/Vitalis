@@ -28,8 +28,8 @@ export function AdminPanelPage() {
     <p className="admin-metrics-help">Indicadores: altas de usuarios y citas del mes en curso frente al mes anterior completo. Si el mes anterior no tiene registros, se muestra «Sin base».</p>
     {state.loading && <p role="status" className="admin-loading">Cargando los datos del servidor…</p>}
     <section className="admin-card admin-upcoming" aria-labelledby="upcoming-title" aria-busy={upcoming.loading}>
-      <Link className="admin-upcoming-heading" to="/adminPanel/gestionCitas?upcoming_month=true"><h2 id="upcoming-title">Citas pendientes de este mes</h2><strong className="admin-metric-value">{upcoming.loading ? '…' : upcoming.data?.total ?? '—'}</strong></Link>
-      <p>Próximas citas pendientes o confirmadas, hasta fin de mes · Europe/Madrid.</p>
+      <Link className="admin-upcoming-heading" to="/adminPanel/gestionCitas?upcoming_month=true"><h2 id="upcoming-title">Citas confirmadas de este mes</h2><strong className="admin-metric-value">{upcoming.loading ? '…' : upcoming.data?.total ?? '—'}</strong></Link>
+      <p>Próximas citas confirmadas, hasta fin de mes · Europe/Madrid.</p>
       {upcoming.loading && <p role="status">Cargando próximas citas…</p>}
       {upcoming.error && <div role="alert" className="error-state"><p>{upcoming.error}</p><button className="text-button" onClick={upcoming.retry}>Reintentar</button></div>}
       {upcoming.data?.total === 0 && <p>No hay próximas citas este mes.</p>}

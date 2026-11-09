@@ -30,6 +30,11 @@
 .record-list p { margin: 0; white-space: pre-wrap; }
 .record-list button { justify-self: start; }
 .prescription-form fieldset { border: 0; padding: 0; min-width: 0; }
+.prescription-form { margin-top: 24px; padding: 20px; border: 1px solid #bfc9c3; border-radius: 12px; background: #f8f9ff; }
+.prescription-form h3 { scroll-margin-top: 32px; }
+.prescription-form h3:focus-visible { outline: 2px solid #006b50; outline-offset: 6px; }
+.prescription-current { padding: 16px; border-radius: 10px; background: #d9f8e9; }
+.prescription-download { min-width: 0; }
 .record-health { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .record-health dd { margin: 0; }
 @media(max-width: 1100px) { .patients-grid { grid-template-columns: 220px minmax(0, 1fr); } .patients-columns { display: none; } .patients-list > li { grid-template-columns: 1fr; } .patients-list > li > button { justify-self: start; } }

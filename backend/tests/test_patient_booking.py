@@ -55,6 +55,10 @@ class FakeUsers:
 
 
 class PatientBookingTests(unittest.TestCase):
+    def test_pending_is_no_longer_an_appointment_status(self):
+        with self.assertRaises(ValueError):
+            AppointmentStatus('pending')
+
     def setUp(self):
         self.professional_id = uuid.uuid4()
         self.patient_id = uuid.uuid4()
@@ -99,6 +103,7 @@ class PatientBookingTests(unittest.TestCase):
             SimpleNamespace(id=self.patient_id, role=UserRole.PATIENT), data
         )
         self.assertEqual(appointment.patient_id, self.patient_id)
+        self.assertEqual(appointment.status, AppointmentStatus.CONFIRMED)
         self.assertEqual(len(self.appointments.created), 1)
 
     def test_patient_cannot_book_arbitrary_time(self):

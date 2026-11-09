@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getProfessionalProfile } from '../api/professional';
+import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getAppointmentPrescription } from '../api/professional';
+import { DateTimeField } from './DateTimeField';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import { Modal } from './Modal';
+import { Link } from 'react-router-dom';
+import { madridDay } from '../utils/agenda';
+import { PrescriptionAttachment, PrescriptionDownloadButton } from './PrescriptionAttachment';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from './AppointmentSummary';
 import type { ProfessionalAppointment, ProfessionalAppointmentCreate, ProfessionalAppointmentQuery, ProfessionalPatientPage } from '../types/api';
 
@@ -69,7 +73,7 @@ export function ProfessionalCreateDialog({ onClose, onCreated }: { onClose: () =
   }
   return <Modal title="Nueva cita" onClose={onClose} busy={busy}><form className="professional-create-form" noValidate aria-busy={busy} onSubmit={event => { void submit(event); }}><fieldset className="form-grid" disabled={busy}>
     <PatientSelect disabled={busy} onChange={setPatient} />
-    <label>Inicio *<input name="start_time" type="datetime-local" required /></label><label>Fin *<input name="end_time" type="datetime-local" required /></label>
+    <label>Inicio *<DateTimeField name="start_time" type="datetime-local" required /></label><label>Fin *<DateTimeField name="end_time" type="datetime-local" required /></label>
     <p className="field-help full">Introduce las horas en la zona de tu navegador ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Se enviarán en UTC y se mostrarán en Europe/Madrid.</p>
     <label className="full">Modalidad *<select name="type" defaultValue="in_person"><option value="in_person">Presencial</option><option value="video">Videoconsulta</option></select></label>
     <label className="full">Motivo de la cita (opcional)<textarea name="appointment_reason" rows={3} /></label>
@@ -82,6 +86,14 @@ export function ProfessionalAppointmentDetails({ item, onBusy, onChanged }: { it
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [prescriptionOpen, setPrescriptionOpen] = useState(false);
+  const [prescriptionFocus, setPrescriptionFocus] = useState(0);
+  const professionalId = user?.id ?? '';
+  const loadPrescription = useCallback((signal: AbortSignal) => professionalId
+    ? getAppointmentPrescription(professionalId, item.patient_id, item.id, signal)
+    : Promise.resolve(null), [professionalId, item.patient_id, item.id]);
+  const prescription = useAdminQuery(loadPrescription, professionalError);
+  const prescriptionButton = useRef<HTMLButtonElement>(null);
   const locked = useRef(false);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
@@ -95,7 +107,18 @@ export function ProfessionalAppointmentDetails({ item, onBusy, onChanged }: { it
     finally { locked.current = false; if (!abort.signal.aborted) { setBusy(false); onBusy(false); } }
   }
   return <div className="professional-appointment-details"><h3>{item.patient_name}</h3><p>@{item.patient_username}</p><p><time dateTime={item.start_time}>{appointmentDate(item.start_time)}</time> — <time dateTime={item.end_time}>{appointmentDate(item.end_time)}</time></p><p>{appointmentTypes[item.type]} · <strong>{appointmentStatuses[item.status]}</strong></p><p><strong>Motivo de la cita:</strong> {item.appointment_reason || 'Motivo no indicado'}</p>{item.status === 'cancelled' && <p><strong>Motivo de cancelación:</strong> {item.cancellation_reason || 'No indicado'}</p>}
-    {(item.status === 'pending' || item.status === 'confirmed') && (!confirming ? <button className="button secondary" onClick={() => setConfirming(true)}>Cancelar cita</button> : <form aria-busy={busy} onSubmit={event => { void cancel(event); }}><fieldset className="form-grid" disabled={busy}><p className="full">Confirma que quieres cancelar esta cita. El motivo original de la cita se conservará.</p><label className="full">Motivo de cancelación (opcional)<textarea name="cancellation_reason" rows={3} /></label><button className="button primary" type="submit">{busy ? 'Cancelando…' : 'Confirmar cancelación'}</button><button className="button secondary" type="button" onClick={() => setConfirming(false)}>Volver</button></fieldset>{error && <p className="error-state" role="alert">{error}</p>}</form>)}
+    {!prescriptionOpen && <div className="appointment-prescription-summary">
+      {prescription.loading && <p role="status">Comprobando si la cita tiene receta…</p>}
+      {prescription.error && <div className="error-state" role="alert"><p>{prescription.error}</p><button type="button" className="button secondary" onClick={prescription.retry}>Reintentar</button></div>}
+      {prescription.data && <div className="prescription-current"><p>Esta cita ya tiene una receta vinculada.</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={item.id} /></div>}
+    </div>}
+    <div className="professional-appointment-actions">
+    {(item.status === 'completed' || item.status === 'confirmed') && <button ref={prescriptionButton} type="button" className="button secondary prescription-link-action" disabled={item.status !== 'completed' || busy} aria-expanded={prescriptionOpen} onClick={() => { setPrescriptionOpen(true); setPrescriptionFocus(value => value + 1); }}>Vincular receta</button>}
+    {item.status === 'confirmed' && item.type === 'video' && <Link className="button primary" to={`/professionalDashboard/videoconsulta/${encodeURIComponent(item.id)}?fecha=${madridDay(item.start_time)}`}>Atender videoconsulta</Link>}
+    {(item.status === 'confirmed') && (!confirming ? <button className="button professional-cancel" onClick={() => setConfirming(true)}>Cancelar cita</button> : <form aria-busy={busy} onSubmit={event => { void cancel(event); }}><fieldset className="form-grid" disabled={busy}><p className="full">Confirma que quieres cancelar esta cita. El motivo original de la cita se conservará.</p><label className="full">Motivo de cancelación (opcional)<textarea name="cancellation_reason" rows={3} /></label><button className="button professional-cancel" type="submit">{busy ? 'Cancelando…' : 'Confirmar cancelación'}</button><button className="button secondary" type="button" onClick={() => setConfirming(false)}>Volver</button></fieldset>{error && <p className="error-state" role="alert">{error}</p>}</form>)}
+    </div>
+    {item.status === 'confirmed' && <p className="field-help">Podrás vincular una receta cuando la cita esté finalizada.</p>}
+    {prescriptionOpen && user && item.status === 'completed' && <PrescriptionAttachment focusRequest={prescriptionFocus} professionalId={user.id} appointment={item} onBusy={onBusy} onSaved={prescription.retry} onCancel={() => { setPrescriptionOpen(false); prescriptionButton.current?.focus(); }} />}
   </div>;
 }
 
@@ -111,9 +134,9 @@ export function ProfessionalAppointmentsDialog({ onClose, onChanged }: { onClose
       event.preventDefault(); const values = new FormData(event.currentTarget);
       const from = String(values.get('from_date') ?? ''), to = String(values.get('to_date') ?? ''), status = values.get('status');
       if (from && to && from > to) { setValidation('La fecha inicial debe ser anterior o igual a la final.'); return; }
-      const selectedStatus = status === 'pending' || status === 'confirmed' || status === 'cancelled' || status === 'completed' || status === 'no_show' ? status : undefined;
+      const selectedStatus = status === 'confirmed' || status === 'cancelled' || status === 'completed' || status === 'no_show' ? status : undefined;
       setValidation(''); setQuery({ page: 1, page_size: 20, from_date: from || undefined, to_date: to || undefined, status: selectedStatus, upcoming_only: values.has('upcoming_only') });
-    }}><label>Desde<input name="from_date" type="date" /></label><label>Hasta<input name="to_date" type="date" /></label><label className="full">Estado<select name="status"><option value="">Todos</option>{Object.entries(appointmentStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="checkbox full"><input type="checkbox" name="upcoming_only" defaultChecked />Solo próximas citas pendientes o confirmadas</label><p className="field-help full">Fechas en Europe/Madrid. Desmarca «Solo próximas citas» para consultar citas canceladas o finalizadas.</p><button type="submit" className="button secondary full">Aplicar</button></form>
+    }}><label>Desde<DateTimeField name="from_date" type="date" /></label><label>Hasta<DateTimeField name="to_date" type="date" /></label><label className="full">Estado<select name="status"><option value="">Todos</option>{Object.entries(appointmentStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="checkbox full"><input type="checkbox" name="upcoming_only" defaultChecked />Solo próximas citas confirmadas</label><p className="field-help full">Fechas en Europe/Madrid. Desmarca «Solo próximas citas» para consultar citas canceladas o finalizadas.</p><button type="submit" className="button secondary full">Aplicar</button></form>
     {validation && <p className="error-state" role="alert">{validation}</p>}<QueryFeedback {...state} />{state.data && <><ul className="professional-agenda-list">{state.data.appointments.map(item => <li key={item.id}><strong>{item.patient_name}</strong><p>{appointmentDate(item.start_time)}</p><p>{appointmentTypes[item.type]} · {appointmentStatuses[item.status]}</p><p>Motivo: {item.appointment_reason || 'Motivo no indicado'}</p><button className="text-button" onClick={() => setSelected(item)}>Ver detalles</button></li>)}</ul>{state.data.appointments.length === 0 && <p>No hay citas con estos filtros.</p>}<Pages page={state.data.page} size={state.data.page_size} total={state.data.total} onPage={page => setQuery({ ...query, page })} /></>}
   </>}</Modal>;
 }
@@ -124,10 +147,4 @@ export function ProfessionalHistoryDialog({ onClose }: { onClose: () => void }) 
   const load = useCallback((signal: AbortSignal) => user ? getProfessionalHistory(user.id, page, signal) : Promise.reject(new Error('No hay sesión')), [user, page]);
   const state = useAdminQuery(load, professionalError);
   return <Modal title="Historial de citas" onClose={onClose}><QueryFeedback {...state} />{state.data && <><ul className="professional-agenda-list">{state.data.appointments.map(item => <li key={item.id}><strong>{item.patient_name}</strong><p>{appointmentDate(item.start_time)}</p><p>{appointmentStatuses[item.status]} · {appointmentTypes[item.type]}</p><p>Motivo: {item.appointment_reason || 'Motivo no indicado'}</p>{item.status === 'cancelled' && <p>Motivo de cancelación: {item.cancellation_reason || 'No indicado'}</p>}</li>)}</ul>{state.data.appointments.length === 0 && <p>No hay citas anteriores registradas.</p>}<Pages page={state.data.page} size={state.data.page_size} total={state.data.total} onPage={setPage} /></>}</Modal>;
-}
-
-export function ProfessionalProfileDialog({ onClose }: { onClose: () => void }) {
-  const state = useAdminQuery(getProfessionalProfile, professionalError);
-  const profile = state.data;
-  return <Modal title="Perfil profesional" onClose={onClose}><QueryFeedback {...state} />{profile && <dl className="professional-profile"><dt>Especialidad</dt><dd>{profile.specialty}</dd><dt>Número de colegiación</dt><dd>{profile.license_number}</dd><dt>Presentación</dt><dd>{profile.bio || 'No indicada'}</dd><dt>Dirección de consulta</dt><dd>{profile.practice_address || 'No indicada'}</dd><dt>Teléfono de consulta</dt><dd>{profile.practice_phone || 'No indicado'}</dd><dt>Duración de consulta</dt><dd>{profile.default_consultation_duration_minutes} minutos</dd><dt>Acepta nuevos pacientes</dt><dd>{profile.is_accepting_new_patients ? 'Sí' : 'No'}</dd><dt>Ofrece teleconsultas</dt><dd>{profile.telehealth_enabled ? 'Sí' : 'No'}</dd><dt>Aprobación</dt><dd>{profile.approval_status === 'approved' ? 'Aprobado' : profile.approval_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</dd></dl>}</Modal>;
 }

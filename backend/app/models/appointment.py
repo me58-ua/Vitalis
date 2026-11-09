@@ -17,7 +17,6 @@ class AppointmentType(str, enum.Enum):
 
 
 class AppointmentStatus(str, enum.Enum):
-    PENDING = "pending"
     CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
     COMPLETED = "completed"
@@ -56,8 +55,8 @@ class Appointment(Base):
             values_callable=lambda statuses: [status.value for status in statuses],
         ),
         nullable=False,
-        default=AppointmentStatus.PENDING,
-        server_default="pending",
+        default=AppointmentStatus.CONFIRMED,
+        server_default="confirmed",
     )
     type: Mapped[AppointmentType] = mapped_column(
         Enum(

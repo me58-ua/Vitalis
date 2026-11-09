@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type InputHTMLAttributes } from 'react';
 import { createAdminUser, updateAdminUser } from '../api/admin';
+import { DateTimeField } from './DateTimeField';
 import { adminUserError, userFieldLabels, type UserFormErrors } from '../api/adminUserErrors';
 import type { AdminPatientProfile, AdminProfessionalProfile, AdminUserDetail, CreateAdminUser, User } from '../types/api';
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> { name: string; label: string; error?: string }
 function Field({ name, label, error, required, ...props }: FieldProps) {
-  return <label>{label}{required && ' *'}<input {...props} name={name} required={required} aria-invalid={Boolean(error)} aria-describedby={error ? `error-${name}` : undefined} />{error && <span className="user-field-error" id={`error-${name}`}>{error}</span>}</label>;
+  const shared = { ...props, name, required, 'aria-invalid': Boolean(error), 'aria-describedby': error ? `error-${name}` : undefined };
+  return <label>{label}{required && ' *'}{props.type === 'date' ? <DateTimeField {...shared} type="date" defaultValue={String(props.defaultValue ?? '')} value={props.value === undefined ? undefined : String(props.value)} /> : <input {...shared} />}{error && <span className="user-field-error" id={`error-${name}`}>{error}</span>}</label>;
 }
 function validate(form: HTMLFormElement): UserFormErrors {
   const fields: Record<string, string> = {};

@@ -46,8 +46,9 @@ class InvalidRefreshTokenError(Exception):
 
 
 class AuthService:
-    def __init__(self, users: UserRepository):
+    def __init__(self, users: UserRepository, notifications=None):
         self.users = users
+        self.notifications = notifications
 
     def register_user(self, data: UserRegisterRequest) -> User:
         if self.users.get_by_email(data.email) is not None:
@@ -89,11 +90,14 @@ class AuthService:
                 license_number=data.license_number,
             )
         try:
-            return self.users.create(user)
+            user = self.users.create(user)
         except IntegrityError as error:
             if "username" in str(error.orig).lower():
                 raise UsernameAlreadyRegisteredError from error
             raise EmailAlreadyRegisteredError from error
+        if user.role == UserRole.PROFESSIONAL and self.notifications is not None:
+            self.notifications.notify_professional_review(user)
+        return user
 
     def register_patient(self, data: UserRegisterRequest) -> User:
         return self.register_user(data)

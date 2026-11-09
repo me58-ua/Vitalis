@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from app.api.deps import get_current_user, get_user_repository, oauth2_scheme
+from app.api.deps import get_current_user, get_user_repository, get_notification_service, oauth2_scheme
+from app.services.notification_service import NotificationService
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import (
@@ -38,9 +39,10 @@ def register(
 	data: UserRegisterRequest,
 	users: Annotated[UserRepository, Depends(get_user_repository)],
 	background_tasks: BackgroundTasks = None,
+	notifications: Annotated[NotificationService, Depends(get_notification_service)] = None,
 ) -> User:
 	try:
-		user = AuthService(users).register_user(data)
+		user = AuthService(users, notifications).register_user(data)
 		if background_tasks is not None:
 			background_tasks.add_task(send_welcome_email, user.email, user.name)
 		return user

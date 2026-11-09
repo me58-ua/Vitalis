@@ -1,7 +1,9 @@
 from datetime import date, datetime
 from uuid import UUID
+from typing import Annotated
+from pydantic import StringConstraints, field_validator
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_serializer
 
 from app.models import ProfessionalApprovalStatus
 
@@ -46,7 +48,23 @@ class PatientProfileResponse(PatientProfileBase):
     user_id: UUID
 
 
-class ProfessionalProfileBase(BaseModel):
+Language = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
+
+class ProfessionalLanguages(BaseModel):
+    @field_validator("languages", check_fields=False)
+    @classmethod
+    def unique_languages(cls, values):
+        if values is None:
+            raise ValueError("LANGUAGES_REQUIRED")
+        if len({value.casefold() for value in values}) != len(values):
+            raise ValueError("LANGUAGES_DUPLICATE")
+        return values
+
+
+class ProfessionalProfileBase(ProfessionalLanguages):
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    languages: list[Language] = Field(default_factory=list, max_length=20)
     specialty: str = Field(min_length=1, max_length=150)
     bio: str | None = Field(default=None, max_length=500)
     practice_address: str | None = Field(default=None, max_length=255)
@@ -61,7 +79,10 @@ class ProfessionalProfileCreate(ProfessionalProfileBase):
     pass
 
 
-class ProfessionalProfileUpdate(BaseModel):
+class ProfessionalProfileUpdate(ProfessionalLanguages):
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    languages: list[Language] | None = Field(default=None, max_length=20)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     specialty: str | None = Field(default=None, min_length=1, max_length=150)
     bio: str | None = Field(default=None, max_length=500)
     practice_address: str | None = Field(default=None, max_length=255)
@@ -70,6 +91,13 @@ class ProfessionalProfileUpdate(BaseModel):
     default_consultation_duration_minutes: int | None = Field(default=None, gt=0)
     telehealth_enabled: bool | None = None
     license_number: str | None = Field(default=None, min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def reject_required_nulls(self):
+        for name in self.model_fields_set & {"specialty", "license_number", "is_accepting_new_patients", "default_consultation_duration_minutes", "telehealth_enabled"}:
+            if getattr(self, name) is None:
+                raise ValueError("REQUIRED_FIELD_NULL")
+        return self
 
 
 class ProfessionalProfileResponse(ProfessionalProfileBase):
@@ -81,6 +109,19 @@ class ProfessionalProfileResponse(ProfessionalProfileBase):
     rejection_reason: str | None
     reviewed_at: datetime | None
     reviewed_by: UUID | None
+    pending_changes: ProfessionalProfileUpdate | None = None
+    change_request_id: UUID | None = None
+    change_status: str | None = None
+    change_requested_at: datetime | None = None
+    change_reviewed_at: datetime | None = None
+    change_reviewed_by: UUID | None = None
+    change_rejection_reason: str | None = None
+
+    @field_serializer("pending_changes")
+    def serialize_pending_changes(self, value):
+        # Preserve PATCH semantics: absent fields must not become requested NULLs
+        # when the nested update schema is serialized for either review screen.
+        return value.model_dump(exclude_unset=True) if value is not None else None
 
 
 class BasicUserUpdate(BaseModel):
@@ -114,7 +155,14 @@ class PatientListResponse(BaseModel):
     page_size: int
 
 
+class ProfessionalNotificationSettings(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    email_notifications_enabled: bool
+
+
 class ProfessionalPublicResponse(BaseModel):
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    languages: list[Language] = Field(default_factory=list, max_length=20)
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID

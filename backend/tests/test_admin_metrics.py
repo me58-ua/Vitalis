@@ -57,9 +57,9 @@ class AdminMetricsTests(unittest.TestCase):
         professional = self.user(UserRole.PROFESSIONAL, "2026-10-05T12:00:00+00:00")
         self.user(UserRole.ADMIN, "2026-01-01T12:00:00+00:00")
         self.db.flush()
-        for when, status in [("2026-09-01T12:00:00+00:00", AppointmentStatus.PENDING),
+        for when, status in [("2026-09-01T12:00:00+00:00", AppointmentStatus.CONFIRMED),
                              ("2026-09-30T21:59:00+00:00", AppointmentStatus.CONFIRMED),
-                             ("2026-09-30T22:00:00+00:00", AppointmentStatus.PENDING),
+                             ("2026-09-30T22:00:00+00:00", AppointmentStatus.CONFIRMED),
                              ("2026-10-10T12:00:00+00:00", AppointmentStatus.COMPLETED),
                              ("2026-10-20T12:00:00+00:00", AppointmentStatus.CANCELLED),
                              ("2026-10-31T23:00:00+00:00", AppointmentStatus.CONFIRMED)]:

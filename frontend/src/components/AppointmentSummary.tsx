@@ -1,8 +1,8 @@
 import type { AppointmentSummary } from '../types/api';
+import { dateTimeFormat as formatter } from '../utils/dateTime';
 
-export const appointmentStatuses = { pending: 'Pendiente', confirmed: 'Confirmada', cancelled: 'Anulada', completed: 'Finalizada', no_show: 'No presentado' };
+export const appointmentStatuses = { confirmed: 'Confirmada', cancelled: 'Anulada', completed: 'Finalizada', no_show: 'No presentado' };
 export const appointmentTypes = { video: 'Videoconsulta', in_person: 'Presencial' };
-const formatter = new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
 export function appointmentDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : formatter.format(date);

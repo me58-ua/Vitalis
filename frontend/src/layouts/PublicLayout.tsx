@@ -15,7 +15,7 @@ export function PublicLayout() {
       <Link to="/" className="brand" aria-label="vitaLis, inicio"><img src={logo} alt={isLogin ? '' : 'vitaLis'} />{isLogin && <span>vitaLis</span>}</Link>
       <nav aria-label="Navegación principal" className="main-nav"><Link to="/#servicios">Servicios</Link><Link to="/#privacidad">Privacidad</Link></nav>
       <div className="header-tools">
-        {user && user.role !== 'admin' && <DocumentSearch key={user.id} user={user} />}
+        {user?.role === 'patient' && <DocumentSearch key={user.id} user={user} />}
         {user ? <>
           <Notifications key={user.id} userId={user.id} />
           <details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><img src={accountIcon} alt="" /></summary>

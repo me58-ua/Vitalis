@@ -6,10 +6,12 @@ import { errorMessage } from '../../api/errors';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { AdminUserSelect, type UserOption } from '../../components/AdminUserSelect';
 import { Modal } from '../../components/Modal';
+import { DateTimeField } from '../../components/DateTimeField';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../components/AppointmentSummary';
 import type { AppointmentQuery, AppointmentSummary, CreateAppointment } from '../../types/api';
 
 function appointmentError(error: unknown) {
+  if (axios.isAxiosError(error) && error.response?.data?.detail === 'OUTSIDE_WORKING_HOURS') return 'La cita queda fuera del horario configurado por el profesional. Elige otro intervalo.';
   return axios.isAxiosError(error) && error.response?.status === 409
     ? 'La cita entra en conflicto con otra reserva. Revisa el horario e inténtalo de nuevo.' : errorMessage(error);
 }
@@ -44,7 +46,7 @@ function CreateAppointmentDialog({ onClose, onCreated }: { onClose: () => void; 
     <fieldset className="form-grid" disabled={busy}>
       <AdminUserSelect role="patient" value={patient} onChange={setPatient} required disabled={busy} />
       <AdminUserSelect role="professional" value={professional} onChange={setProfessional} required disabled={busy} />
-      <label>Inicio *<input name="start_time" type="datetime-local" required /></label><label>Fin *<input name="end_time" type="datetime-local" required /></label>
+      <label>Inicio *<DateTimeField name="start_time" type="datetime-local" required /></label><label>Fin *<DateTimeField name="end_time" type="datetime-local" required /></label>
       <p className="field-help full">Introduce el horario en la zona de tu navegador ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Se enviará en UTC y se mostrará en Europe/Madrid.</p>
       <label className="full">Modalidad *<select name="type" defaultValue="video"><option value="video">Videoconsulta</option><option value="in_person">Presencial</option></select></label>
       <button type="submit" className="button primary full">{busy ? 'Creando…' : 'Crear cita'}</button>
@@ -108,7 +110,7 @@ export function AdminAppointmentsPage() {
       <form className="admin-appointment-filters" onSubmit={apply} onReset={() => { setPatient(null); setProfessional(null); setUpcomingOnly(false); setFromDate(''); setToDate(''); setValidation(''); setParams({}, { replace: true }); setQuery({ page: 1, page_size: 20 }); }}>
         <AdminUserSelect role="patient" value={patient} onChange={setPatient} />
         <AdminUserSelect role="professional" value={professional} onChange={setProfessional} />
-        <label>Desde<input name="from_date" type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} /></label><label>Hasta<input name="to_date" type="date" value={toDate} onChange={event => setToDate(event.target.value)} /></label>
+        <label>Desde<DateTimeField name="from_date" type="date" value={fromDate} onValueChange={setFromDate} /></label><label>Hasta<DateTimeField name="to_date" value={toDate} onValueChange={setToDate} type="date" /></label>
         <label className="checkbox full"><input name="upcoming_month" type="checkbox" checked={upcomingOnly} onChange={event => setUpcomingOnly(event.target.checked)} />Solo próximas citas de este mes</label>
         <p className="field-help full">El intervalo incluye ambos días según Europe/Madrid. El resumen mensual excluye las citas iniciadas, anuladas o finalizadas.</p>
         <div className="admin-filter-actions full"><button className="button primary" type="submit" disabled={state.loading}>Aplicar filtros</button><button className="button secondary" type="reset" disabled={state.loading}>Limpiar filtros</button></div>
@@ -120,7 +122,7 @@ export function AdminAppointmentsPage() {
       {state.error && <div role="alert" className="error-state"><p>{state.error}</p><button className="text-button" onClick={state.retry}>Reintentar</button></div>}
       {data && <><p role="status">{data.total} citas encontradas.</p>{data.appointments.length === 0 ? <p>No se han encontrado citas con estos filtros.</p> : <ul className="admin-appointments-list">{data.appointments.map(item => <li key={item.id}>
         <div><h3>{item.patient_name}</h3><p>Profesional: {item.professional_name}</p><p><time dateTime={item.start_time}>{appointmentDate(item.start_time)}</time> — <time dateTime={item.end_time}>{appointmentDate(item.end_time)}</time></p><p>{appointmentTypes[item.type]} · <strong>{appointmentStatuses[item.status]}</strong></p>{item.status === 'cancelled' && <p>Motivo de anulación: {item.cancellation_reason || 'No indicado'}</p>}</div>
-        {(item.status === 'pending' || item.status === 'confirmed') && <button className="button secondary" onClick={() => { setSuccess(''); setDialog(item); }}>Anular cita</button>}
+        {(item.status === 'confirmed') && <button className="button secondary" onClick={() => { setSuccess(''); setDialog(item); }}>Anular cita</button>}
       </li>)}</ul>}
       <nav className="pagination" aria-label="Paginación de citas"><button disabled={data.page <= 1} onClick={() => setQuery({ ...query, page: data.page - 1 })}>Anterior</button><span>Página {data.page} de {Math.max(1, Math.ceil(data.total / data.page_size))}</span><button disabled={data.page * data.page_size >= data.total} onClick={() => setQuery({ ...query, page: data.page + 1 })}>Siguiente</button></nav></>}
     </section>

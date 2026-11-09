@@ -3,12 +3,12 @@ import { getAudits } from '../../api/admin';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { auditAccountId, useAuditAccountNames } from '../../hooks/useAuditAccountNames';
 import type { AuditQuery } from '../../types/api';
+import { DateTimeField } from '../../components/DateTimeField';
+import { dateFormat, timeFormat } from '../../utils/dateTime';
 
 const uuidPattern = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 const roles = { admin: 'Administrador', patient: 'Paciente', professional: 'Profesional' };
 const actions = { lectura: 'Lectura', creacion: 'Creación', modificacion: 'Modificación', eliminacion: 'Eliminación' };
-const dateFormat = new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeZone: 'Europe/Madrid' });
-const timeFormat = new Intl.DateTimeFormat('es-ES', { timeStyle: 'medium', timeZone: 'Europe/Madrid' });
 const entities: Record<string, string> = {
   user: 'Cuenta de usuario', user_role: 'Rol o acceso de la cuenta', patient_profile: 'Perfil de paciente',
   professional_profile: 'Perfil profesional', appointment: 'Cita', clinical_note: 'Nota clínica',
@@ -63,8 +63,8 @@ export function AdminAuditPage() {
         <label>Tipo de recurso afectado<input name="entidad" maxLength={80} placeholder="Ej.: user, user_role, appointment" /></label>
         <label>ID de quien realizó la acción<input name="actor_id" pattern={uuidPattern} title="Introduce un UUID válido" /></label>
         <label>ID de la cuenta o recurso afectado<input name="entidad_id" pattern={uuidPattern} title="Introduce un UUID válido" /></label>
-        <label>Desde<input name="from_date" type="datetime-local" step={1} /></label>
-        <label>Hasta<input name="to_date" type="datetime-local" step={1} /></label>
+        <label>Desde<DateTimeField name="from_date" type="datetime-local" step={1} /></label>
+        <label>Hasta<DateTimeField name="to_date" type="datetime-local" step={1} /></label>
         <p className="field-help full">Las fechas del filtro usan la zona horaria de tu navegador ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Los registros se muestran en Europe/Madrid. Entidad e identificadores se comparan por coincidencia exacta.</p>
         <div className="admin-filter-actions full"><button className="button primary" type="submit" disabled={state.loading}>Aplicar filtros</button><button className="button secondary" type="reset" disabled={state.loading}>Limpiar filtros</button></div>
       </form>

@@ -1,0 +1,63 @@
+.consultation-main { padding: 24px; min-width: 0; }
+.consultation-patient { max-width: 1500px; margin: auto; }
+.consultation-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.consultation-heading h1 { font-size: clamp(30px, 3vw, 42px); margin: 4px 0 10px; }
+.consultation-heading p { margin: 0; color: var(--muted); line-height: 1.6; }
+.consultation-info { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 20px; }
+.consultation-info > p { margin: 0; overflow-wrap: anywhere; }
+.consultation-status { border-radius: 20px; padding: 7px 12px; background: #e6eeff; font-size: 13px; }
+.consultation-patient-link { margin-left: auto; max-width: 100%; }
+.consultation-patient-link summary { cursor: pointer; color: #003527; font-size: 13px; }
+.consultation-patient-link label { display: grid; gap: 8px; font-size: 13px; }
+.consultation-patient-link input { width: 100%; padding: 10px; border: 1px solid #bfc9c3; border-radius: 8px; margin-bottom: 12px; }
+.consultation-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 24px; align-items: start; }
+.consultation-video-column { min-width: 0; }
+.consultation-prejoin { min-height: 580px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 36px; border-radius: 24px; background: #27313f; color: white; box-shadow: 0 10px 24px #00000018; }
+.consultation-prejoin h2 { font-size: 26px; margin: 0; }
+.consultation-prejoin p { max-width: 440px; line-height: 1.7; margin: 0; color: #dee6e1; }
+.consultation-prejoin .button.primary { background: #6cf8bb; color: #003527; }
+.consultation-prejoin .field-help { font-size: 12px; }
+.consultation-prejoin-mark { font-size: 60px; line-height: 1; color: #6cf8bb; }
+.consultation-chat { display: flex; flex-direction: column; min-width: 0; height: 700px; max-height: 85dvh; border-radius: 24px; overflow: hidden; background: #f8f9ff; box-shadow: 0 2px 12px #00000006; }
+.consultation-chat > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 18px 16px; gap: 8px; background: #eff4ff; }
+.consultation-chat h2 { font-size: 17px; margin: 0; font-weight: 600; }
+.consultation-chat header span { color: #404944; font-size: 11px; }
+.consultation-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 12px; overscroll-behavior: contain; }
+.consultation-message { max-width: 90%; margin-bottom: 20px; font-size: 14px; }
+.consultation-message > p { padding: 14px; margin: 0; border-radius: 0 16px 16px 16px; background: #e6eeff; color: #121c2a; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.consultation-message.is-own { margin-left: auto; }
+.consultation-message.is-own > p { background: #003527; color: white; border-radius: 16px 0 16px 16px; }
+.consultation-message footer { padding-top: 6px; font-size: 10px; color: #404944; overflow-wrap: anywhere; }
+.consultation-message.is-own footer { text-align: right; }
+.consultation-chat-form { display: flex; gap: 8px; align-items: center; padding: 14px 12px; background: white; }
+.consultation-chat-form textarea { flex: 1; min-width: 0; border: 1px solid #d9e3f6; border-radius: 18px; background: #eff4ff; padding: 12px; resize: vertical; font: inherit; font-size: 13px; }
+.consultation-chat-form .button { padding: 10px 12px; font-size: 12px; }
+.consultation-chat-note, .consultation-chat-empty { padding: 12px; line-height: 1.6; font-size: 13px; color: #404944; margin: 0; }
+.consultation-chat-error { padding: 12px; font-size: 12px; background: #ffedea; color: #93000a; }
+.consultation-chat-error p { margin: 0 0 8px; line-height: 1.5; }
+.consultation-chat-error button { color: inherit; background: white; border: 1px solid #e6b9b1; padding: 6px 10px; border-radius: 8px; }
+.jitsi-call { position: relative; display: flex; flex-direction: column; height: 700px; min-height: 500px; overflow: hidden; background: #27313f; border-radius: 24px; box-shadow: 0 10px 24px #00000018; }
+.jitsi-status { padding: 12px 20px; background: #27313f; color: #f8f9ff; font-size: 13px; font-variant-numeric: tabular-nums; }
+.jitsi-mount { flex: 1; min-height: 0; }
+.jitsi-mount iframe { border: 0; display: block; width: 100%; height: 100%; }
+.jitsi-controls { display: flex; justify-content: center; align-items: start; gap: 18px; padding: 14px 10px; background: #27313f; }
+.jitsi-controls button { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #eee; font: inherit; font-size: 11px; background: transparent; border: 0; cursor: pointer; min-width: 60px; max-width: 100px; }
+.jitsi-controls button > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: #d9e3f633; }
+.jitsi-controls .jitsi-hangup > span { background: #ba1a1a; }
+.jitsi-controls button:disabled { opacity: .45; cursor: default; }
+.jitsi-controls button[aria-pressed="true"] > span { box-shadow: 0 0 0 2px #6cf8bb; }
+.jitsi-controls img { display: block; }
+.jitsi-error { padding: 18px; background: #ffedea; color: #93000a; line-height: 1.6; }
+.consultation-completion, .consultation-confirmation { padding: 20px; background: #eff4ff; border: 1px solid #c4d9cc; border-radius: 14px; margin-top: 18px; line-height: 1.6; }
+.consultation-confirmation h2 { font-size: 22px; margin: 0; }
+.consultation-confirmation > div { display: flex; flex-wrap: wrap; gap: 12px; }
+.consultation-list { padding: 0; list-style: none; }
+.consultation-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 24px; border-radius: 14px; background: #eff4ff; margin: 16px 0; }
+.consultation-list h2 { margin: 0; font-size: 22px; }
+.consultation-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
+.consultation-list p { color: #404944; line-height: 1.6; }
+.patient-video-entry { margin: 28px 0; max-width: 680px; padding: 24px; border-radius: 14px; background: #eff4ff; }
+.patient-video-entry label { display: grid; gap: 8px; margin-bottom: 16px; }
+.patient-video-entry input { width: 100%; min-width: 0; border: 1px solid #bfc9c3; padding: 12px; border-radius: 8px; }
+@media(max-width: 1100px) { .consultation-grid { grid-template-columns: minmax(0, 1fr); } .consultation-chat { height: 540px; max-height: none; } .consultation-prejoin { min-height: 420px; } }
+@media(max-width: 600px) { .consultation-main { padding: 20px 14px; } .consultation-prejoin { padding: 28px 20px; min-height: 380px; } .jitsi-call { height: 65dvh; min-height: 450px; } .jitsi-controls { gap: 6px; padding: 12px 5px; } .jitsi-controls button { min-width: 54px; font-size: 10px; } .jitsi-controls button > span { width: 44px; height: 44px; } .consultation-patient-link { margin-left: 0; } }

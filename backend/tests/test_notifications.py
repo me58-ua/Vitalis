@@ -69,6 +69,23 @@ class FakeNotificationRepository:
 
 
 class NotificationTests(unittest.TestCase):
+    def test_professional_review_notifies_all_admins_in_app(self):
+        admins = [uuid.uuid4(), uuid.uuid4()]
+        self.repository.active_admin_ids = lambda: admins
+        professional = SimpleNamespace(id=uuid.uuid4(), name="Profesional de prueba")
+        for profile_change in (False, True):
+            self.service.notify_professional_review(professional, profile_change=profile_change)
+        self.assertEqual(len(self.repository.items), 4)
+        self.assertEqual({item.recipient_id for item in self.repository.items}, set(admins))
+        self.assertEqual({item.type for item in self.repository.items}, {
+            "professional_registration_pending", "professional_profile_change_pending",
+        })
+        for item in self.repository.items:
+            self.assertEqual(item.entity_id, professional.id)
+            self.assertIn(professional.name, item.message)
+            self.assertFalse(item.email_required)
+            self.assertIsNone(item.read_at)
+
     def setUp(self):
         self.recipient_id = uuid.uuid4()
         self.appointment_id = uuid.uuid4()
@@ -138,6 +155,22 @@ class NotificationTests(unittest.TestCase):
         dispatcher = NotificationDispatcher(self.repository, users, appointments)
         dispatcher.run_once(datetime(2026, 10, 5, 12, tzinfo=timezone.utc))
         self.assertEqual(len(self.repository.items), 2)
+
+    def test_professional_email_opt_out_keeps_in_app_notice_and_skips_queued_mail(self):
+        now = datetime(2026, 11, 9, tzinfo=timezone.utc)
+        notification = self.service.notify(self.recipient_id, 'new_message', email_required=True, scheduled_for=now)
+        profile = SimpleNamespace(email_notifications_enabled=False)
+        users = SimpleNamespace(get_by_id=lambda _: SimpleNamespace(email='doctor@example.invalid', professional_profile=profile))
+        dispatcher = NotificationDispatcher(self.repository, users)
+        with patch('app.services.notification_dispatcher.send_product_notification_email') as send:
+            self.assertEqual(dispatcher.run_once(now), 1)
+            send.assert_not_called()
+            profile.email_notifications_enabled = True
+            self.assertEqual(dispatcher.run_once(now), 0)
+        self.assertEqual(len(self.repository.items), 1)
+        self.assertEqual(notification.email_status, EmailStatus.NOT_APPLICABLE)
+        self.assertEqual(notification.email_attempts, 0)
+        self.assertIsNone(notification.read_at)
 
     def test_risk_notifications_are_private_and_deduplicated_for_thirty_days(self):
         first = self.service.notify_risk(

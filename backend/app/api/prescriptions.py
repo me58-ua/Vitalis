@@ -38,6 +38,7 @@ from app.services.prescription_service import (
     PrescriptionValidationError,
 )
 from app.services.professional_follow_up_service import ProfessionalFollowUpService
+from app.services.appointment_service import AppointmentAccessError
 
 
 router = APIRouter(tags=["prescriptions"])
@@ -151,6 +152,22 @@ def download_prescription(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except PrescriptionNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.get("/professionals/{professional_id}/appointments/{appointment_id}/prescription")
+def download_professional_prescription(
+    professional_id: UUID, appointment_id: UUID, current_user: CurrentProfessional,
+    appointments: Appointments, profiles: Profiles, prescriptions: Prescriptions, storage: Storage,
+):
+    try:
+        prescription, path = _service(appointments, profiles, prescriptions, storage).download_for_professional(
+            professional_id, appointment_id, current_user,
+        )
+        return FileResponse(path, filename=Path(prescription.file_url).name, headers={"Cache-Control": "no-store"})
+    except PrescriptionAccessError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+    except PrescriptionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.get(

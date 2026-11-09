@@ -4,6 +4,7 @@ import { register } from '../api/auth';
 import { errorMessage } from '../api/errors';
 import { apiConfigured } from '../api/client';
 import type { Registration } from '../types/api';
+import { DateTimeField } from '../components/DateTimeField';
 
 export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
   initialRole?: 'patient' | 'professional'; onStepChange: (step: 1 | 2) => void;
@@ -73,7 +74,7 @@ export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
                 <label className="full">Nombre completo *<input name="name" autoComplete="name" required maxLength={150} /></label>
                 <label>DNI / NIE *<input name="dni" required minLength={5} maxLength={20} /></label>
                 <label>Nombre de usuario *<input name="username" autoComplete="username" required minLength={3} maxLength={50} /></label>
-                <label>Fecha de nacimiento *<input name="birth_date" type="date" autoComplete="bday" required /></label>
+                <label>Fecha de nacimiento *<DateTimeField name="birth_date" type="date" autoComplete="bday" required /></label>
                 <label>Género (opcional)<input name="gender" maxLength={50} /></label>
                 <h3 className="full">2. Contacto y acceso</h3>
                 <label>Correo electrónico *<input name="email" type="email" autoComplete="email" required maxLength={320} /></label>

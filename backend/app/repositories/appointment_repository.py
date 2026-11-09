@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, User
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, ProfessionalTimeBlock, User
 
 
 class AppointmentRepository:
@@ -62,6 +62,21 @@ class AppointmentRepository:
     def get_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.get(Appointment, appointment_id)
 
+    def lock_appointment(self, appointment_id: UUID) -> Appointment | None:
+        return self.session.scalar(select(Appointment).where(Appointment.id == appointment_id)
+                                   .with_for_update().execution_options(populate_existing=True))
+
+    def list_patient_appointments(self, patient_id: UUID, offset: int, limit: int):
+        conditions = Appointment.patient_id == patient_id
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(conditions)) or 0
+        rows = self.session.execute(select(
+            Appointment.id, Appointment.professional_id, User.name.label("professional_name"),
+            Appointment.start_time, Appointment.end_time, Appointment.type, Appointment.status,
+            Appointment.reason.label("appointment_reason"),
+        ).join(User, User.id == Appointment.professional_id).where(conditions)
+            .order_by(Appointment.start_time.desc(), Appointment.id.desc()).offset(offset).limit(limit)).mappings()
+        return list(rows), total
+
     def get_schedule(self, schedule_id: UUID) -> ProfessionalSchedule | None:
         return self.session.get(ProfessionalSchedule, schedule_id)
 
@@ -73,6 +88,7 @@ class AppointmentRepository:
                     ProfessionalSchedule.professional_id == professional_id,
                     ProfessionalSchedule.day_of_week == day_of_week,
                     ProfessionalSchedule.is_active.is_(True),
+                    ProfessionalSchedule.channel == "consultation",
                 )
                 .order_by(ProfessionalSchedule.start_time)
             )
@@ -89,7 +105,10 @@ class AppointmentRepository:
                     Appointment.end_time > start,
                 )
             )
-        )
+        ) + list(self.session.scalars(select(ProfessionalTimeBlock).where(
+            ProfessionalTimeBlock.professional_id == professional_id,
+            ProfessionalTimeBlock.start_time < end, ProfessionalTimeBlock.end_time > start,
+        )))
 
     def list_upcoming(self, start: datetime, end: datetime) -> list[Appointment]:
         return list(
@@ -225,7 +244,7 @@ class AppointmentRepository:
             return func.count().filter(Appointment.start_time >= start, Appointment.start_time < end, extra)
         values = [count(today, tomorrow), count(yesterday, today),
                   count(today, tomorrow, Appointment.status == AppointmentStatus.COMPLETED),
-                  count(today, tomorrow, Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]))]
+                  count(today, tomorrow, Appointment.status.in_([AppointmentStatus.CONFIRMED]))]
         values.extend(count(start, end) for start, end in week_bounds)
         return tuple(self.session.execute(select(*values).select_from(Appointment)
                      .where(Appointment.professional_id == professional_id)).one())
@@ -234,7 +253,7 @@ class AppointmentRepository:
         conditions = [Appointment.professional_id == professional_id]
         if upcoming_only:
             conditions.extend([Appointment.end_time > now,
-                               Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED])])
+                               Appointment.status.in_([AppointmentStatus.CONFIRMED])])
         if start is not None:
             conditions.append(Appointment.start_time >= start)
         if end is not None:
