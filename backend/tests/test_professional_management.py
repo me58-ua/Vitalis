@@ -47,6 +47,28 @@ class ProfileChangeTests(unittest.TestCase):
         self.assertEqual(self.profile.change_status, "pending")
         self.audits.create.assert_called_once()
 
+    def test_languages_and_experience_are_published_only_after_approval(self):
+        self.profile.languages = ['Español']
+        self.profile.years_experience = None
+        self.submit(languages=['Español', ' English '], years_experience=12)
+        self.assertEqual(self.profile.languages, ['Español'])
+        self.assertIsNone(self.profile.years_experience)
+        self.assertEqual(self.profile.pending_changes['languages'], ['Español', 'English'])
+        self.service.decide(self.user.id, self.admin, self.decision(), True)
+        self.assertEqual(self.profile.languages, ['Español', 'English'])
+        self.assertEqual(self.profile.years_experience, 12)
+        self.submit(languages=[], years_experience=None)
+        self.service.decide(self.user.id, self.admin, self.decision(), True)
+        self.assertEqual(self.profile.languages, [])
+        self.assertIsNone(self.profile.years_experience)
+
+    def test_languages_and_experience_validation(self):
+        for payload in ({'languages': None}, {'languages': [' ']}, {'languages': ['Español', 'español']},
+                        {'languages': ['a' * 61]}, {'languages': [str(i) for i in range(21)]},
+                        {'years_experience': -1}, {'years_experience': 81}):
+            with self.subTest(payload=payload), self.assertRaises(ValidationError):
+                ProfessionalProfileUpdate(**payload)
+
     def test_approval_applies_changes_and_records_admin_without_reactivating(self):
         self.submit(specialty="Cardiología")
         self.user.is_active = False

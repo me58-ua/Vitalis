@@ -1,5 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
+from typing import Annotated
+from pydantic import StringConstraints, field_validator
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_serializer
 
@@ -46,7 +48,23 @@ class PatientProfileResponse(PatientProfileBase):
     user_id: UUID
 
 
-class ProfessionalProfileBase(BaseModel):
+Language = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
+
+class ProfessionalLanguages(BaseModel):
+    @field_validator("languages", check_fields=False)
+    @classmethod
+    def unique_languages(cls, values):
+        if values is None:
+            raise ValueError("LANGUAGES_REQUIRED")
+        if len({value.casefold() for value in values}) != len(values):
+            raise ValueError("LANGUAGES_DUPLICATE")
+        return values
+
+
+class ProfessionalProfileBase(ProfessionalLanguages):
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    languages: list[Language] = Field(default_factory=list, max_length=20)
     specialty: str = Field(min_length=1, max_length=150)
     bio: str | None = Field(default=None, max_length=500)
     practice_address: str | None = Field(default=None, max_length=255)
@@ -61,7 +79,9 @@ class ProfessionalProfileCreate(ProfessionalProfileBase):
     pass
 
 
-class ProfessionalProfileUpdate(BaseModel):
+class ProfessionalProfileUpdate(ProfessionalLanguages):
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    languages: list[Language] | None = Field(default=None, max_length=20)
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     specialty: str | None = Field(default=None, min_length=1, max_length=150)
     bio: str | None = Field(default=None, max_length=500)
@@ -135,7 +155,14 @@ class PatientListResponse(BaseModel):
     page_size: int
 
 
+class ProfessionalNotificationSettings(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    email_notifications_enabled: bool
+
+
 class ProfessionalPublicResponse(BaseModel):
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    languages: list[Language] = Field(default_factory=list, max_length=20)
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID

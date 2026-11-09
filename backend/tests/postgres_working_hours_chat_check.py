@@ -41,13 +41,16 @@ def check():
             connection.exec_driver_sql('DROP TABLE spontaneous_chats')
             connection.exec_driver_sql('ALTER TABLE professional_schedules DROP COLUMN channel CASCADE')
             connection.exec_driver_sql('DROP TABLE professional_time_blocks')
+            for column in ('years_experience', 'languages', 'email_notifications_enabled'):
+                connection.exec_driver_sql(f'ALTER TABLE professional_profiles DROP COLUMN {column}')
             for column in ('pending_changes', 'change_request_id', 'change_status', 'change_requested_at', 'change_reviewed_at', 'change_reviewed_by', 'change_rejection_reason'):
                 connection.exec_driver_sql(f'ALTER TABLE professional_profiles DROP COLUMN {column}')
             m29 = migration('0029_professional_blocks_and_profile_review.py')
             m30 = migration('0030_channel_working_hours.py')
             m31 = migration('0031_spontaneous_chats.py')
+            m32 = migration('0032_professional_profile_details.py')
             with Operations.context(MigrationContext.configure(connection)):
-                m29.upgrade(); m30.upgrade(); m31.upgrade()
+                m29.upgrade(); m30.upgrade(); m31.upgrade(); m32.upgrade()
             with Session(bind=connection, join_transaction_mode='create_savepoint') as db:
                 def user(role, name):
                     row = User(id=uuid4(), role=role, name=name, dni=uuid4().hex[:15], username=uuid4().hex[:20],
@@ -74,6 +77,27 @@ def check():
                     response = getattr(client, method)(path, **kwargs)
                     assert response.status_code == status, (method, path, response.status_code, response.text)
                     return response.json() if status != 204 else None
+                public_profile = '/professionals/' + str(professional.id)
+                assert call('get', public_profile, 200)['languages'] == []
+                assert call('get', '/professionals/me/notification-settings', 200)['email_notifications_enabled'] is True
+                call('patch', '/professionals/me/notification-settings', 200, json={'email_notifications_enabled': False})
+                db.expire_all()
+                assert call('get', '/professionals/me/notification-settings', 200)['email_notifications_enabled'] is False
+                change = call('patch', '/professionals/me/profile', 200, json={'languages': ['Español', ' Inglés '], 'years_experience': 15, 'bio': 'Consulta preventiva', 'practice_phone': '123456789'})
+                assert change['languages'] == [] and change['pending_changes']['languages'] == ['Español', 'Inglés']
+                assert call('get', public_profile, 200)['years_experience'] is None
+                actor.id, actor.role = patient.id, UserRole.PATIENT
+                call('get', '/professionals/me/notification-settings', 403)
+                call('patch', '/professionals/me/profile', 403, json={'languages': ['Francés']})
+                actor.id, actor.role = admin.id, UserRole.ADMIN
+                call('post', f'/admin/professionals/{professional.id}/profile-change/approve', 200, json={'request_id': change['change_request_id']})
+                published = call('get', public_profile, 200)
+                assert published['languages'] == ['Español', 'Inglés'] and published['years_experience'] == 15
+                assert published['bio'] == 'Consulta preventiva' and published['practice_phone'] == '123456789'
+                assert 'email_notifications_enabled' not in published and 'pending_changes' not in published
+                directory = call('get', '/professionals', 200)['professionals'][0]
+                assert directory['languages'] == published['languages'] and directory['years_experience'] == 15
+                actor.id, actor.role = professional.id, UserRole.PROFESSIONAL
                 consultation = call('post', '/professionals/me/working-hours', 201, json=dict(channel='consultation', day_of_week=0, start_time='09:00', end_time='12:00', slot_duration_min=30))
                 grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='consultation', days_of_week=[0, 1, 4], start_time='15:00', end_time='17:00'))
                 grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='consultation', days_of_week=[0, 2, 4], schedule_ids=[row['id'] for row in grouped], start_time='15:30', end_time='17:00'))
@@ -134,12 +158,12 @@ def check():
                 assert db.scalar(select(func.count()).select_from(SpontaneousChatMessage)) == 0
                 db.commit()
             with Operations.context(MigrationContext.configure(connection)):
-                m31.downgrade(); m30.downgrade()
-            assert connection.exec_driver_sql("SELECT to_regclass('spontaneous_chats')").scalar() is None
+                m32.downgrade(); m31.downgrade(); m30.downgrade()
+            assert connection.exec_driver_sql('SELECT to_regclass(%s)', (f'{schema}.spontaneous_chats',)).scalar() is None
         finally:
             app.dependency_overrides.clear(); app.dependency_overrides.update(overrides)
             transaction.rollback()
-    print('PostgreSQL: migrations 0030/0031, independent hours, overlap, ownership, private attachments both ways, idempotence, cursors, outside-hours read-only, close, no patient assignment, booking limits and privacy erasure verified; schema rolled back.')
+    print('PostgreSQL: migrations 0030–0032, profile language/experience approval and public propagation, private notification preferences and role guards; atomic multi-day hours, complete chat and privacy checks passed; schema rolled back.')
 
 
 if __name__ == '__main__': check()

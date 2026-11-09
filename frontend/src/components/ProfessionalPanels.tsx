@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getAppointmentPrescription } from '../api/professional';
-import { ProfessionalProfileEditor } from './ProfessionalProfileEditor';
 import { DateTimeField } from './DateTimeField';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
@@ -148,8 +147,4 @@ export function ProfessionalHistoryDialog({ onClose }: { onClose: () => void }) 
   const load = useCallback((signal: AbortSignal) => user ? getProfessionalHistory(user.id, page, signal) : Promise.reject(new Error('No hay sesión')), [user, page]);
   const state = useAdminQuery(load, professionalError);
   return <Modal title="Historial de citas" onClose={onClose}><QueryFeedback {...state} />{state.data && <><ul className="professional-agenda-list">{state.data.appointments.map(item => <li key={item.id}><strong>{item.patient_name}</strong><p>{appointmentDate(item.start_time)}</p><p>{appointmentStatuses[item.status]} · {appointmentTypes[item.type]}</p><p>Motivo: {item.appointment_reason || 'Motivo no indicado'}</p>{item.status === 'cancelled' && <p>Motivo de cancelación: {item.cancellation_reason || 'No indicado'}</p>}</li>)}</ul>{state.data.appointments.length === 0 && <p>No hay citas anteriores registradas.</p>}<Pages page={state.data.page} size={state.data.page_size} total={state.data.total} onPage={setPage} /></>}</Modal>;
-}
-
-export function ProfessionalProfileDialog({ onClose }: { onClose: () => void }) {
-  return <ProfessionalProfileEditor onClose={onClose} />;
 }

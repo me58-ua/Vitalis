@@ -238,6 +238,16 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         const patientId = new URL(req.url, 'http://fixture.invalid').searchParams.get('patient_id');
         return send(200, { appointments: [{ ...professionalAppointments[0], patient_id: patientId, id: '00000000-0000-4000-8000-000000000498', status: 'completed', start_time: '2026-11-03T09:00:00Z', end_time: '2026-11-03T09:30:00Z', patient_email: participants.patient.email }], total: 1, page: 1, page_size: 10 });
       }
+      if (path === '/professionals/me/notification-settings') {
+        if (req.method === 'PATCH') state.emailNotifications = JSON.parse(raw).email_notifications_enabled;
+        return send(200, { email_notifications_enabled: state.emailNotifications ?? true });
+      }
+      if (path === '/professionals/me/change-password') {
+        const data = JSON.parse(raw);
+        if (data.current_password !== 'TestPassword123!') return send(400, { detail: 'INVALID_CURRENT_PASSWORD' });
+        state.passwordChanged = true;
+        return send(204);
+      }
       if (path === '/professionals/me/profile') {
         const profile = state.profileByUser[actor.id] ??= detailUser(actor).professional_profile;
         if (req.method === 'PATCH') {

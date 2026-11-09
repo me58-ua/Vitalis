@@ -139,6 +139,22 @@ class NotificationTests(unittest.TestCase):
         dispatcher.run_once(datetime(2026, 10, 5, 12, tzinfo=timezone.utc))
         self.assertEqual(len(self.repository.items), 2)
 
+    def test_professional_email_opt_out_keeps_in_app_notice_and_skips_queued_mail(self):
+        now = datetime(2026, 11, 9, tzinfo=timezone.utc)
+        notification = self.service.notify(self.recipient_id, 'new_message', email_required=True, scheduled_for=now)
+        profile = SimpleNamespace(email_notifications_enabled=False)
+        users = SimpleNamespace(get_by_id=lambda _: SimpleNamespace(email='doctor@example.invalid', professional_profile=profile))
+        dispatcher = NotificationDispatcher(self.repository, users)
+        with patch('app.services.notification_dispatcher.send_product_notification_email') as send:
+            self.assertEqual(dispatcher.run_once(now), 1)
+            send.assert_not_called()
+            profile.email_notifications_enabled = True
+            self.assertEqual(dispatcher.run_once(now), 0)
+        self.assertEqual(len(self.repository.items), 1)
+        self.assertEqual(notification.email_status, EmailStatus.NOT_APPLICABLE)
+        self.assertEqual(notification.email_attempts, 0)
+        self.assertIsNone(notification.read_at)
+
     def test_risk_notifications_are_private_and_deduplicated_for_thirty_days(self):
         first = self.service.notify_risk(
             self.recipient_id, "family_huntington", "recommend_appointment",

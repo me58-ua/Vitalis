@@ -4,7 +4,7 @@ import { getProfessionalDashboard } from '../../api/professional';
 import { professionalError } from '../../api/professionalErrors';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { Modal } from '../../components/Modal';
-import { ProfessionalAppointmentDetails, ProfessionalCreateDialog, ProfessionalHistoryDialog, ProfessionalPatientsDialog, ProfessionalProfileDialog } from '../../components/ProfessionalPanels';
+import { ProfessionalAppointmentDetails, ProfessionalCreateDialog, ProfessionalHistoryDialog, ProfessionalPatientsDialog } from '../../components/ProfessionalPanels';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../components/AppointmentSummary';
 import type { ProfessionalAppointment, ProfessionalDashboard } from '../../types/api';
 import calendar from '../../assets/figma/professional/calendar.svg';
@@ -49,6 +49,7 @@ export function ProfessionalDashboardPage() {
   const close = () => setParams({}, { replace: true });
   function changed(message: string) { close(); setSelected(null); setSuccess(message); setRevision(value => value + 1); }
   const difference = data ? data.appointments_today - data.appointments_yesterday : 0;
+  if (panel === 'profile') return <Navigate to="/professionalDashboard/perfil" replace />;
   if (panel === 'appointments') return <Navigate to="/professionalDashboard/agenda" replace />;
   return <main id="contenido" className="professional-main">
     <div className="professional-grid"><div className="professional-primary">
@@ -65,7 +66,6 @@ export function ProfessionalDashboardPage() {
     {panel === 'new' && <ProfessionalCreateDialog onClose={close} onCreated={() => changed('Cita creada correctamente. Si no aparece en el resumen, consulta la agenda.')} />}
     {panel === 'patients' && <ProfessionalPatientsDialog onClose={close} />}
     {panel === 'history' && <ProfessionalHistoryDialog onClose={close} />}
-    {panel === 'profile' && <ProfessionalProfileDialog onClose={close} />}
     {selected && <AppointmentDialog item={selected} onClose={() => setSelected(null)} onChanged={() => changed('Cita cancelada correctamente. Se ha conservado el motivo original.')} />}
   </main>;
 }

@@ -55,6 +55,9 @@ class PrivacyRepository:
         profile.change_reviewed_at = None
         profile.change_reviewed_by = None
         profile.change_rejection_reason = None
+        profile.languages = []
+        profile.years_experience = None
+        profile.email_notifications_enabled = False
         profile.specialty = "Cuenta eliminada"
         profile.bio = None
         profile.practice_address = None

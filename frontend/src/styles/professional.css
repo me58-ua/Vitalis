@@ -72,6 +72,15 @@
 .professional-appointment-actions .professional-cancel:hover:not(:disabled) { background: #93000a; border-color: #93000a; }
 .professional-profile dt { font-weight: 600; margin-top: 20px; }
 .professional-profile dd { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; line-height: 1.6; }
+.professional-profile-page { display: grid; gap: 24px; }
+.professional-profile-page > .professional-upcoming { padding: clamp(16px, 3vw, 28px); }
+.professional-profile-page fieldset { min-width: 0; }
+.professional-profile-page fieldset { border: 0; margin: 0; padding: 0; }
+.professional-profile-page h3 { margin-top: 24px; }
+.professional-profile-page .professional-personal dt { font-weight: 600; }
+.professional-profile-page .professional-personal dd { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+.professional-profile-page .professional-personal { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 20px; }
+.professional-profile-page .professional-profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px 24px; }
 @media (max-width: 1400px) { .professional-main { padding: 24px; } .professional-grid { grid-template-columns: minmax(0, 1.8fr) minmax(245px, 1fr); } .professional-stats article { flex-direction: column; } }
 @media (max-width: 1100px) { .professional-grid { grid-template-columns: minmax(0, 1fr); } .professional-secondary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .professional-stats article { flex-direction: row; } .professional-header .search-trigger span { display: none; } }
 @media (max-width: 760px) {

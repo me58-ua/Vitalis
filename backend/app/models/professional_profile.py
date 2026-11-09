@@ -27,6 +27,9 @@ class ProfessionalProfile(Base):
         index=True,
     )
     specialty: Mapped[str] = mapped_column(String(150), nullable=False)
+    years_experience: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    languages: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    email_notifications_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
     practice_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     practice_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)

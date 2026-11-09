@@ -6,6 +6,7 @@ export function professionalError(error: unknown): string {
   const status = error.response?.status;
   const body = error.response?.data;
   const detail = typeof body === 'object' && body !== null && 'detail' in body ? body.detail : undefined;
+  if (detail === 'INVALID_CURRENT_PASSWORD') return 'La contraseña actual no es correcta.';
   if (detail === 'OUTSIDE_WORKING_HOURS') return 'La cita queda fuera del horario de citas del profesional. Configura una franja en Agenda o elige otra hora.';
   if (detail === 'SCHEDULE_OVERLAP') return 'Esta franja se solapa con otro horario activo del mismo canal y día. Revisa las horas o desactiva la otra franja.';
   if (detail === 'SCHEDULE_GROUP_CHANGED') return 'Los horarios de este grupo han cambiado. Actualiza los horarios antes de volver a guardarlos.';

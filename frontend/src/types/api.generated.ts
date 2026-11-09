@@ -716,6 +716,24 @@ export interface paths {
         patch: operations["update_professional_profile_professionals_me_profile_patch"];
         trace?: never;
     };
+    "/professionals/me/notification-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Professional Notification Settings */
+        get: operations["professional_notification_settings_professionals_me_notification_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Professional Notification Settings */
+        patch: operations["update_professional_notification_settings_professionals_me_notification_settings_patch"];
+        trace?: never;
+    };
     "/professionals/me": {
         parameters: {
             query?: never;
@@ -1862,6 +1880,10 @@ export interface components {
         };
         /** AdminProfessionalProfileInput */
         AdminProfessionalProfileInput: {
+            /** Years Experience */
+            years_experience?: number | null;
+            /** Languages */
+            languages?: string[];
             /** Specialty */
             specialty: string;
             /** Bio */
@@ -3578,8 +3600,17 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
+        /** ProfessionalNotificationSettings */
+        ProfessionalNotificationSettings: {
+            /** Email Notifications Enabled */
+            email_notifications_enabled: boolean;
+        };
         /** ProfessionalProfileResponse */
         ProfessionalProfileResponse: {
+            /** Years Experience */
+            years_experience?: number | null;
+            /** Languages */
+            languages?: string[];
             /** Specialty */
             specialty: string;
             /** Bio */
@@ -3638,6 +3669,10 @@ export interface components {
         };
         /** ProfessionalProfileUpdate */
         ProfessionalProfileUpdate: {
+            /** Years Experience */
+            years_experience?: number | null;
+            /** Languages */
+            languages?: string[] | null;
             /** Specialty */
             specialty?: string | null;
             /** Bio */
@@ -3657,6 +3692,10 @@ export interface components {
         };
         /** ProfessionalPublicResponse */
         ProfessionalPublicResponse: {
+            /** Years Experience */
+            years_experience?: number | null;
+            /** Languages */
+            languages?: string[];
             /**
              * Id
              * Format: uuid
@@ -5940,6 +5979,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfessionalProfileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    professional_notification_settings_professionals_me_notification_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalNotificationSettings"];
+                };
+            };
+        };
+    };
+    update_professional_notification_settings_professionals_me_notification_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfessionalNotificationSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalNotificationSettings"];
                 };
             };
             /** @description Validation Error */

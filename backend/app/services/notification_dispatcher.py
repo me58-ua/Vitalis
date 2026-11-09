@@ -38,6 +38,12 @@ class NotificationDispatcher:
                 )
                 processed += 1
                 continue
+            profile = getattr(user, "professional_profile", None)
+            if profile is not None and getattr(profile, "email_notifications_enabled", True) is False:
+                notification.email_required = False
+                self.notifications.update_email_result(notification, EmailStatus.NOT_APPLICABLE, notification.email_attempts, None)
+                processed += 1
+                continue
             try:
                 sent = send_product_notification_email(
                     user.email,

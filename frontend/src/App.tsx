@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RequireRole } from './auth/RequireRole';
 import { PatientPanelPage } from './pages/patient/PatientPanelPage';
 import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage';
+import { ProfessionalProfilePage } from './pages/professional/ProfessionalProfilePage';
 import { ProfessionalDashboardPage } from './pages/professional/ProfessionalDashboardPage';
 import { AdminPanelPage } from './pages/admin/AdminPanelPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -34,6 +35,7 @@ export function App() {
   </Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
     <Route path="/professionalDashboard" element={<ProfessionalDashboardPage />} />
     <Route path="/professionalDashboard/misPacientes" element={<MyPatientsPage />} />
+    <Route path="/professionalDashboard/perfil" element={<ProfessionalProfilePage />} />
     <Route path="/professionalDashboard/agenda" element={<ProfessionalAgendaPage />} />
     <Route path="/professionalDashboard/chats" element={<SpontaneousChatsPage />} />
     <Route path="/professionalDashboard/videoconsulta" element={<VideoConsultationsIndexPage />} />
