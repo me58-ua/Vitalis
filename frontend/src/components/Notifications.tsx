@@ -1,7 +1,7 @@
 import { useNotifications } from '../hooks/useNotifications';
+import { dateTimeFormat as dateFormat } from '../utils/dateTime';
 import bell from '../assets/figma/imgContainer17.svg';
 
-const dateFormat = new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : dateFormat.format(date);

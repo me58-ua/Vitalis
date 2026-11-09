@@ -264,6 +264,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/professionals/me/working-hours/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save Working Hours Batch */
+        post: operations["save_working_hours_batch_professionals_me_working_hours_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/professionals/me/working-hours/batch-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Working Hours Batch */
+        post: operations["delete_working_hours_batch_professionals_me_working_hours_batch_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/professionals/me/working-hours/{schedule_id}": {
         parameters: {
             query?: never;
@@ -4133,6 +4167,43 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** WorkingHoursBatch */
+        WorkingHoursBatch: {
+            /** Days Of Week */
+            days_of_week: number[];
+            /** Schedule Ids */
+            schedule_ids?: string[];
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "consultation" | "chat";
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            /**
+             * Slot Duration Min
+             * @default 30
+             */
+            slot_duration_min: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** WorkingHoursBatchDelete */
+        WorkingHoursBatchDelete: {
+            /** Schedule Ids */
+            schedule_ids: string[];
+        };
         /** WorkingHoursCreate */
         WorkingHoursCreate: {
             /** Day Of Week */
@@ -4727,6 +4798,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkingHoursResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_working_hours_batch_professionals_me_working_hours_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkingHoursBatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingHoursResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_working_hours_batch_professionals_me_working_hours_batch_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkingHoursBatchDelete"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

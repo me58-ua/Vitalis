@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createTimeBlock, deleteTimeBlock } from '../api/professional';
 import { professionalError } from '../api/professionalErrors';
+import { DateTimeField } from './DateTimeField';
 import { appointmentDate } from './AppointmentSummary';
 import type { ProfessionalTimeBlock } from '../types/api';
 
@@ -32,8 +33,8 @@ export function ProfessionalTimeBlocks({ blocks, ready, onBusy, onChanged }: { b
     <div className="agenda-block-heading"><h2>Horarios no disponibles</h2><button className="button secondary" disabled={busy || !ready} aria-expanded={open} onClick={() => { setOpen(value => !value); setError(''); }}>Bloquear horario</button></div>
     <p>Bloquea vacaciones o ausencias por fecha y hora. Los intervalos impiden nuevas citas; no cancelan citas existentes. Se muestran los bloqueos que coinciden con la semana seleccionada.</p>
     {open && <form className="form-grid" aria-busy={busy} onSubmit={submit}><fieldset className="form-grid full" disabled={busy || !ready}>
-      <label>Inicio del bloqueo *<input type="datetime-local" name="block_start" required /></label>
-      <label>Fin del bloqueo *<input type="datetime-local" name="block_end" required /></label>
+      <label>Inicio del bloqueo *<DateTimeField type="datetime-local" name="block_start" required /></label>
+      <label>Fin del bloqueo *<DateTimeField type="datetime-local" name="block_end" required /></label>
       <label className="full">Motivo (opcional, privado)<input name="block_reason" maxLength={250} /></label>
       <p className="field-help full">Introduce horas en la zona de tu navegador ({Intl.DateTimeFormat().resolvedOptions().timeZone}). La agenda las muestra en Madrid. Para días completos, elige las 00:00 del primer día hasta las 00:00 del día siguiente al último.</p>
       <button className="button primary" type="submit">{busy ? 'Guardando…' : 'Guardar bloqueo'}</button><button className="button secondary" type="button" onClick={() => setOpen(false)}>Cancelar</button>

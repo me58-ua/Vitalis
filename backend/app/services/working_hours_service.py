@@ -45,6 +45,50 @@ class WorkingHoursService:
         self.repository.delete(row)
         self.audit.record(user.id, user.role, AuditAction.DELETE, 'professional_schedule', schedule_id)
 
+    def _owned_group(self, user, ids):
+        rows = [self.repository.get_owned(user.id, schedule_id) for schedule_id in ids]
+        if any(row is None for row in rows): raise AppointmentNotFoundError('Working hours not found')
+        return rows
+
+    def save_batch(self, user, data):
+        self.repository.lock_owner(user.id)
+        rows = self._owned_group(user, data.schedule_ids)
+        if any(row.channel != data.channel for row in rows):
+            raise AppointmentConflictError('SCHEDULE_GROUP_CHANGED')
+        values = data.model_dump(exclude={'days_of_week', 'schedule_ids'})
+        by_day = {row.day_of_week: row for row in rows}
+        if len(by_day) != len(rows): raise AppointmentConflictError('SCHEDULE_GROUP_CHANGED')
+        try:
+            # Free the selected intervals before moving/re-enabling them. This is
+            # one caller transaction; any later conflict rolls everything back.
+            for row in rows:
+                row.is_active = False
+            self.repository.session.flush()
+            for row in rows:
+                if row.day_of_week not in data.days_of_week:
+                    self.repository.delete(row)
+                    self.audit.record(user.id, user.role, AuditAction.DELETE, 'professional_schedule', row.id)
+            result = []
+            for day in data.days_of_week:
+                row = by_day.get(day)
+                action = AuditAction.UPDATE if row else AuditAction.CREATE
+                if row is None: row = ProfessionalSchedule(professional_id=user.id, day_of_week=day)
+                for key, value in values.items(): setattr(row, key, value)
+                self.repository.save(row)
+                self.audit.record(user.id, user.role, action, 'professional_schedule', row.id)
+                result.append(row)
+            return result
+        except IntegrityError as error:
+            self.repository.session.rollback()
+            raise AppointmentConflictError('SCHEDULE_OVERLAP') from error
+
+    def delete_batch(self, user, ids):
+        self.repository.lock_owner(user.id)
+        rows = self._owned_group(user, ids)
+        for row in rows:
+            self.repository.delete(row)
+            self.audit.record(user.id, user.role, AuditAction.DELETE, 'professional_schedule', row.id)
+
 
 class SpontaneousChatAvailabilityService:
     def __init__(self, hours, professionals):

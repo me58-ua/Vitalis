@@ -6,6 +6,7 @@ import { errorMessage } from '../../api/errors';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { AdminUserSelect, type UserOption } from '../../components/AdminUserSelect';
 import { Modal } from '../../components/Modal';
+import { DateTimeField } from '../../components/DateTimeField';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../components/AppointmentSummary';
 import type { AppointmentQuery, AppointmentSummary, CreateAppointment } from '../../types/api';
 
@@ -45,7 +46,7 @@ function CreateAppointmentDialog({ onClose, onCreated }: { onClose: () => void; 
     <fieldset className="form-grid" disabled={busy}>
       <AdminUserSelect role="patient" value={patient} onChange={setPatient} required disabled={busy} />
       <AdminUserSelect role="professional" value={professional} onChange={setProfessional} required disabled={busy} />
-      <label>Inicio *<input name="start_time" type="datetime-local" required /></label><label>Fin *<input name="end_time" type="datetime-local" required /></label>
+      <label>Inicio *<DateTimeField name="start_time" type="datetime-local" required /></label><label>Fin *<DateTimeField name="end_time" type="datetime-local" required /></label>
       <p className="field-help full">Introduce el horario en la zona de tu navegador ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Se enviará en UTC y se mostrará en Europe/Madrid.</p>
       <label className="full">Modalidad *<select name="type" defaultValue="video"><option value="video">Videoconsulta</option><option value="in_person">Presencial</option></select></label>
       <button type="submit" className="button primary full">{busy ? 'Creando…' : 'Crear cita'}</button>
@@ -109,7 +110,7 @@ export function AdminAppointmentsPage() {
       <form className="admin-appointment-filters" onSubmit={apply} onReset={() => { setPatient(null); setProfessional(null); setUpcomingOnly(false); setFromDate(''); setToDate(''); setValidation(''); setParams({}, { replace: true }); setQuery({ page: 1, page_size: 20 }); }}>
         <AdminUserSelect role="patient" value={patient} onChange={setPatient} />
         <AdminUserSelect role="professional" value={professional} onChange={setProfessional} />
-        <label>Desde<input name="from_date" type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} /></label><label>Hasta<input name="to_date" type="date" value={toDate} onChange={event => setToDate(event.target.value)} /></label>
+        <label>Desde<DateTimeField name="from_date" type="date" value={fromDate} onValueChange={setFromDate} /></label><label>Hasta<DateTimeField name="to_date" value={toDate} onValueChange={setToDate} type="date" /></label>
         <label className="checkbox full"><input name="upcoming_month" type="checkbox" checked={upcomingOnly} onChange={event => setUpcomingOnly(event.target.checked)} />Solo próximas citas de este mes</label>
         <p className="field-help full">El intervalo incluye ambos días según Europe/Madrid. El resumen mensual excluye las citas iniciadas, anuladas o finalizadas.</p>
         <div className="admin-filter-actions full"><button className="button primary" type="submit" disabled={state.loading}>Aplicar filtros</button><button className="button secondary" type="reset" disabled={state.loading}>Limpiar filtros</button></div>

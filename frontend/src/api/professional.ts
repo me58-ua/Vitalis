@@ -1,5 +1,13 @@
 import { api } from './client';
 import type { WorkingHours, WorkingHoursCreate, WorkingHoursUpdate } from '../types/api';
+import type { WorkingHoursBatch } from '../types/api';
+
+export async function saveWorkingHoursBatch(payload: WorkingHoursBatch, signal: AbortSignal) {
+  return (await api.post<WorkingHours[]>('/professionals/me/working-hours/batch', payload, { signal })).data;
+}
+export async function deleteWorkingHoursBatch(ids: string[], signal: AbortSignal) {
+  await api.post('/professionals/me/working-hours/batch-delete', { schedule_ids: ids }, { signal });
+}
 
 export async function getWorkingHours(signal: AbortSignal) {
   return (await api.get<WorkingHours[]>('/professionals/me/working-hours', { signal })).data;

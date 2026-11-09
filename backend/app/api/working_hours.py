@@ -10,6 +10,7 @@ from app.repositories.audit_repository import AuditRepository
 from app.repositories.working_hours_repository import WorkingHoursRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.schemas.working_hours import WorkingHoursCreate, WorkingHoursUpdate, WorkingHoursResponse, ChatAvailabilityResponse
+from app.schemas.working_hours import WorkingHoursBatch, WorkingHoursBatchDelete
 from app.services.working_hours_service import WorkingHoursService, SpontaneousChatAvailabilityService
 from app.services.appointment_service import AppointmentConflictError, AppointmentNotFoundError
 
@@ -36,6 +37,21 @@ def _save(user, data, db, audits, schedule_id=None):
 @router.post('/professionals/me/working-hours', response_model=WorkingHoursResponse, status_code=201)
 def create_working_hours(data: WorkingHoursCreate, user: Professional, db: DbSession, audits: Audits):
     return _save(user, data, db, audits)
+
+
+@router.post('/professionals/me/working-hours/batch', response_model=list[WorkingHoursResponse])
+def save_working_hours_batch(data: WorkingHoursBatch, user: Professional, db: DbSession, audits: Audits):
+    try:
+        return WorkingHoursService(WorkingHoursRepository(db), audits).save_batch(user, data)
+    except AppointmentNotFoundError as error: raise HTTPException(404, str(error)) from error
+    except AppointmentConflictError as error: raise HTTPException(409, str(error)) from error
+
+
+@router.post('/professionals/me/working-hours/batch-delete', status_code=204)
+def delete_working_hours_batch(data: WorkingHoursBatchDelete, user: Professional, db: DbSession, audits: Audits):
+    try:
+        WorkingHoursService(WorkingHoursRepository(db), audits).delete_batch(user, data.schedule_ids)
+    except AppointmentNotFoundError as error: raise HTTPException(404, str(error)) from error
 
 
 @router.patch('/professionals/me/working-hours/{schedule_id}', response_model=WorkingHoursResponse)

@@ -37,6 +37,7 @@ export type ProfileChangeDecision = components['schemas']['ProfileChangeDecision
 export type WorkingHours = components['schemas']['WorkingHoursResponse'];
 export type WorkingHoursCreate = components['schemas']['WorkingHoursCreate'];
 export type WorkingHoursUpdate = components['schemas']['WorkingHoursUpdate'];
+export type WorkingHoursBatch = components['schemas']['WorkingHoursBatch'];
 export type ChatAvailability = components['schemas']['ChatAvailabilityResponse'];
 export type SpontaneousChat = components['schemas']['SpontaneousChatResponse'];
 export type SpontaneousChatPage = components['schemas']['SpontaneousChatPage'];

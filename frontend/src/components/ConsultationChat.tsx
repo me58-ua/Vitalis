@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useConsultationChat } from '../hooks/useConsultationChat';
+import { appointmentDate } from './AppointmentSummary';
 
 export function ConsultationChat({ appointmentId, userId, otherName }: { appointmentId: string; userId: string; otherName: string }) {
   const chat = useConsultationChat(appointmentId, userId);
@@ -21,7 +22,7 @@ export function ConsultationChat({ appointmentId, userId, otherName }: { appoint
       {chat.hasOlder && <button className="text-button" disabled={chat.olderBusy} onClick={() => { void chat.loadOlder(); }}>{chat.olderBusy ? 'Cargando…' : 'Mensajes anteriores'}</button>}
       {chat.loading && <p role="status">Cargando mensajes…</p>}
       {!chat.loading && chat.messages.length === 0 && !chat.error && <p className="consultation-chat-empty">Todavía no hay mensajes en esta consulta.</p>}
-      {chat.messages.map(message => <article key={message.id} className={`consultation-message${message.sender_id === userId ? ' is-own' : ''}`}><p>{message.content}</p><footer>{message.sender_id === userId ? 'Tú' : otherName} · <time dateTime={message.created_at}>{new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(message.created_at))}</time></footer></article>)}
+      {chat.messages.map(message => <article key={message.id} className={`consultation-message${message.sender_id === userId ? ' is-own' : ''}`}><p>{message.content}</p><footer>{message.sender_id === userId ? 'Tú' : otherName} · <time dateTime={message.created_at}>{appointmentDate(message.created_at)}</time></footer></article>)}
       <div ref={bottom} />
     </div>
     {chat.room && !chat.room.can_write && <p className="consultation-chat-note">El chat está en modo de solo lectura por el estado o el horario de la cita.</p>}

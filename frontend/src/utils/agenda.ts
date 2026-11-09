@@ -21,7 +21,7 @@ export function addDays(day: string, amount: number): string {
 export function mondayOf(day: string): string {
   return addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
 }
-export function dayLabel(day: string, options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }) {
+export function dayLabel(day: string, options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' }) {
   return new Intl.DateTimeFormat('es-ES', { ...options, timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
 }
 export function clock(value: string): string { return clockFormatter.format(new Date(value)); }

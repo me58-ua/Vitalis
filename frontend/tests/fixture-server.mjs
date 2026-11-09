@@ -78,6 +78,19 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const quickActor = demoLogin?.user ?? account;
     const availability = professionalId => ({ professional_id: professionalId, available: state.quickAvailable, reason: state.quickAvailable ? 'available' : 'outside_hours', evaluated_at: new Date().toISOString(), timezone: 'Europe/Madrid', closes_at: null });
     if (path === '/professionals/me/working-hours' && req.method === 'GET') return send(200, state.workingHours);
+    if (path === '/professionals/me/working-hours/batch-delete') {
+      const body = JSON.parse(raw);
+      state.workingHours = state.workingHours.filter(item => !body.schedule_ids.includes(item.id)); return send(204, null);
+    }
+    if (path === '/professionals/me/working-hours/batch') {
+      const { schedule_ids = [], days_of_week: selectedDays, ...values } = JSON.parse(raw);
+      const previous = state.workingHours.filter(item => schedule_ids.includes(item.id));
+      const other = state.workingHours.filter(item => !schedule_ids.includes(item.id));
+      const changed = selectedDays.map(day => ({ id: previous.find(item => item.day_of_week === day)?.id ?? randomUUID(), professional_id: quickActor.id, created_at: new Date().toISOString(), ...values, day_of_week: day }));
+      const next = [...other, ...changed];
+      if (next.some(item => next.some(other => other.id !== item.id && other.channel === item.channel && other.day_of_week === item.day_of_week && other.is_active && item.is_active && other.start_time < item.end_time && other.end_time > item.start_time))) return send(409, { detail: 'SCHEDULE_OVERLAP' });
+      state.workingHours = next; return send(200, changed);
+    }
     if (path.startsWith('/professionals/me/working-hours') && req.method !== 'GET') {
       const id = path.split('/')[4];
       if (req.method === 'DELETE') { state.workingHours = state.workingHours.filter(item => item.id !== id); return send(204, null); }

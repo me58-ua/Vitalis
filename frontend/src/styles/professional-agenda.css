@@ -66,3 +66,7 @@
 .working-hours-list li { margin: 1rem 0; }
 .working-hours-form { margin: 1rem 0; }
 .working-hours-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.working-day-picker { display: flex; flex-wrap: wrap; gap: .75rem 1rem; }
+.working-day-picker legend { margin-bottom: .5rem; }
+.working-day-picker label { display: inline-flex; align-items: center; gap: .4rem; }
+.working-day-picker input { width: auto; }

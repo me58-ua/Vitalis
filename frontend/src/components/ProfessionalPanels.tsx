@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { cancelProfessionalAppointment, createProfessionalAppointment, getProfessionalAppointments, getProfessionalHistory, getProfessionalPatients, getAppointmentPrescription } from '../api/professional';
 import { ProfessionalProfileEditor } from './ProfessionalProfileEditor';
+import { DateTimeField } from './DateTimeField';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
@@ -73,7 +74,7 @@ export function ProfessionalCreateDialog({ onClose, onCreated }: { onClose: () =
   }
   return <Modal title="Nueva cita" onClose={onClose} busy={busy}><form className="professional-create-form" noValidate aria-busy={busy} onSubmit={event => { void submit(event); }}><fieldset className="form-grid" disabled={busy}>
     <PatientSelect disabled={busy} onChange={setPatient} />
-    <label>Inicio *<input name="start_time" type="datetime-local" required /></label><label>Fin *<input name="end_time" type="datetime-local" required /></label>
+    <label>Inicio *<DateTimeField name="start_time" type="datetime-local" required /></label><label>Fin *<DateTimeField name="end_time" type="datetime-local" required /></label>
     <p className="field-help full">Introduce las horas en la zona de tu navegador ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Se enviarán en UTC y se mostrarán en Europe/Madrid.</p>
     <label className="full">Modalidad *<select name="type" defaultValue="in_person"><option value="in_person">Presencial</option><option value="video">Videoconsulta</option></select></label>
     <label className="full">Motivo de la cita (opcional)<textarea name="appointment_reason" rows={3} /></label>
@@ -136,7 +137,7 @@ export function ProfessionalAppointmentsDialog({ onClose, onChanged }: { onClose
       if (from && to && from > to) { setValidation('La fecha inicial debe ser anterior o igual a la final.'); return; }
       const selectedStatus = status === 'confirmed' || status === 'cancelled' || status === 'completed' || status === 'no_show' ? status : undefined;
       setValidation(''); setQuery({ page: 1, page_size: 20, from_date: from || undefined, to_date: to || undefined, status: selectedStatus, upcoming_only: values.has('upcoming_only') });
-    }}><label>Desde<input name="from_date" type="date" /></label><label>Hasta<input name="to_date" type="date" /></label><label className="full">Estado<select name="status"><option value="">Todos</option>{Object.entries(appointmentStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="checkbox full"><input type="checkbox" name="upcoming_only" defaultChecked />Solo próximas citas confirmadas</label><p className="field-help full">Fechas en Europe/Madrid. Desmarca «Solo próximas citas» para consultar citas canceladas o finalizadas.</p><button type="submit" className="button secondary full">Aplicar</button></form>
+    }}><label>Desde<DateTimeField name="from_date" type="date" /></label><label>Hasta<DateTimeField name="to_date" type="date" /></label><label className="full">Estado<select name="status"><option value="">Todos</option>{Object.entries(appointmentStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="checkbox full"><input type="checkbox" name="upcoming_only" defaultChecked />Solo próximas citas confirmadas</label><p className="field-help full">Fechas en Europe/Madrid. Desmarca «Solo próximas citas» para consultar citas canceladas o finalizadas.</p><button type="submit" className="button secondary full">Aplicar</button></form>
     {validation && <p className="error-state" role="alert">{validation}</p>}<QueryFeedback {...state} />{state.data && <><ul className="professional-agenda-list">{state.data.appointments.map(item => <li key={item.id}><strong>{item.patient_name}</strong><p>{appointmentDate(item.start_time)}</p><p>{appointmentTypes[item.type]} · {appointmentStatuses[item.status]}</p><p>Motivo: {item.appointment_reason || 'Motivo no indicado'}</p><button className="text-button" onClick={() => setSelected(item)}>Ver detalles</button></li>)}</ul>{state.data.appointments.length === 0 && <p>No hay citas con estos filtros.</p>}<Pages page={state.data.page} size={state.data.page_size} total={state.data.total} onPage={page => setQuery({ ...query, page })} /></>}
   </>}</Modal>;
 }

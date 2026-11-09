@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useProfessionalTimeBlocks } from '../../hooks/useProfessionalTimeBlocks';
 import { ProfessionalTimeBlocks } from '../../components/ProfessionalTimeBlocks';
 import { ProfessionalWorkingHours } from '../../components/ProfessionalWorkingHours';
+import { DateTimeField } from '../../components/DateTimeField';
 import { useSearchParams } from 'react-router-dom';
 import { useProfessionalWeek } from '../../hooks/useProfessionalWeek';
 import { ProfessionalAppointmentDetails } from '../../components/ProfessionalPanels';
@@ -60,7 +61,7 @@ export function ProfessionalAgendaPage() {
     <section className="agenda-toolbar" aria-label="Controles de la agenda">
       <div className="agenda-week-navigation"><button type="button" className="button secondary" aria-label="Semana anterior" disabled={busy} onClick={() => changeWeek(addDays(week, -7))}>‹</button><button type="button" className="button secondary" disabled={busy} onClick={() => changeWeek(today)}>Hoy</button><button type="button" className="button secondary" aria-label="Semana siguiente" disabled={busy} onClick={() => changeWeek(addDays(week, 7))}>›</button></div>
       <h2 className="agenda-week-title" aria-live="polite">{dayLabel(week, { day: 'numeric', month: 'short' })} — {dayLabel(lastDay, { day: 'numeric', month: 'short', year: 'numeric' })}</h2>
-      <label>Ir a la semana de<input type="date" name="agenda_date" value={week} disabled={busy} onChange={event => { if (validCalendarDay(event.target.value)) changeWeek(event.target.value); }} /></label>
+      <label>Ir a la semana de<DateTimeField type="date" name="agenda_date" value={week} disabled={busy} onValueChange={value => { if (validCalendarDay(value)) changeWeek(value); }} /></label>
       <label>Días visibles<select name="agenda_days" value={dayCount} disabled={busy} onChange={event => { const next = new URLSearchParams(params); next.set('days', event.target.value === '5' ? '5' : '7'); next.delete('day'); setSelectedId(null); setParams(next); }}><option value={7}>Lunes a domingo</option><option value={5}>Lunes a viernes</option></select></label>
       <label>Estado<select name="agenda_status" value={status} disabled={busy} onChange={event => changeStatus(event.target.value)}><option value="all">Todos los estados</option>{Object.entries(appointmentStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <button type="button" className="button secondary" disabled={busy || state.loading || timeBlocks.loading} onClick={() => { setSelectedId(null); state.retry(); timeBlocks.retry(); }}>Actualizar</button>

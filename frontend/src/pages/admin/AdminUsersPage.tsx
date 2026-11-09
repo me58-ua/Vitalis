@@ -5,6 +5,7 @@ import { adminUserError } from '../../api/adminUserErrors';
 import { useAuth } from '../../auth/AuthContext';
 import { AdminUserForm } from '../../components/AdminUserForm';
 import { Modal } from '../../components/Modal';
+import { dateFormat } from '../../utils/dateTime';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import type { AdminUser, AdminUserDetail, User } from '../../types/api';
 import addIcon from '../../assets/figma/admin-users/add.svg';
@@ -19,7 +20,7 @@ const roles: { value: User['role']; label: string }[] = [
 const describeError = (error: unknown) => adminUserError(error).summary;
 function registrationDate(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' }).format(date);
+  return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : dateFormat.format(date);
 }
 
 function ManageUserDialog({ id, ownId, initialAction = null, onClose, onChanged }: {

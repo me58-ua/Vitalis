@@ -75,6 +75,13 @@ def check():
                     assert response.status_code == status, (method, path, response.status_code, response.text)
                     return response.json() if status != 204 else None
                 consultation = call('post', '/professionals/me/working-hours', 201, json=dict(channel='consultation', day_of_week=0, start_time='09:00', end_time='12:00', slot_duration_min=30))
+                grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='consultation', days_of_week=[0, 1, 4], start_time='15:00', end_time='17:00'))
+                grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='consultation', days_of_week=[0, 2, 4], schedule_ids=[row['id'] for row in grouped], start_time='15:30', end_time='17:00'))
+                assert [row['day_of_week'] for row in grouped] == [0, 2, 4]
+                before = call('get', '/professionals/me/working-hours', 200)
+                call('post', '/professionals/me/working-hours/batch', 409, json=dict(channel='consultation', days_of_week=[1, 4], start_time='16:00', end_time='18:00'))
+                assert call('get', '/professionals/me/working-hours', 200) == before, 'Partial batch survived rollback'
+                call('post', '/professionals/me/working-hours/batch-delete', 204, json={'schedule_ids': [row['id'] for row in grouped]})
                 call('post', '/professionals/me/working-hours', 409, json=dict(channel='consultation', day_of_week=0, start_time='11:00', end_time='13:00'))
                 chat_hours = [call('post', '/professionals/me/working-hours', 201, json=dict(channel='chat', day_of_week=day, start_time='00:00', end_time='23:59')) for day in range(7)]
                 call('get', '/professionals/me/working-hours', 200)

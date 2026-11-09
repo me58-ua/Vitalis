@@ -14,7 +14,7 @@ from app.api import working_hours, spontaneous_chat
 from app.api.deps import get_current_user, get_audit_repository, get_file_storage
 from app.database import get_db
 from app.models import UserRole, SpontaneousChat
-from app.schemas.working_hours import WorkingHoursCreate, WorkingHoursUpdate
+from app.schemas.working_hours import WorkingHoursCreate, WorkingHoursUpdate, WorkingHoursBatch, WorkingHoursBatchDelete
 from app.services.file_storage import LocalFileStorage
 from app.services.working_hours_service import WorkingHoursService, SpontaneousChatAvailabilityService
 from app.services.spontaneous_chat_service import SpontaneousChatService, SpontaneousChatError
@@ -22,6 +22,22 @@ from app.services.appointment_service import AppointmentNotFoundError
 
 
 class WorkingHoursTests(unittest.TestCase):
+    def test_batch_rejects_empty_duplicate_invalid_days_and_identifiers(self):
+        base = dict(channel='consultation', start_time='09:00', end_time='13:00')
+        for days in ([], [0, 0], [-1], [7]):
+            with self.assertRaises(ValidationError): WorkingHoursBatch(**base, days_of_week=days)
+        self.assertEqual(WorkingHoursBatch(**base, days_of_week=[4, 0, 1]).days_of_week, [0, 1, 4])
+        identifier = uuid4()
+        with self.assertRaises(ValidationError): WorkingHoursBatchDelete(schedule_ids=[identifier, identifier])
+
+    def test_batch_checks_all_owners_before_modifying_any_row(self):
+        repo = Mock()
+        user = SimpleNamespace(id=uuid4(), role=UserRole.PROFESSIONAL)
+        repo.get_owned.side_effect = [SimpleNamespace(id=uuid4()), None]
+        request = WorkingHoursBatch(channel='chat', days_of_week=[0, 1], schedule_ids=[uuid4(), uuid4()], start_time='09:00', end_time='13:00')
+        with self.assertRaises(AppointmentNotFoundError): WorkingHoursService(repo).save_batch(user, request)
+        repo.save.assert_not_called()
+        repo.delete.assert_not_called()
     def test_wall_clock_duration_and_owner_validation(self):
         base = dict(day_of_week=0, start_time='09:00', end_time='13:00', channel='consultation')
         for changes in ({'day_of_week': 7}, {'end_time': '08:00'}, {'start_time': '09:00+02:00'},
