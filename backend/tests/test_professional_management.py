@@ -47,6 +47,16 @@ class ProfileChangeTests(unittest.TestCase):
         self.assertEqual(self.profile.change_status, "pending")
         self.audits.create.assert_called_once()
 
+    def test_submission_notifies_admins_but_empty_changes_do_not(self):
+        notifications = Mock()
+        self.service = ProfileChangeService(self.repo, self.audits, notifications)
+        self.submit(specialty="Cardiología")
+        notifications.notify_professional_review.assert_called_once_with(self.user, profile_change=True)
+        notifications.reset_mock()
+        with self.assertRaises(ProfileChangeValidation):
+            self.submit(specialty=self.profile.specialty)
+        notifications.notify_professional_review.assert_not_called()
+
     def test_languages_and_experience_are_published_only_after_approval(self):
         self.profile.languages = ['Español']
         self.profile.years_experience = None

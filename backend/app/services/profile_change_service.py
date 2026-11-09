@@ -18,9 +18,10 @@ class ProfileChangeValidation(Exception):
 
 
 class ProfileChangeService:
-    def __init__(self, profiles, audits=None):
+    def __init__(self, profiles, audits=None, notifications=None):
         self.profiles = profiles
         self.audit = AuditService(audits)
+        self.notifications = notifications
 
     def submit(self, user, data):
         profile = self._locked(user.id)
@@ -39,6 +40,8 @@ class ProfileChangeService:
         profile.change_rejection_reason = None
         self.profiles.session.flush()
         self.audit.record(user.id, user.role, AuditAction.UPDATE, "professional_profile_change", profile.id)
+        if self.notifications is not None:
+            self.notifications.notify_professional_review(user, profile_change=True)
         return profile
 
     def decide(self, professional_id, admin, decision, approve):

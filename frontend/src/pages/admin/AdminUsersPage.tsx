@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { approveAdminProfessional, deleteAdminUser, getAdminUser, getAdminUsers, updateAdminUser, getPendingProfileChanges } from '../../api/admin';
 import { ProfileChangeReview } from '../../components/ProfileChangeReview';
 import { adminUserError } from '../../api/adminUserErrors';
@@ -82,7 +83,12 @@ function CreateUserDialog({ role, onClose, onSaved }: { role: User['role']; onCl
 
 export function AdminUsersPage() {
   const { user, refreshUser } = useAuth();
-  const [role, setRole] = useState<User['role']>('patient');
+  const [params, setParams] = useSearchParams();
+  const selectedRole = params.get('role');
+  const role: User['role'] = selectedRole === 'professional' || selectedRole === 'admin' ? selectedRole : 'patient';
+  function setRole(value: User['role']) {
+    setParams(previous => { const next = new URLSearchParams(previous); next.set('role', value); return next; });
+  }
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState({ search: '', page: 1, page_size: 20 });
   const [revision, setRevision] = useState(0);

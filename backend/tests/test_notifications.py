@@ -69,6 +69,23 @@ class FakeNotificationRepository:
 
 
 class NotificationTests(unittest.TestCase):
+    def test_professional_review_notifies_all_admins_in_app(self):
+        admins = [uuid.uuid4(), uuid.uuid4()]
+        self.repository.active_admin_ids = lambda: admins
+        professional = SimpleNamespace(id=uuid.uuid4(), name="Profesional de prueba")
+        for profile_change in (False, True):
+            self.service.notify_professional_review(professional, profile_change=profile_change)
+        self.assertEqual(len(self.repository.items), 4)
+        self.assertEqual({item.recipient_id for item in self.repository.items}, set(admins))
+        self.assertEqual({item.type for item in self.repository.items}, {
+            "professional_registration_pending", "professional_profile_change_pending",
+        })
+        for item in self.repository.items:
+            self.assertEqual(item.entity_id, professional.id)
+            self.assertIn(professional.name, item.message)
+            self.assertFalse(item.email_required)
+            self.assertIsNone(item.read_at)
+
     def setUp(self):
         self.recipient_id = uuid.uuid4()
         self.appointment_id = uuid.uuid4()

@@ -2,6 +2,7 @@ import unittest
 import uuid
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
@@ -92,7 +93,10 @@ class AuthTests(unittest.TestCase):
         self.assertFalse(verify_password("wrong-password", password_hash))
 
     def test_registers_patient_without_storing_plaintext_password(self):
+        notifications = Mock()
+        self.service = AuthService(self.repository, notifications)
         user = self.service.register_patient(self.data)
+        notifications.notify_professional_review.assert_not_called()
         self.assertEqual(user.role, UserRole.PATIENT)
         self.assertNotEqual(user.password_hash, self.data.password)
         self.assertEqual(user.email, self.data.email)
@@ -135,6 +139,8 @@ class AuthTests(unittest.TestCase):
             self.assertEqual(data.weight_kg, weight)
 
     def test_registers_professional_as_inactive_with_professional_profile(self):
+        notifications = Mock()
+        self.service = AuthService(self.repository, notifications)
         data = UserRegisterRequest(
             role=UserRole.PROFESSIONAL,
             name="New Professional",
@@ -159,6 +165,7 @@ class AuthTests(unittest.TestCase):
         self.assertFalse(user.is_active)
         self.assertIsNotNone(user.professional_profile)
         self.assertEqual(user.professional_profile.specialty, "Cardiology")
+        notifications.notify_professional_review.assert_called_once_with(user)
 
     def test_registration_requires_terms_acceptance(self):
         with self.assertRaises(ValueError):

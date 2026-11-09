@@ -1,4 +1,5 @@
 import { useNotifications } from '../hooks/useNotifications';
+import { Link } from 'react-router-dom';
 import { dateTimeFormat as dateFormat } from '../utils/dateTime';
 import bell from '../assets/figma/imgContainer17.svg';
 
@@ -25,6 +26,8 @@ export function Notifications({ userId }: { userId: string }) {
       {!state.loading && !state.error && state.page && <ul className="notification-list">
         {state.page.notifications.map((item) => <li key={item.id} className={item.read_at ? '' : 'unread'}>
           <h3>{item.title}</h3><p>{item.message}</p><time dateTime={item.created_at}>{formatDate(item.created_at)}</time>
+          {(item.type === 'professional_registration_pending' || item.type === 'professional_profile_change_pending') &&
+            <Link className="text-button" to="/adminPanel/gestionUsuarios?role=professional" onClick={state.toggle}>Revisar solicitud</Link>}
           {!item.read_at && <button className="text-button" disabled={state.pendingId !== null}
             onClick={() => { void state.read(item.id); }}>{state.pendingId === item.id ? 'Guardando…' : 'Marcar como leída'}</button>}
         </li>)}

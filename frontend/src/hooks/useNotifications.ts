@@ -26,24 +26,40 @@ export function useNotifications(userId: string) {
 
   useEffect(() => {
     const abort = new AbortController();
-    void getUnreadCount(abort.signal).then((value) => {
-      if (!abort.signal.aborted) { setCount(value); setCountError(''); }
-    }).catch((error: unknown) => {
-      if (!abort.signal.aborted) setCountError(errorMessage(error));
-    });
-    return () => abort.abort();
-  }, [userId, revision]);
+    function refreshCount() {
+      void getUnreadCount(abort.signal).then((value) => {
+        if (!abort.signal.aborted) { setCount(value); setCountError(''); }
+      }).catch((error: unknown) => {
+        if (!abort.signal.aborted) setCountError(errorMessage(error));
+      });
+    }
+    refreshCount();
+    const interval = window.setInterval(refreshCount, 30000);
+    window.addEventListener('focus', refreshCount);
+    return () => {
+      abort.abort(); window.clearInterval(interval); window.removeEventListener('focus', refreshCount);
+    };
+  }, [userId, revision, open]);
 
   useEffect(() => {
     if (!open) return;
     const abort = new AbortController();
     controller.current = abort;
-    void getNotifications(abort.signal).then((data) => {
-      if (!abort.signal.aborted) setPage(data);
-    }).catch((error: unknown) => {
-      if (!abort.signal.aborted) setError(errorMessage(error));
-    }).finally(() => { if (!abort.signal.aborted) setLoading(false); });
-    return () => { abort.abort(); marking.current = false; };
+    function refreshPage() {
+      if (marking.current) return;
+      void getNotifications(abort.signal).then((data) => {
+        if (!abort.signal.aborted) { setPage(data); setError(''); }
+      }).catch((error: unknown) => {
+        if (!abort.signal.aborted) setError(errorMessage(error));
+      }).finally(() => { if (!abort.signal.aborted) setLoading(false); });
+    }
+    refreshPage();
+    const interval = window.setInterval(refreshPage, 30000);
+    window.addEventListener('focus', refreshPage);
+    return () => {
+      abort.abort(); marking.current = false;
+      window.clearInterval(interval); window.removeEventListener('focus', refreshPage);
+    };
   }, [open, userId, revision]);
 
   async function read(id: string) {

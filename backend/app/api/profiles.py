@@ -7,6 +7,7 @@ from app.api.deps import (
     get_current_professional,
     get_profile_repository,
     get_user_repository,
+    get_notification_service,
 )
 from app.models import AuditAction, User
 from app.api.deps import get_audit_repository
@@ -25,6 +26,7 @@ from app.schemas.profiles import (
 )
 from app.schemas.health import AIConsentUpdate
 from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
 from app.services.profile_service import (
     InvalidCurrentPasswordError,
     ProfileNotFoundError,
@@ -114,9 +116,10 @@ def update_professional_profile(
     current_user: CurrentProfessional,
     profiles: Profiles,
     audits: Audits,
+    notifications: Annotated[NotificationService, Depends(get_notification_service)] = None,
 ):
     try:
-        return ProfileService(None, profiles).update_professional_profile(current_user, data, audits)
+        return ProfileService(None, profiles).update_professional_profile(current_user, data, audits, notifications)
     except ProfileNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except ProfileChangeValidation as error:
