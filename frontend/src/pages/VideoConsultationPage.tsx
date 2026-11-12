@@ -125,7 +125,7 @@ function Consultation({ user, appointmentId, date }: { user: User; appointmentId
         </section>}
         {access && <p className="field-help">Terminar tu llamada no desconecta a la otra persona. Si ya te has unido, la cita se marcará como finalizada.</p>}
       </div>
-      {(status === 'confirmed' || status === 'completed') && <ConsultationChat key={`${appointmentId}:${status}`} appointmentId={appointmentId} userId={user.id} otherName={state.data.otherName} />}
+      {(status === 'confirmed' || status === 'completed') && <ConsultationChat key={`${appointmentId}:${status}`} appointmentId={appointmentId} userId={user.id} otherName={state.data.otherName} variant="call" />}
       </div>
     </>}
   </main>;

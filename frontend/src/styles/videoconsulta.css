@@ -61,3 +61,34 @@
 .patient-video-entry input { width: 100%; min-width: 0; border: 1px solid #bfc9c3; padding: 12px; border-radius: 8px; }
 @media(max-width: 1100px) { .consultation-grid { grid-template-columns: minmax(0, 1fr); } .consultation-chat { height: 540px; max-height: none; } .consultation-prejoin { min-height: 420px; } }
 @media(max-width: 600px) { .consultation-main { padding: 20px 14px; } .consultation-prejoin { padding: 28px 20px; min-height: 380px; } .jitsi-call { height: 65dvh; min-height: 450px; } .jitsi-controls { gap: 6px; padding: 12px 5px; } .jitsi-controls button { min-width: 54px; font-size: 10px; } .jitsi-controls button > span { width: 44px; height: 44px; } .consultation-patient-link { margin-left: 0; } }
+
+/* Compact video-room chat, Figma 1:2604. The inbox keeps its own presentation. */
+.consultation-grid { --consultation-pane-height: clamp(540px, calc(100dvh - 240px), 820px); grid-template-columns: minmax(0, 1fr) 320px; }
+.consultation-grid .jitsi-call { height: var(--consultation-pane-height); }
+.consultation-grid .consultation-prejoin { min-height: var(--consultation-pane-height); box-sizing: border-box; }
+.consultation-grid > .consultation-chat-call { height: var(--consultation-pane-height); max-height: none; }
+.consultation-chat-call > header { position: relative; min-height: 56px; box-sizing: border-box; padding: 16px; flex-wrap: nowrap; gap: 10px; }
+.consultation-chat-call > header h2 { font-size: 16px; font-weight: 400; line-height: 24px; }
+.consultation-chat-call .consultation-chat-connection { flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: #8b726b; }
+.consultation-chat-call .consultation-chat-connection.is-connected { background: #006c49; }
+.consultation-chat-details { position: relative; }
+.consultation-chat-details summary { display: grid; place-items: center; width: 20px; height: 24px; cursor: pointer; list-style: none; border-radius: 4px; }
+.consultation-chat-details summary::-webkit-details-marker { display: none; }
+.consultation-chat-details > div { position: absolute; top: 32px; right: 0; z-index: 5; width: 250px; max-width: calc(100vw - 80px); padding: 16px; border: 1px solid #bfc9c34d; border-radius: 12px; background: white; box-shadow: 0 8px 24px #121c2a18; font-size: 12px; line-height: 1.6; }
+.consultation-chat-details p { margin-bottom: 0; }
+.consultation-chat-call .consultation-messages { padding: 16px; }
+.consultation-chat-call .consultation-message { width: fit-content; max-width: 90%; margin-bottom: 24px; font-size: 14px; }
+.consultation-chat-call .consultation-message > p { padding: 8px 16px; line-height: 1.5; border-radius: 2px 16px 16px 16px; box-shadow: 0 1px 2px #00000005; }
+.consultation-chat-call .consultation-message.is-own > p { border-radius: 16px 2px 16px 16px; }
+.consultation-chat-call .consultation-message footer { padding: 4px 8px 0; font-size: 11px; line-height: 16px; }
+.consultation-chat-call .chat-typing { min-height: 0; padding: 0 16px; }
+.consultation-chat-call .chat-typing:not(:empty) { padding-bottom: 8px; }
+.consultation-chat-call .consultation-chat-note { padding: 8px 16px; font-size: 12px; }
+.consultation-chat-call .consultation-chat-form { position: relative; isolation: isolate; display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; gap: 0; align-items: center; padding: 16px 20px; min-height: 80px; box-sizing: border-box; flex-shrink: 0; }
+.consultation-chat-call .consultation-chat-form::before { content: ''; position: absolute; z-index: -1; inset: 16px; border-radius: 999px; background: #eff4ff; }
+.consultation-chat-call .chat-attach { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; background: transparent; }
+.consultation-chat-call .consultation-chat-form textarea { width: 100%; height: 48px; min-height: 48px; max-height: 48px; box-sizing: border-box; padding: 14px 4px; resize: none; border: 0; border-radius: 0; background: transparent; font-size: 12px; line-height: 20px; }
+.consultation-chat-call .consultation-chat-form .button { display: grid; place-items: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border-radius: 50%; background: #003527; }
+.consultation-chat-call button:focus-visible, .consultation-chat-call summary:focus-visible { outline: 2px solid #006c49; outline-offset: 3px; }
+@media(max-width: 900px) { .consultation-grid { grid-template-columns: minmax(0, 1fr); } .consultation-grid > .consultation-chat-call { height: 500px; } }
+@media(max-width: 600px) { .consultation-grid .jitsi-call { height: 65dvh; } .consultation-grid .consultation-prejoin { min-height: 380px; } }
