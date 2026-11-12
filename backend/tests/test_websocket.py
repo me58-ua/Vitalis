@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.main import app
 from app.services.auth_service import InvalidAccessTokenError
 from app.services.connection_manager import ConnectionManager
-from app.models import AppointmentStatus, UserRole
+from app.models import AppointmentStatus, AppointmentType, UserRole
 
 
 class FakeWebSocket:
@@ -30,6 +30,7 @@ class WebSocketTests(unittest.TestCase):
     def test_revoked_token_closes_existing_socket_on_next_event(self):
         user = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True)
         appointment = SimpleNamespace(
+            type=AppointmentType.VIDEO,
             id=uuid.uuid4(), patient_id=user.id, professional_id=uuid.uuid4(),
             status=AppointmentStatus.CONFIRMED,
         )
@@ -47,6 +48,7 @@ class WebSocketTests(unittest.TestCase):
     def test_valid_connection_answers_ping(self):
         user = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True, name="Patient")
         appointment = SimpleNamespace(
+            type=AppointmentType.VIDEO,
             id=uuid.uuid4(), patient_id=user.id, professional_id=uuid.uuid4(),
             status=AppointmentStatus.CONFIRMED,
             start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc),

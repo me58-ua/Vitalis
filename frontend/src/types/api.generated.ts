@@ -1454,6 +1454,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chats/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Appointment Chats */
+        get: operations["list_appointment_chats_chats_appointments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/appointments/{appointment_id}/chat": {
         parameters: {
             query?: never;
@@ -2004,6 +2021,8 @@ export interface components {
         };
         /** AdminUserCreate */
         AdminUserCreate: {
+            /** Photo Url */
+            photo_url?: string | null;
             /** Dni */
             dni: string;
             /** Name */
@@ -2029,6 +2048,8 @@ export interface components {
         };
         /** AdminUserDetailResponse */
         AdminUserDetailResponse: {
+            /** Photo Url */
+            photo_url?: string | null;
             /**
              * Id
              * Format: uuid
@@ -2080,6 +2101,8 @@ export interface components {
         };
         /** AdminUserResponse */
         AdminUserResponse: {
+            /** Photo Url */
+            photo_url?: string | null;
             /**
              * Id
              * Format: uuid
@@ -2118,6 +2141,8 @@ export interface components {
         };
         /** AdminUserUpdate */
         AdminUserUpdate: {
+            /** Photo Url */
+            photo_url?: string | null;
             /** Dni */
             dni?: string | null;
             /** Name */
@@ -2467,6 +2492,17 @@ export interface components {
             /** Closes At */
             closes_at?: string | null;
         };
+        /** ChatInboxResponse */
+        ChatInboxResponse: {
+            /** Chats */
+            chats: components["schemas"]["ChatThreadResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /** ChatMessageCreate */
         ChatMessageCreate: {
             /** Content */
@@ -2524,6 +2560,24 @@ export interface components {
             /** Can Write */
             can_write: boolean;
             status: components["schemas"]["AppointmentStatus"];
+        };
+        /** ChatThreadResponse */
+        ChatThreadResponse: {
+            /**
+             * Appointment Id
+             * Format: uuid
+             */
+            appointment_id: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            status: components["schemas"]["AppointmentStatus"];
+            /** Other Name */
+            other_name: string;
+            /** Photo Url */
+            photo_url?: string | null;
         };
         /** ChronicConditionCreate */
         ChronicConditionCreate: {
@@ -3906,6 +3960,10 @@ export interface components {
         };
         /** SpontaneousChatResponse */
         SpontaneousChatResponse: {
+            /** Patient Photo Url */
+            patient_photo_url?: string | null;
+            /** Professional Photo Url */
+            professional_photo_url?: string | null;
             /**
              * Id
              * Format: uuid
@@ -4116,6 +4174,8 @@ export interface components {
         };
         /** UserResponse */
         UserResponse: {
+            /** Photo Url */
+            photo_url?: string | null;
             /**
              * Id
              * Format: uuid
@@ -7453,6 +7513,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_appointment_chats_chats_appointments_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatInboxResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

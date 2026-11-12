@@ -15,6 +15,7 @@ from app.models import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.chat_message_repository import ChatMessageRepository
 from app.schemas.chat import (
+    ChatInboxResponse,
     ChatMessageCreate,
     ChatMessageListResponse,
     ChatMessageResponse,
@@ -34,6 +35,16 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 Appointments = Annotated[AppointmentRepository, Depends(get_appointment_repository)]
 Messages = Annotated[ChatMessageRepository, Depends(get_chat_message_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
+
+
+@router.get("/chats/appointments", response_model=ChatInboxResponse)
+def list_appointment_chats(user: CurrentUser, appointments: Appointments,
+                           page: int = Query(default=1, ge=1),
+                           page_size: int = Query(default=20, ge=1, le=100)):
+    if user.role.value not in ("patient", "professional"):
+        raise HTTPException(status_code=403, detail="Chat is for appointment participants only")
+    rows, total = appointments.list_chat_rooms(user.id, (page - 1) * page_size, page_size)
+    return ChatInboxResponse(chats=rows, total=total, page=page, page_size=page_size)
 
 
 def get_chat_service(

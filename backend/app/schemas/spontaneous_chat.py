@@ -12,6 +12,8 @@ class StartSpontaneousChat(BaseModel):
 
 
 class SpontaneousChatResponse(BaseModel):
+    patient_photo_url: str | None = None
+    professional_photo_url: str | None = None
     id: UUID
     patient_id: UUID
     professional_id: UUID

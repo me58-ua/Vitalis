@@ -28,9 +28,11 @@ class SpontaneousChatService:
 
     def response(self, chat):
         names = self.repository.names(chat)
+        photos = self.repository.photos(chat)
         availability = self.availability.get(chat.professional_id)
         return dict(id=chat.id, patient_id=chat.patient_id, professional_id=chat.professional_id,
                     patient_name=names.get(chat.patient_id, 'Paciente'), professional_name=names.get(chat.professional_id, 'Profesional'),
+                    patient_photo_url=photos.get(chat.patient_id), professional_photo_url=photos.get(chat.professional_id),
                     status=chat.status, created_at=chat.created_at, updated_at=chat.updated_at,
                     can_write=chat.status == 'open' and availability['available'], availability=availability)
 

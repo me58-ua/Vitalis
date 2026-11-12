@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { DocumentSearch } from '../components/DocumentSearch';
 import { Notifications } from '../components/Notifications';
@@ -18,10 +18,12 @@ import '../styles/patient-dashboard.css';
 export function PatientDashboardLayout({ children, onProfile }: { children: ReactNode; onProfile: () => void }) {
   const { user, busy, logout, logoutError } = useAuth();
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const messagesActive = location.pathname.endsWith('/chats');
   if (!user) return null;
   return <div className="patient-dashboard"><a className="skip-link" href="#contenido">Saltar al contenido</a>
     <aside className={`patient-sidebar ${open ? 'is-open' : ''}`} id="patient-navigation"><Link className="patient-brand" to="/"><img src={logo} alt="" />vitaLis</Link>
-      <nav aria-label="Navegación del paciente" onClick={() => setOpen(false)}><Link to="/"><img src={home} alt="" />Inicio</Link><Link to="/patientPanel" aria-current="page" className="active"><img src={dashboard} alt="" />Panel de control</Link><a href="#evaluaciones"><img src={analysis} alt="" />Análisis</a><Link to="/patientPanel/misCitas"><img src={calendar} alt="" />Mis citas</Link><Link to="/patientPanel/chats"><img src={messages} alt="" />Mensajes</Link><button onClick={onProfile}><img src={profile} alt="" />Perfil</button></nav>
+      <nav aria-label="Navegación del paciente" onClick={() => setOpen(false)}><Link to="/"><img src={home} alt="" />Inicio</Link><Link to="/patientPanel" aria-current={!messagesActive ? 'page' : undefined} className={!messagesActive ? 'active' : undefined}><img src={dashboard} alt="" />Panel de control</Link><a href="#evaluaciones"><img src={analysis} alt="" />Análisis</a><Link to="/patientPanel/misCitas"><img src={calendar} alt="" />Mis citas</Link><Link to="/patientPanel/chats" aria-current={messagesActive ? 'page' : undefined} className={messagesActive ? 'active' : undefined}><img src={messages} alt="" />Mensajes</Link><button onClick={onProfile}><img src={profile} alt="" />Perfil</button></nav>
       <div className="patient-sidebar-bottom"><button disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button>{logoutError && <p role="alert" className="error-state">{logoutError}</p>}</div>
     </aside>
     <div className="patient-dashboard-body"><header className="patient-dashboard-header"><button className="icon-button patient-menu-button" aria-label="Mostrar u ocultar navegación" aria-expanded={open} aria-controls="patient-navigation" onClick={() => setOpen(value => !value)}><img src={menu} alt="" /></button><div className="patient-header-title"><span>Panel del paciente</span><strong>Bienvenido de nuevo, {user.name}</strong></div><div className="patient-header-tools"><DocumentSearch user={user} /><Notifications userId={user.id} /><details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong>{logoutError && <p role="alert">{logoutError}</p>}<button className="text-button" disabled={busy} onClick={() => { void logout(); }}>Cerrar sesión</button></div></details></div></header>{children}</div>

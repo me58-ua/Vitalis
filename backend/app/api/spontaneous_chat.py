@@ -15,6 +15,7 @@ from app.services.working_hours_service import SpontaneousChatAvailabilityServic
 from app.services.spontaneous_chat_service import SpontaneousChatService, SpontaneousChatError
 from app.schemas.spontaneous_chat import StartSpontaneousChat, SpontaneousChatResponse, SpontaneousChatPage, SpontaneousMessageResponse, SpontaneousMessagePage
 from app.core.rate_limit import InMemoryRateLimiter
+from app.services.spontaneous_connections import manager
 
 router = APIRouter(prefix='/spontaneous-chats', tags=['spontaneous-chat'])
 Current = Annotated[User, Depends(get_current_user)]
@@ -58,9 +59,12 @@ def get_chat(chat_id: UUID, user: Current, db: DbSession, response: Response):
 
 
 @router.post('/{chat_id}/close', response_model=SpontaneousChatResponse)
-def close_chat(chat_id: UUID, user: Current, db: DbSession, audits: Audits):
+async def close_chat(chat_id: UUID, user: Current, db: DbSession, audits: Audits):
     chat_service = service(db, audits=audits)
-    return translate(lambda: chat_service.response(chat_service.close(chat_id, user)))
+    result = translate(lambda: chat_service.response(chat_service.close(chat_id, user)))
+    db.commit()
+    await manager.broadcast(chat_id, {"type": "changed"})
+    return result
 
 
 @router.get('/{chat_id}/messages', response_model=SpontaneousMessagePage)
@@ -74,10 +78,14 @@ def messages(chat_id: UUID, user: Current, db: DbSession, response: Response, li
 
 
 @router.post('/{chat_id}/messages', response_model=SpontaneousMessageResponse, status_code=201)
-def send_message(chat_id: UUID, user: Current, db: DbSession, storage: Storage, audits: Audits,
+async def send_message(chat_id: UUID, user: Current, db: DbSession, storage: Storage, audits: Audits,
                  client_id: UUID = Form(...), content: str = Form('', max_length=2000), file: UploadFile | None = File(None)):
     if not limiter.allow(f'{user.id}:{chat_id}'): raise HTTPException(429, 'CHAT_RATE_LIMITED')
-    return translate(lambda: service(db, storage, audits).send(chat_id, user, client_id, content, file))
+    message = translate(lambda: service(db, storage, audits).send(chat_id, user, client_id, content, file))
+    result = SpontaneousMessageResponse.model_validate(message)
+    db.commit()
+    await manager.broadcast(chat_id, {"type": "changed"})
+    return result
 
 
 @router.get('/{chat_id}/messages/{message_id}/file')

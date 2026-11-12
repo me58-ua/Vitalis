@@ -23,4 +23,7 @@ class ConnectionManager:
 
     async def broadcast(self, appointment_id: UUID, payload: dict) -> None:
         for websocket in tuple(self.connections.get(appointment_id, ())):
-            await websocket.send_json(payload)
+            try:
+                await websocket.send_json(payload)
+            except (RuntimeError, OSError):
+                self.disconnect(appointment_id, websocket)

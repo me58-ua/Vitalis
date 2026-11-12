@@ -45,6 +45,7 @@ export function useSpontaneousRoom(id: string) {
     return () => { abort.abort(); olderAbort.current?.abort(); clearTimeout(timer); };
   }, [id, revision]);
   const add = useCallback((message: SpontaneousMessage) => setMessages(previous => merge(previous, [message])), []);
+  const retry = useCallback(() => setRevision(value => value + 1), []);
   async function loadOlder() {
     if (olderLock.current || !messages[0]) return;
     olderLock.current = true; setOlderBusy(true);
@@ -53,5 +54,5 @@ export function useSpontaneousRoom(id: string) {
     catch (error: unknown) { if (!abort.signal.aborted) setError(spontaneousChatError(error)); }
     finally { olderLock.current = false; if (!abort.signal.aborted) setOlderBusy(false); }
   }
-  return { room, messages, loading, error, hasOlder, olderBusy, loadOlder, add, retry: () => setRevision(value => value + 1), setRoom };
+  return { room, messages, loading, error, hasOlder, olderBusy, loadOlder, add, retry, setRoom };
 }

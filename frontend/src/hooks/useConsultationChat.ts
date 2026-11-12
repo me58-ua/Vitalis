@@ -22,6 +22,9 @@ export function useConsultationChat(appointmentId: string, userId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const typingUntil = useRef(0);
+  const lastTyping = useRef(0);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [olderBusy, setOlderBusy] = useState(false);
@@ -36,13 +39,16 @@ export function useConsultationChat(appointmentId: string, userId: string) {
   const controller = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    latest.current = undefined; oldest.current = undefined;
     const abort = new AbortController(); controller.current = abort;
     let currentSocket: WebSocket | null = null;
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
     const heartbeat = setInterval(() => {
       if (currentSocket?.readyState === WebSocket.OPEN) currentSocket.send(JSON.stringify({ type: 'ping' }));
+      void synchronize().catch(() => { /* Reconnect and send surface access errors. */ });
     }, 20000);
+    const typingTimer = setInterval(() => { if (Date.now() > typingUntil.current) setTyping(false); }, 500);
     function rejectPending(message: string) {
       const item = pending.current;
       if (item) { clearTimeout(item.timeout); pending.current = null; item.reject(new Error(message)); }
@@ -88,8 +94,13 @@ export function useConsultationChat(appointmentId: string, userId: string) {
           if (abort.signal.aborted) return;
           let value: unknown;
           try { value = JSON.parse(String(event.data)); } catch { return; }
+          if (typeof value === 'object' && value !== null && 'type' in value && value.type === 'typing'
+            && 'sender_id' in value && value.sender_id !== userId && 'is_typing' in value) {
+            typingUntil.current = Date.now() + 3500; setTyping(value.is_typing === true); return;
+          }
           const message = socketMessage(value, appointmentId);
           if (message) {
+            if (message.sender_id !== userId) setTyping(false);
             latest.current = message.id;
             setMessages(previous => merge(previous, [message]));
             const sent = pending.current;
@@ -118,7 +129,7 @@ export function useConsultationChat(appointmentId: string, userId: string) {
     }
     void connect();
     return () => {
-      abort.abort(); clearInterval(heartbeat); clearTimeout(reconnect);
+      abort.abort(); clearInterval(heartbeat); clearInterval(typingTimer); clearTimeout(reconnect);
       if (currentSocket) { currentSocket.onclose = null; currentSocket.onmessage = null; currentSocket.onopen = null; currentSocket.onerror = null; currentSocket.close(); }
       socket.current = null; canWrite.current = false;
       rejectPending('Has salido del chat.');
@@ -150,6 +161,11 @@ export function useConsultationChat(appointmentId: string, userId: string) {
     } catch (reason: unknown) { if (!abort.signal.aborted) setError(consultationError(reason)); }
     finally { olderLock.current = false; if (!abort.signal.aborted) setOlderBusy(false); }
   }
-  return { room, messages, loading, connected, error, sending, olderBusy, hasOlder, send, loadOlder,
+  function notifyTyping(active: boolean) {
+    if (!canWrite.current || socket.current?.readyState !== WebSocket.OPEN) return;
+    if (active && Date.now() - lastTyping.current < 1000) return;
+    lastTyping.current = Date.now(); socket.current.send(JSON.stringify({ type: 'typing', is_typing: active }));
+  }
+  return { room, messages, loading, connected, typing, notifyTyping, error, sending, olderBusy, hasOlder, send, loadOlder,
     retry: () => { setError(''); setLoading(true); setConnected(false); setSending(false); setRevision(value => value + 1); } };
 }

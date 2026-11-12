@@ -22,6 +22,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
   state.timeBlocks = []; state.profileUpdates = []; state.profileByUser = {};
   state.workingHours = []; state.quickChats = []; state.quickMessages = []; state.quickAvailable = true; state.quickUploads = 0;
   const chatConnections = new Map();
+  let broadcastSpontaneous = () => {};
   state.chatMessages = []; state.videoJoinCalls = 0; state.videoStatusWrites = [];
   const appointments = [0, 1].map(index => ({ id: `00000000-0000-4000-8000-${String(301 + index).padStart(12, '0')}`, patient_id: participants.patient.id, professional_id: participants.professional.id, patient_name: participants.patient.name, professional_name: participants.professional.name, start_time: `2030-11-0${index + 2}T10:00:00Z`, end_time: `2030-11-0${index + 2}T11:00:00Z`, type: 'video', status: 'confirmed', appointment_reason: 'Motivo sintético de cita', cancellation_reason: null }));
   const professionalAppointments = appointments.map((item, index) => ({ ...item, patient_username: participants.patient.username, type: index ? 'video' : 'in_person', status: 'confirmed' }));
@@ -123,7 +124,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         res.writeHead(200, { 'Content-Type': item.content_type, 'Cache-Control': 'no-store' });
         res.end(item.content_type === 'image/png' ? Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') : '%PDF-1.4 fixture'); return;
       }
-      if (path.endsWith('/close')) { chat.status = 'closed'; return send(200, quickResponse(chat)); }
+      if (path.endsWith('/close')) { chat.status = 'closed'; broadcastSpontaneous(id); return send(200, quickResponse(chat)); }
       if (path.endsWith('/messages')) {
         const rows = state.quickMessages.filter(message => message.chat_id === id);
         if (req.method === 'GET') {
@@ -140,6 +141,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         const filename = raw.match(/filename="([^"]+)"/)?.[1];
         const item = { id: randomUUID(), chat_id: id, sender_id: quickActor.id, client_id: clientId, content: field('content'), file_name: filename || null, content_type: filename ? raw.match(/Content-Type: ([^\r]+)/)?.[1] || 'application/pdf' : null, file_size: filename ? 100 : null, created_at: new Date(Date.now() + rows.length).toISOString() };
         state.quickMessages.push(item); if (filename) state.quickUploads += 1;
+        broadcastSpontaneous(id);
         return send(201, item);
       }
       return send(200, quickResponse(chat));
@@ -183,6 +185,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (state.patientUploadFail) return send(422, { detail: 'Health document must be a PDF, JPEG, or PNG file' });
       return send(201, { id: randomUUID(), patient_id: '00000000-0000-4000-8000-000000009001', tipo: 'informe', descripcion: null, file_url: 'test-only', fecha_subida: new Date().toISOString() });
     }
+    if (path === '/chats/appointments') {
+      const actor = demoLogin?.user ?? account;
+      const rows = [state.videoTestAppointment, state.inboxTestAppointment, ...professionalAppointments].filter(Boolean)
+        .filter(item => [item.patient_id, item.professional_id].includes(actor.id))
+        .map(item => ({ appointment_id: item.id, start_time: item.start_time, status: item.status,
+          other_name: actor.role === 'patient' ? participants.professional.name : participants.patient.name, photo_url: null }));
+      return send(200, { chats: rows, total: rows.length, page: 1, page_size: 20 });
+    }
     if (path === '/patients/me/appointments' && req.method === 'GET') {
       if ((demoLogin?.user ?? account).role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
       if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
@@ -195,7 +205,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, { ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
     if (path.startsWith('/appointments/')) {
       const id = path.split('/')[2];
-      const item = state.videoTestAppointment?.id === id ? state.videoTestAppointment : professionalAppointments.find(item => item.id === id);
+      const item = state.videoTestAppointment?.id === id ? state.videoTestAppointment : state.inboxTestAppointment?.id === id ? state.inboxTestAppointment : professionalAppointments.find(item => item.id === id);
       if (!item || state.chatForbidden) return send(state.chatForbidden ? 403 : 404, { detail: 'User does not participate in this appointment' });
       if (path.endsWith('/video/join')) {
         state.videoJoinCalls += 1;
@@ -442,9 +452,9 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     const url = new URL(req.url, 'http://fixture.invalid');
     const token = url.searchParams.get('token');
     const login = state.independentSessions ? demoSessions.find(item => item.access === token && !item.revoked) : null;
-    if ((state.independentSessions ? !login : token !== state.access) || !url.pathname.startsWith('/ws/chat/')) { socket.destroy(); return; }
+    if ((state.independentSessions ? !login : token !== state.access) || !(/^\/ws\/(chat|spontaneous-chat)\//.test(url.pathname))) { socket.destroy(); return; }
     const actor = login?.user ?? account;
-    const appointmentId = url.pathname.split('/').at(-1);
+    const appointmentId = (url.pathname.includes('/spontaneous-chat/') ? 'spontaneous:' : '') + url.pathname.split('/').at(-1);
     const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
     socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
     chatConnections.set(socket, appointmentId);
@@ -455,6 +465,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       else { header[1] = 126; header.writeUInt16BE(data.length, 2); }
       target.write(Buffer.concat([header, data]));
     }
+    broadcastSpontaneous = id => { for (const [target, room] of chatConnections) if (room === `spontaneous:${id}`) write(target, { type: 'changed' }); };
     let buffer = Buffer.alloc(0);
     socket.on('data', chunk => {
       buffer = Buffer.concat([buffer, chunk]);
@@ -472,6 +483,10 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         if (opcode !== 1) continue;
         let message; try { message = JSON.parse(data.toString()); } catch { continue; }
         if (message.type === 'ping') { write(socket, { type: 'pong' }); continue; }
+        if (message.type === 'typing') {
+          for (const [target, room] of chatConnections) if (room === appointmentId) write(target, { type: 'typing', sender_id: actor.id, is_typing: message.is_typing });
+          continue;
+        }
         if (message.type === 'message') {
           const item = { id: randomUUID(), appointment_id: appointmentId, sender_id: actor.id, content: message.content, created_at: new Date().toISOString() };
           state.chatMessages.push(item);

@@ -3,7 +3,7 @@ import { useProfessionalTimeBlocks } from '../../hooks/useProfessionalTimeBlocks
 import { ProfessionalTimeBlocks } from '../../components/ProfessionalTimeBlocks';
 import { ProfessionalWorkingHours } from '../../components/ProfessionalWorkingHours';
 import { DateTimeField } from '../../components/DateTimeField';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useProfessionalWeek } from '../../hooks/useProfessionalWeek';
 import { ProfessionalAppointmentDetails } from '../../components/ProfessionalPanels';
 import { ProfessionalWeekCalendar } from '../../components/ProfessionalWeekCalendar';
@@ -74,6 +74,7 @@ export function ProfessionalAgendaPage() {
     <section id="agenda-appointment-detail" className="agenda-detail" hidden={!selected} aria-labelledby="agenda-detail-title">
       {selected && <><div className="agenda-detail-heading"><h2 id="agenda-detail-title" ref={detailHeading} tabIndex={-1}>Detalle de la cita</h2><button className="button secondary" disabled={busy} onClick={closeDetail}>Cerrar detalle</button></div>
         <ProfessionalAppointmentDetails key={`${selected.id}:${selected.status}`} item={selected} onBusy={setBusy} onChanged={() => { setBusy(false); setSelectedId(null); setNotice('Cita cancelada correctamente. Se ha conservado el motivo original.'); state.retry(); }} />
+        {selected.type === 'video' && (selected.status === 'confirmed' || selected.status === 'completed') && <Link className="button secondary" to={`/professionalDashboard/chats?appointment=${encodeURIComponent(selected.id)}`}>Chat de la videoconsulta</Link>}
       </>}
     </section>
     <section aria-label="Semana de citas" aria-busy={state.loading}>

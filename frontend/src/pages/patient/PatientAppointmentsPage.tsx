@@ -24,6 +24,7 @@ export function PatientAppointmentsPage() {
             ? <Link className="button primary patient-join-video" to={`/patientPanel/videoconsulta/${encodeURIComponent(item.id)}`}>Unirme a la videoconsulta</Link>
             : <p>Podrás unirte desde 10 minutos antes del inicio.</p>)}
           {item.type === 'video' && item.status === 'completed' && <Link className="button secondary" to={`/patientPanel/videoconsulta/${encodeURIComponent(item.id)}`}>Ver consulta finalizada</Link>}
+          {item.type === 'video' && (item.status === 'confirmed' || item.status === 'completed') && <Link className="button secondary" to={`/patientPanel/chats?appointment=${encodeURIComponent(item.id)}`}>Chat de la videoconsulta</Link>}
         </li>;
       })}</ul>}
       <nav className="consultation-pagination" aria-label="Páginas de citas"><button className="button secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</button><span>Página {page}</span><button className="button secondary" disabled={page * state.data.page_size >= state.data.total} onClick={() => setPage(value => value + 1)}>Siguiente</button></nav>

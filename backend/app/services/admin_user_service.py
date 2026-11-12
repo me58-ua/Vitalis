@@ -66,6 +66,7 @@ class AdminUserService:
             tel=data.tel,
             birth_date=data.birth_date,
             gender=data.gender,
+            photo_url=data.photo_url,
             is_active=data.role != UserRole.PROFESSIONAL,
         )
         if data.role == UserRole.PATIENT:

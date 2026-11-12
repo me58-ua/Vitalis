@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, ProfessionalSchedule, ProfessionalTimeBlock, User
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, ProfessionalSchedule, ProfessionalTimeBlock, User
 
 
 class AppointmentRepository:
@@ -61,6 +61,23 @@ class AppointmentRepository:
 
     def get_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.get(Appointment, appointment_id)
+
+    def list_chat_rooms(self, user_id: UUID, offset: int, limit: int):
+        other = aliased(User)
+        conditions = [
+            or_(Appointment.patient_id == user_id, Appointment.professional_id == user_id),
+            Appointment.status.in_([AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED]),
+            Appointment.type == AppointmentType.VIDEO,
+        ]
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(*conditions)) or 0
+        rows = self.session.execute(select(
+            Appointment.id.label("appointment_id"), Appointment.start_time, Appointment.status,
+            other.name.label("other_name"), other.photo_url,
+        ).join(other, other.id == case((Appointment.patient_id == user_id, Appointment.professional_id),
+                                      else_=Appointment.patient_id))
+          .where(*conditions).order_by(Appointment.start_time.desc(), Appointment.id.desc())
+          .offset(offset).limit(limit)).mappings()
+        return list(rows), total
 
     def lock_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.scalar(select(Appointment).where(Appointment.id == appointment_id)

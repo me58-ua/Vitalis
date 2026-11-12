@@ -2,7 +2,7 @@
 from datetime import timedelta
 from uuid import UUID
 
-from app.models import Appointment, AppointmentStatus, ChatMessage, User
+from app.models import Appointment, AppointmentStatus, AppointmentType, ChatMessage, User, UserRole
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.chat_message_repository import ChatMessageRepository
 from app.services.notification_service import NotificationService
@@ -43,10 +43,15 @@ class ChatService:
         appointment = self.appointments.get_appointment(appointment_id)
         if appointment is None:
             raise ChatNotFoundError("Appointment not found")
+        if appointment.type != AppointmentType.VIDEO:
+            raise ChatForbiddenError("Chat is only available for video consultations")
         if not getattr(user, "is_active", True):
             raise ChatForbiddenError("User is inactive")
         if user.id not in (appointment.patient_id, appointment.professional_id):
             raise ChatForbiddenError("User does not participate in this appointment")
+        expected_role = UserRole.PATIENT if user.id == appointment.patient_id else UserRole.PROFESSIONAL
+        if user.role != expected_role:
+            raise ChatForbiddenError("User role does not match appointment participation")
         if appointment.status not in (AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED):
             raise ChatForbiddenError("Chat is unavailable for this appointment status")
         return appointment
@@ -58,8 +63,7 @@ class ChatService:
             from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
         start = appointment.start_time
-        end = appointment.end_time + self.write_window
-        return start - self.write_window <= now <= end
+        return start <= now <= appointment.end_time
 
     def save_message(self, appointment_id: UUID, sender: User, content: str) -> ChatMessage:
         appointment = self.get_room_access(appointment_id, sender)

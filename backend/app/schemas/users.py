@@ -37,6 +37,7 @@ class AdminProfessionalProfileInput(ProfessionalProfileCreate):
 
 
 class AdminUserCreate(BaseModel):
+    photo_url: str | None = Field(default=None, max_length=2048, pattern=r"^https://[^\s]+$")
     dni: str = Field(min_length=5, max_length=20)
     name: str = Field(min_length=1, max_length=150)
     username: str = Field(min_length=3, max_length=50)
@@ -95,6 +96,7 @@ class AdminUserCreate(BaseModel):
 
 
 class AdminUserUpdate(BaseModel):
+    photo_url: str | None = Field(default=None, max_length=2048, pattern=r"^https://[^\s]+$")
     dni: str | None = Field(default=None, min_length=5, max_length=20)
     name: str | None = Field(default=None, min_length=1, max_length=150)
     username: str | None = Field(default=None, min_length=3, max_length=50)
@@ -158,6 +160,7 @@ class AdminUserUpdate(BaseModel):
 
 class AdminUserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    photo_url: str | None = None
 
     id: UUID
     name: str

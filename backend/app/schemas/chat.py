@@ -32,3 +32,18 @@ class ChatMessageResponse(BaseModel):
 
 class ChatMessageListResponse(BaseModel):
     messages: list[ChatMessageResponse]
+
+
+class ChatThreadResponse(BaseModel):
+    appointment_id: UUID
+    start_time: datetime
+    status: AppointmentStatus
+    other_name: str
+    photo_url: str | None = None
+
+
+class ChatInboxResponse(BaseModel):
+    chats: list[ChatThreadResponse]
+    total: int
+    page: int
+    page_size: int

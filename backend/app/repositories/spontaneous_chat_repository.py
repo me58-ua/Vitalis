@@ -28,6 +28,9 @@ class SpontaneousChatRepository:
     def names(self, chat):
         return {row.id: row.name for row in self.session.scalars(select(User).where(User.id.in_([chat.patient_id, chat.professional_id])))}
 
+    def photos(self, chat):
+        return {row.id: row.photo_url for row in self.session.scalars(select(User).where(User.id.in_([chat.patient_id, chat.professional_id])))}
+
     def existing_message(self, chat_id, sender_id, client_id):
         return self.session.scalar(select(SpontaneousChatMessage).where(SpontaneousChatMessage.chat_id == chat_id, SpontaneousChatMessage.sender_id == sender_id, SpontaneousChatMessage.client_id == client_id))
 

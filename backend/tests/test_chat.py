@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from app.models import AppointmentStatus, UserRole
+from app.models import AppointmentStatus, AppointmentType, UserRole
 from app.services.chat_service import (
     ChatForbiddenError,
     ChatNotFoundError,
@@ -51,6 +51,7 @@ class ChatServiceTests(unittest.TestCase):
         )
         self.third_party = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True)
         self.appointment = SimpleNamespace(
+            type=AppointmentType.VIDEO,
             id=uuid.uuid4(),
             patient_id=self.patient.id,
             professional_id=self.professional.id,
@@ -72,6 +73,23 @@ class ChatServiceTests(unittest.TestCase):
         self.patient.is_active = False
         with self.assertRaises(ChatForbiddenError):
             self.service.get_room_access(self.appointment.id, self.patient)
+
+    def test_matching_id_with_wrong_role_is_rejected(self):
+        self.patient.role = UserRole.ADMIN
+        with self.assertRaises(ChatForbiddenError):
+            self.service.get_room_access(self.appointment.id, self.patient)
+
+    def test_in_person_appointments_have_no_chat(self):
+        self.appointment.type = AppointmentType.IN_PERSON
+        with self.assertRaises(ChatForbiddenError):
+            self.service.get_room_access(self.appointment.id, self.patient)
+
+    def test_writing_is_only_allowed_during_the_appointment(self):
+        start, end = self.appointment.start_time, self.appointment.end_time
+        self.assertFalse(self.service.can_write(self.appointment, start - timedelta(seconds=1)))
+        self.assertTrue(self.service.can_write(self.appointment, start))
+        self.assertTrue(self.service.can_write(self.appointment, end))
+        self.assertFalse(self.service.can_write(self.appointment, end + timedelta(seconds=1)))
 
     def test_missing_and_cancelled_appointments_are_rejected(self):
         with self.assertRaises(ChatNotFoundError):

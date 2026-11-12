@@ -62,6 +62,7 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
         await manager.connect(appointment_id, websocket)
         access_db.close()
         sent_times = deque()
+        last_typing = 0.0
         try:
             while True:
                 try:
@@ -72,14 +73,34 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
                 except asyncio.TimeoutError:
                     await websocket.close(code=1000)
                     return
+                if not isinstance(payload, dict):
+                    await websocket.send_json({"type": "error", "code": "INVALID_PAYLOAD"})
+                    continue
                 message_type = payload.get("type")
                 try:
-                    _authenticate(token)
+                    user = _authenticate(token)
                 except (InvalidAccessTokenError, JWTError, ValueError):
                     await websocket.close(code=4401)
                     return
                 if message_type == "ping":
                     await websocket.send_json({"type": "pong"})
+                    continue
+                if message_type == "typing":
+                    now = monotonic()
+                    if now - last_typing < 0.5:
+                        continue
+                    with SessionLocal() as typing_db:
+                        typing_service = ChatService(AppointmentRepository(typing_db))
+                        try:
+                            appointment = typing_service.get_room_access(appointment_id, user)
+                            if not typing_service.can_write(appointment):
+                                continue
+                        except (ChatNotFoundError, ChatForbiddenError):
+                            await websocket.close(code=4403)
+                            return
+                    last_typing = now
+                    await manager.broadcast(appointment_id, {"type": "typing", "sender_id": str(user.id),
+                                                            "is_typing": payload.get("is_typing") is True})
                     continue
                 if message_type != "message":
                     await websocket.send_json({"type": "error", "code": "UNSUPPORTED_MESSAGE_TYPE"})
@@ -127,3 +148,50 @@ async def chat_websocket(websocket: WebSocket, appointment_id: UUID):
     finally:
         manager.disconnect(appointment_id, websocket)
         access_db.close()
+
+
+@router.websocket("/ws/spontaneous-chat/{chat_id}")
+async def spontaneous_websocket(websocket: WebSocket, chat_id: UUID):
+    from app.api.spontaneous_chat import service
+    from app.services.spontaneous_chat_service import SpontaneousChatError
+    from app.services.spontaneous_connections import manager as spontaneous_manager
+
+    token = websocket.query_params.get("token")
+    try:
+        if not token:
+            raise InvalidAccessTokenError()
+        user = _authenticate(token)
+        with SessionLocal() as db:
+            service(db).owned(chat_id, user)
+    except (InvalidAccessTokenError, JWTError, ValueError):
+        await websocket.close(code=4401)
+        return
+    except SpontaneousChatError:
+        await websocket.close(code=4403)
+        return
+    await spontaneous_manager.connect(chat_id, websocket)
+    last_typing = 0.0
+    try:
+        while True:
+            payload = await asyncio.wait_for(websocket.receive_json(), timeout=settings.CHAT_CONNECTION_IDLE_TIMEOUT_SECONDS)
+            try:
+                user = _authenticate(token)
+                with SessionLocal() as db:
+                    current = service(db)
+                    room = current.owned(chat_id, user)
+                    writable = room.status == 'open' and current.availability.get(room.professional_id)['available']
+            except (InvalidAccessTokenError, JWTError, ValueError, SpontaneousChatError):
+                await websocket.close(code=4403)
+                return
+            if not isinstance(payload, dict):
+                continue
+            if payload.get('type') == 'ping':
+                await websocket.send_json({'type': 'pong'})
+            elif payload.get('type') == 'typing' and writable and monotonic() - last_typing >= 0.5:
+                last_typing = monotonic()
+                await spontaneous_manager.broadcast(chat_id, {'type': 'typing', 'sender_id': str(user.id),
+                                                              'is_typing': payload.get('is_typing') is True})
+    except (WebSocketDisconnect, asyncio.TimeoutError):
+        pass
+    finally:
+        spontaneous_manager.disconnect(chat_id, websocket)
