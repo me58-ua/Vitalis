@@ -26,13 +26,12 @@ export function App() {
     <Route path="/" element={<HomePage />} />
     <Route path="/login" element={<LoginPage />} />
     <Route element={<RequireRole role="patient" />}>
-      <Route path="/patientPanel" element={<PatientPanelPage />} />
       <Route path="/patientPanel/misCitas" element={<PatientAppointmentsPage />} />
       <Route path="/patientPanel/chats" element={<SpontaneousChatsPage />} />
       <Route path="/patientPanel/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />
-  </Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
+  </Route><Route element={<RequireRole role="patient" />}><Route path="/patientPanel" element={<PatientPanelPage />} /></Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
     <Route path="/professionalDashboard" element={<ProfessionalDashboardPage />} />
     <Route path="/professionalDashboard/misPacientes" element={<MyPatientsPage />} />
     <Route path="/professionalDashboard/perfil" element={<ProfessionalProfilePage />} />

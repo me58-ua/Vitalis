@@ -164,12 +164,32 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     if (path.startsWith('/professionals/me/time-blocks/') && req.method === 'DELETE') {
       state.timeBlocks = state.timeBlocks.filter(item => item.id !== path.split('/').at(-1)); return send(204, null);
     }
+    if (path === '/patients/me/profile') {
+      if (state.patientProfileFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      return send(200, { id: '00000000-0000-4000-8000-000000009001', user_id: quickActor.id, birth_date: '1995-01-01', sex_at_birth: null, height_cm: null, weight_kg: null, address: null, blood_type: null, timezone: 'Europe/Madrid', family_history_reviewed: false, onboarding_completed: false, share_health_data: false, ai_processing_consent: Boolean(state.patientConsent), ai_processing_consent_at: null, ai_consent_required: !state.patientConsent, ai_consent_code: state.patientConsent ? null : 'AI_CONSENT_REQUIRED' });
+    }
+    if (path === '/patients/me/ai-consent' && req.method === 'PATCH') { state.patientConsent = JSON.parse(raw).ai_processing_consent; state.patientConsentWrites = (state.patientConsentWrites || 0) + 1; return send(200, { ai_processing_consent: state.patientConsent }); }
+    if (/^\/patients\/.+\/risk-(summary|history)$/.test(path)) {
+      state.patientRiskPaths = [...(state.patientRiskPaths || []), path];
+      if (path.split('/')[2] !== '00000000-0000-4000-8000-000000009001') return send(403, { detail: 'WRONG_PROFILE_ID' });
+      if (state.patientRiskFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      if (path.endsWith('risk-history')) return send(200, { snapshots: state.patientHistory || [], next_cursor: null, trend: 'insufficient_history', ai_consent_required: !state.patientConsent });
+      return send(200, { results: state.patientConsent ? (state.patientRisks || [{ model: 'bmi', status: 'insufficient_data', metric_value: null, category: null, alert_level: null, explanation: 'Test only', missing: ['height_cm', 'weight_kg'], source: 'Test source', disclaimer: 'Test disclaimer', trend: 'insufficient_history' }]) : [], sources: {}, ai_consent_required: !state.patientConsent, message_code: state.patientConsent ? null : 'AI_CONSENT_REQUIRED' });
+    }
+    if (path === '/patients/me/health/habits') return send(200, { habits: [], aggregates: [], total: 0, page: 1, page_size: 20 });
+    if (path === '/patients/me/health/documents' && req.method === 'POST') {
+      state.patientUploadCalls = (state.patientUploadCalls || 0) + 1;
+      state.patientUploadMultipart = req.headers['content-type']?.startsWith('multipart/form-data') && raw.includes('name="tipo"') && raw.includes('name="file"');
+      if (state.patientUploadFail) return send(422, { detail: 'Health document must be a PDF, JPEG, or PNG file' });
+      return send(201, { id: randomUUID(), patient_id: '00000000-0000-4000-8000-000000009001', tipo: 'informe', descripcion: null, file_url: 'test-only', fecha_subida: new Date().toISOString() });
+    }
     if (path === '/patients/me/appointments' && req.method === 'GET') {
       if ((demoLogin?.user ?? account).role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
       if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
       const params = new URL(req.url, 'http://fixture.invalid').searchParams;
       const page = Number(params.get('page') || 1), pageSize = Number(params.get('page_size') || 20);
-      const rows = state.patientAppointmentsEmpty || !state.videoTestAppointment ? [] : [{ ...state.videoTestAppointment, professional_name: participants.professional.name }];
+      const rows = state.patientDashboardAppointments ?? (state.patientAppointmentsEmpty || !state.videoTestAppointment ? [] : [{ ...state.videoTestAppointment, professional_name: participants.professional.name }]);
+      state.patientDashboardPages = [...(state.patientDashboardPages || []), page];
       return send(200, { appointments: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize });
     }
     if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, { ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });

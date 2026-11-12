@@ -1,5 +1,12 @@
 import type { components } from './api.generated';
 
+export type PatientProfile = components['schemas']['PatientProfileResponse'];
+export type PatientRiskSummary = components['schemas']['RiskSummaryResponse'];
+export type PatientRiskHistory = components['schemas']['RiskHistoryResponse'];
+export type PatientRiskItem = components['schemas']['RiskSummaryItem'];
+export type PatientHabitPage = components['schemas']['HabitHistoryListResponse'];
+export type PatientDocument = components['schemas']['HealthDocumentResponse'];
+
 export type User = components['schemas']['UserResponse'];
 export type Tokens = components['schemas']['TokenResponse'];
 export type Registration = components['schemas']['UserRegisterRequest'];

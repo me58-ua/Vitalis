@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { fixtureServer } from './fixture-server.mjs';
 import { jitsiFixture } from './jitsi-fixture.mjs';
+import { checkPatientDashboard } from './patient-dashboard-browser.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'test-results');
@@ -222,9 +223,11 @@ try {
   await until(`document.querySelector('form [role="alert"]') !== null`);
   await fill('password', 'TestPassword!');
   await click('button[type="submit"]');
-  await until(`location.pathname === '/patientPanel' && document.querySelector('main h1')?.textContent === 'Panel de paciente'`);
+  await until(`location.pathname === '/patientPanel' && document.querySelector('.patient-dashboard') !== null`);
   results.push({ check: 'patient login redirects to patientPanel' });
-  await click('.brand');
+  await checkPatientDashboard({ fixture, evaluate, click, until, command, screenshot, checkGeometry, results, reloadUntil });
+  if (process.env.VITALIS_PATIENT_ONLY !== '1') {
+  await click('.patient-brand');
   await until(`document.querySelector('.signed-in-state') !== null`);
   results.push({ check: 'authenticated header geometry and local icons', assets: await checkGeometry() });
   await click('.notifications > button');
@@ -668,10 +671,10 @@ try {
   await fill('identifier', 'test_user'); await fill('password', 'TestPassword!'); await click('button[type="submit"]');
   fixture.state.videoTestAppointment.start_time = '2020-11-04T10:00:00Z';
   fixture.state.videoTestAppointment.end_time = '2020-11-04T10:30:00Z';
-  await until(`document.querySelector('.patient-video-entry a') !== null`);
+  await until(`document.querySelector('.patient-quick-actions a') !== null`);
   assert.equal(await evaluate(`document.querySelector('[name="consultation_link"]') === null`), true);
   fixture.state.patientAppointmentsFail = true;
-  await click('.patient-video-entry a');
+  await click('.patient-quick-actions a');
   await until(`document.querySelector('.consultation-main [role="alert"]') !== null`);
   fixture.state.patientAppointmentsFail = false; fixture.state.patientAppointmentsEmpty = true;
   await click('.consultation-main .error-state button');
@@ -1037,8 +1040,8 @@ try {
   targetSession = patientTab;
   await command('Fetch.enable', { patterns: [{ urlPattern: 'https://jitsi.fixture.invalid/external_api.js', requestStage: 'Request' }] });
   await fill('identifier', 'patient_fixture'); await fill('password', 'TestPassword!'); await click('button[type="submit"]');
-  await until(`document.querySelector('.patient-video-entry a') !== null`);
-  await click('.patient-video-entry a');
+  await until(`document.querySelector('.patient-quick-actions a') !== null`);
+  await click('.patient-quick-actions a');
   await until(`document.querySelector('.patient-join-video') !== null`);
   await click('.patient-join-video');
   await until(`document.querySelector('.consultation-prejoin button') !== null`);
@@ -1108,8 +1111,9 @@ try {
   await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
   assert.equal(fixture.state.passwordChanged, true);
   results.push({ check: 'professional password confirmation mismatch blocks request; success clears local session and returns to login' });
+  }
   assert.deepEqual(runtimeErrors, []);
-  await writeFile(path.join(output, 'browser-report.json'), JSON.stringify({ results, runtimeErrors }, null, 2));
+  await writeFile(path.join(output, process.env.VITALIS_PATIENT_ONLY === '1' ? 'patient-dashboard-report.json' : 'browser-report.json'), JSON.stringify({ results, runtimeErrors }, null, 2));
   console.log(JSON.stringify({ passed: results.length, results, runtimeErrors }, null, 2));
   await command('Browser.close', {}, null);
 } finally {
