@@ -6,7 +6,7 @@
 .patients-filters summary { font-weight: 600; cursor: pointer; }
 .patients-filters form, .prescription-form fieldset { display: grid; gap: 16px; margin-top: 16px; }
 .patients-filters label, .prescription-form label { display: grid; gap: 8px; font-size: 14px; }
-.patients-filters input, .patients-filters select, .prescription-form input, .prescription-form textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #bfc9c3; border-radius: 8px; background: #f8f9ff; font: inherit; }
+.patients-filters input, .patients-filters select, .prescription-form input, .prescription-form select, .prescription-form textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #bfc9c3; border-radius: 8px; background: #f8f9ff; font: inherit; }
 .patients-total { margin-top: 24px; background: #2b6954; color: white; border-radius: 12px; padding: 20px; }
 .patients-total h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
 .patients-total > p { font-size: 32px; margin: 8px 0; }

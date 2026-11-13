@@ -158,6 +158,26 @@ test('Axios follows authentication and notification contracts', async (t) => {
     assert.ok((await professional.getProfessionalProfile(signal)).specialty);
     assert.equal((await professional.getProfessionalHistory(fixture.account.id, 1, signal)).appointments[0].status, 'cancelled');
   });
+  await t.test('prescription multipart carries confirmed metadata and replacement clears optional expiry and code', async () => {
+    const signal = new AbortController().signal;
+    const file = new File(['%PDF-1.4 synthetic'], 'recipe.pdf', { type: 'application/pdf' });
+    const appointmentId = '00000000-0000-4000-8000-000000000498';
+    const first = await professional.attachPrescription(fixture.account.id, appointmentId, file, '', {
+      tipo: 'medicacion', titulo: 'Atorvastatina y Metformina', fecha_emision: '2026-11-03', fecha_caducidad: '2026-12-03', codigo: 'EXT-1',
+    }, signal);
+    assert.equal(first.titulo, 'Atorvastatina y Metformina');
+    assert.equal(first.fecha_emision, '2026-11-03');
+    assert.equal(first.fecha_caducidad, '2026-12-03');
+    assert.equal(first.codigo, 'EXT-1');
+    const replacement = await professional.attachPrescription(fixture.account.id, appointmentId, file, '', {
+      tipo: 'prueba', titulo: 'Solicitud de analítica', fecha_emision: '2026-11-03', fecha_caducidad: null, codigo: null,
+    }, signal);
+    assert.equal(replacement.id, first.id);
+    assert.equal(replacement.tipo, 'prueba');
+    assert.equal(replacement.fecha_caducidad, null);
+    assert.equal(replacement.codigo, null);
+    assert.equal(fixture.state.patientRecipes.length, 1);
+  });
   await t.test('weekly agenda loads every API page with date filters and includes historical appointments', async () => {
     const adapter = api.defaults.adapter;
     const requests = [];

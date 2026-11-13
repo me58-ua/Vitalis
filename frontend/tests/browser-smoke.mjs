@@ -9,6 +9,7 @@ import { createServer } from 'vite';
 import { fixtureServer } from './fixture-server.mjs';
 import { jitsiFixture } from './jitsi-fixture.mjs';
 import { checkPatientDashboard } from './patient-dashboard-browser.mjs';
+import { checkPatientPrescriptions } from './patient-prescriptions-browser.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'test-results');
@@ -226,6 +227,7 @@ try {
   await until(`location.pathname === '/patientPanel' && document.querySelector('.patient-dashboard') !== null`);
   results.push({ check: 'patient login redirects to patientPanel' });
   await checkPatientDashboard({ fixture, evaluate, click, until, command, screenshot, checkGeometry, results, reloadUntil });
+  await checkPatientPrescriptions({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
   if (process.env.VITALIS_PATIENT_ONLY !== '1') {
   await click('.patient-brand');
   await until(`document.querySelector('.signed-in-state') !== null`);
@@ -309,6 +311,15 @@ try {
   assert.equal(await evaluate(`document.activeElement === document.querySelector('.prescription-form h3')`), true);
   await evaluate(`(() => { const transfer = new DataTransfer(); transfer.items.add(new File(['%PDF-1.4 synthetic test'], 'fixture.pdf', { type: 'application/pdf' })); document.querySelector('[name="file"]').files = transfer.files; })()`);
   fixture.state.rejectRecipe = true;
+  await fill('titulo', 'Atorvastatina y Metformina');
+  await fill('fecha_emision', '03/11/2026');
+  await fill('fecha_caducidad', '03/12/2026');
+  await fill('codigo', 'EXT-TEST-1');
+  await fill('fecha_caducidad', '02/11/2026');
+  await click('.prescription-form button[type="submit"]');
+  await until(`document.querySelector('.prescription-form [role="alert"]')?.textContent.includes('anterior')`);
+  assert.equal(fixture.state.recipeUploads || 0, 0);
+  await fill('fecha_caducidad', '03/12/2026');
   await click('.prescription-form button[type="submit"]');
   await until(`document.querySelector('.prescription-form [role="alert"]')?.textContent.includes('plazo')`);
   assert.equal(fixture.state.recipeUploads || 0, 0);
@@ -318,6 +329,9 @@ try {
   assert.equal(fixture.state.recipeUploads, 1);
   assert.ok(fixture.state.recipePath.endsWith('/appointments/00000000-0000-4000-8000-000000000498/prescription'));
   assert.match(fixture.state.recipeBody, /name="file"/);
+  assert.match(fixture.state.recipeBody, /2026-11-03/);
+  assert.equal(fixture.state.patientRecipes[0].titulo, 'Atorvastatina y Metformina');
+  assert.equal(fixture.state.patientRecipes[0].codigo, 'EXT-TEST-1');
   fixture.state.failRecipeDownload = true;
   await click('.prescription-form .prescription-download button');
   await until(`document.querySelector('.prescription-form .prescription-download [role="alert"]') !== null`);
@@ -470,6 +484,8 @@ try {
   await until(`document.querySelector('.prescription-form input[name="file"]:not(:disabled)') !== null`);
   assert.equal(await evaluate(`document.activeElement === document.querySelector('.prescription-form h3')`), true);
   await evaluate(`(() => { const transfer = new DataTransfer(); transfer.items.add(new File(['%PDF-1.4 agenda fixture'], 'agenda.pdf', { type: 'application/pdf' })); document.querySelector('.prescription-form [name="file"]').files = transfer.files; })()`);
+  await fill('titulo', 'Solicitud de analítica');
+  await fill('fecha_emision', '03/11/2026');
   await click('.prescription-form button[type="submit"]');
   await until(`document.querySelector('.prescription-form .success-state') !== null`);
   assert.ok(fixture.state.recipePath.endsWith('/appointments/00000000-0000-4000-8000-000000000992/prescription'));

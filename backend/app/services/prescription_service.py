@@ -11,7 +11,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.audit_repository import AuditRepository
-from app.schemas.prescriptions import PrescriptionAuthorizationCreate
+from app.schemas.prescriptions import PrescriptionAuthorizationCreate, PrescriptionMetadata
 from app.models import AuditAction
 from app.services.audit_service import AuditService
 from app.services.file_storage import FileStorage
@@ -68,6 +68,8 @@ class PrescriptionService:
         filename: str,
         content_type: str | None,
         notas: str | None,
+        *,
+        metadata: PrescriptionMetadata,
     ) -> Prescription:
         self._require_identity(professional_id, current_user.id)
         appointment = self.appointments.get_appointment(appointment_id)
@@ -89,23 +91,22 @@ class PrescriptionService:
             raise PrescriptionValidationError("Prescription profiles are not available")
 
         existing = self.prescriptions.get_by_appointment(appointment.id)
-        key = existing.file_url if existing else self._storage_key(appointment.id, filename)
+        key = self._storage_key(appointment.id, filename)
+        values = {**metadata.model_dump(), "notas": notas, "file_url": key,
+                  "patient_id": patient_profile.id, "professional_id": professional_profile.id}
         try:
             self.storage.save(file, key, self.max_file_size)
             if existing:
                 result = self.prescriptions.update(
                     existing,
-                    {"notas": notas, "patient_id": patient_profile.id, "professional_id": professional_profile.id},
+                    values,
                 )
                 action = AuditAction.UPDATE
             else:
                 result = self.prescriptions.create(
                     Prescription(
                         appointment_id=appointment.id,
-                        patient_id=patient_profile.id,
-                        professional_id=professional_profile.id,
-                        file_url=key,
-                        notas=notas,
+                        **values,
                     )
                 )
                 action = AuditAction.CREATE
@@ -205,10 +206,12 @@ class PrescriptionService:
                 "professional_id": prescription.professional_id,
                 "professional_name": professional.name,
                 "appointment_date": appointment.start_time,
+                "appointment_reason": appointment.appointment_reason,
                 "file_url": prescription.file_url,
                 "download_url": f"/patients/me/appointments/{prescription.appointment_id}/prescription",
                 "notas": prescription.notas,
                 "created_at": prescription.created_at,
+                **{field: getattr(prescription, field) for field in PrescriptionMetadata.model_fields},
             }
             for prescription, appointment, professional in rows
         ]

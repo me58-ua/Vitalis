@@ -170,6 +170,18 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (state.patientProfileFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
       return send(200, { id: '00000000-0000-4000-8000-000000009001', user_id: quickActor.id, birth_date: '1995-01-01', sex_at_birth: null, height_cm: null, weight_kg: null, address: null, blood_type: null, timezone: 'Europe/Madrid', family_history_reviewed: false, onboarding_completed: false, share_health_data: false, ai_processing_consent: Boolean(state.patientConsent), ai_processing_consent_at: null, ai_consent_required: !state.patientConsent, ai_consent_code: state.patientConsent ? null : 'AI_CONSENT_REQUIRED' });
     }
+    if (/^\/patients\/[^/]+\/prescriptions$/.test(path)) {
+      state.patientPrescriptionPaths = [...(state.patientPrescriptionPaths || []), path];
+      if (state.patientPrescriptionsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
+      if (path.split('/')[2] !== (demoLogin?.user ?? account).id) return send(403, { detail: 'WRONG_USER_ID' });
+      return send(200, { prescriptions: state.myPrescriptions ?? [], total: (state.myPrescriptions ?? []).length });
+    }
+    if (/^\/patients\/me\/appointments\/[^/]+\/prescription$/.test(path)) {
+      if (state.patientPrescriptionDownloadFail) return send(404, { detail: 'Prescription file not found' });
+      state.patientPrescriptionDownloads = (state.patientPrescriptionDownloads || 0) + 1;
+      res.writeHead(200, { 'Content-Type': state.patientPrescriptionContentType ?? 'application/pdf', 'Content-Disposition': 'attachment; filename="recipe.pdf"' });
+      res.end('%PDF-1.4 synthetic prescription'); return;
+    }
     if (path === '/patients/me/ai-consent' && req.method === 'PATCH') { state.patientConsent = JSON.parse(raw).ai_processing_consent; state.patientConsentWrites = (state.patientConsentWrites || 0) + 1; return send(200, { ai_processing_consent: state.patientConsent }); }
     if (/^\/patients\/.+\/risk-(summary|history)$/.test(path)) {
       state.patientRiskPaths = [...(state.patientRiskPaths || []), path];
@@ -261,7 +273,10 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         if (state.rejectRecipe) return send(403, { detail: 'ventana de emisión de receta expirada' });
         state.recipeUploads = (state.recipeUploads || 0) + 1;
         state.recipePath = path; state.recipeBody = raw;
-        const item = { id: notification.id, appointment_id: path.split('/')[4], patient_id: participants.patient.id, professional_id: actor.id, file_url: 'test-only.pdf', notas: null, created_at: '2026-11-03T12:00:00Z' };
+        const field = name => new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r]*)`).exec(raw)?.[1] || null;
+        if (!field('tipo') || !field('titulo') || !field('fecha_emision')) return send(422, { detail: 'METADATA_REQUIRED' });
+        const item = { id: notification.id, appointment_id: path.split('/')[4], patient_id: participants.patient.id, professional_id: actor.id, file_url: 'test-only.pdf', notas: null, created_at: '2026-11-03T12:00:00Z',
+          tipo: field('tipo'), titulo: field('titulo'), fecha_emision: field('fecha_emision'), fecha_caducidad: field('fecha_caducidad'), codigo: field('codigo') };
         state.patientRecipes = [item]; return send(201, item);
       }
       if (path.endsWith('/appointments/history') && new URL(req.url, 'http://fixture.invalid').searchParams.has('patient_id')) {

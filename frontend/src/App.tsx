@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RequireRole } from './auth/RequireRole';
 import { PatientPanelPage } from './pages/patient/PatientPanelPage';
 import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage';
+import { PatientPrescriptionsPage } from './pages/patient/PatientPrescriptionsPage';
 import { ProfessionalProfilePage } from './pages/professional/ProfessionalProfilePage';
 import { ProfessionalDashboardPage } from './pages/professional/ProfessionalDashboardPage';
 import { AdminPanelPage } from './pages/admin/AdminPanelPage';
@@ -36,7 +37,7 @@ export function App() {
       <Route path="/patientPanel/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />
-  </Route><Route element={<RequireRole role="patient" />}><Route path="/patientPanel" element={<PatientPanelPage />} /><Route path="/patientPanel/chats" element={<PatientMessagesPage />} /></Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
+  </Route><Route element={<RequireRole role="patient" />}><Route path="/patientPanel" element={<PatientPanelPage />} /><Route path="/patientPanel/misRecetas" element={<PatientPrescriptionsPage />} /><Route path="/patientPanel/chats" element={<PatientMessagesPage />} /></Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
     <Route path="/professionalDashboard" element={<ProfessionalDashboardPage />} />
     <Route path="/professionalDashboard/misPacientes" element={<MyPatientsPage />} />
     <Route path="/professionalDashboard/perfil" element={<ProfessionalProfilePage />} />

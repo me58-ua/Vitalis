@@ -2455,6 +2455,22 @@ export interface components {
         Body_upload_prescription_professionals__professional_id__appointments__appointment_id__prescription_post: {
             /** File */
             file: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "medicacion" | "prueba" | "otro";
+            /** Titulo */
+            titulo: string;
+            /**
+             * Fecha Emision
+             * Format: date
+             */
+            fecha_emision: string;
+            /** Fecha Caducidad */
+            fecha_caducidad?: string | null;
+            /** Codigo */
+            codigo?: string | null;
             /** Notas */
             notas?: string | null;
         };
@@ -3204,6 +3220,16 @@ export interface components {
         };
         /** PatientPrescriptionResponse */
         PatientPrescriptionResponse: {
+            /** Tipo */
+            tipo?: ("medicacion" | "prueba" | "otro") | null;
+            /** Titulo */
+            titulo?: string | null;
+            /** Fecha Emision */
+            fecha_emision?: string | null;
+            /** Fecha Caducidad */
+            fecha_caducidad?: string | null;
+            /** Codigo */
+            codigo?: string | null;
             /**
              * Id
              * Format: uuid
@@ -3231,6 +3257,8 @@ export interface components {
              * Format: date-time
              */
             appointment_date: string;
+            /** Appointment Reason */
+            appointment_reason?: string | null;
             /** File Url */
             file_url: string;
             /** Download Url */
@@ -3424,6 +3452,16 @@ export interface components {
         };
         /** PrescriptionResponse */
         PrescriptionResponse: {
+            /** Tipo */
+            tipo?: ("medicacion" | "prueba" | "otro") | null;
+            /** Titulo */
+            titulo?: string | null;
+            /** Fecha Emision */
+            fecha_emision?: string | null;
+            /** Fecha Caducidad */
+            fecha_caducidad?: string | null;
+            /** Codigo */
+            codigo?: string | null;
             /**
              * Id
              * Format: uuid

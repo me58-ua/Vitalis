@@ -3,6 +3,17 @@ import axios from 'axios';
 import { errorMessage } from './errors';
 import type { PatientAppointmentPage, PatientProfile, PatientRiskSummary, PatientRiskHistory, PatientHabitPage, PatientDocument } from '../types/api';
 import type { DocumentType } from './documents';
+import type { components } from '../types/api.generated';
+
+export type PatientPrescription = components['schemas']['PatientPrescriptionResponse'];
+
+export async function getMyPrescriptions(userId: string, signal: AbortSignal) {
+  return (await api.get<components['schemas']['PatientPrescriptionListResponse']>(`/patients/${encodeURIComponent(userId)}/prescriptions`, { signal })).data;
+}
+
+export async function downloadMyPrescription(appointmentId: string, signal: AbortSignal) {
+  return (await api.get<Blob>(`/patients/me/appointments/${encodeURIComponent(appointmentId)}/prescription`, { responseType: 'blob', signal })).data;
+}
 
 export function patientUploadError(error: unknown): string {
   if (axios.isAxiosError<{ detail?: unknown }>(error)) {

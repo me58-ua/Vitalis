@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
+from pydantic import ValidationError
 
 from app.api.deps import (
     get_appointment_repository,
@@ -28,6 +29,8 @@ from app.schemas.prescriptions import (
     PatientPrescriptionListResponse,
     PrescriptionResponse,
     PrescriptionListResponse,
+    PrescriptionMetadata,
+    PrescriptionType,
 )
 from app.services.file_storage import FileStorage
 from app.services.prescription_service import (
@@ -85,9 +88,16 @@ def upload_prescription(
     storage: Storage,
     audits: Audits,
     file: UploadFile = File(...),
+    tipo: PrescriptionType = Form(...),
+    titulo: str = Form(..., min_length=1, max_length=300),
+    fecha_emision: date = Form(...),
+    fecha_caducidad: date | None = Form(default=None),
+    codigo: str | None = Form(default=None, max_length=100),
     notas: str | None = Form(default=None),
 ):
     try:
+        metadata = PrescriptionMetadata(tipo=tipo, titulo=titulo, fecha_emision=fecha_emision,
+                                        fecha_caducidad=fecha_caducidad, codigo=codigo)
         return _service(appointments, profiles, prescriptions, storage, audits).upload(
             professional_id,
             current_user,
@@ -96,7 +106,10 @@ def upload_prescription(
             file.filename or "prescription",
             file.content_type,
             notas,
+            metadata=metadata,
         )
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail=error.errors()[0]["msg"]) from error
     except PrescriptionAccessError as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except PrescriptionNotFoundError as error:
@@ -147,7 +160,7 @@ def download_prescription(
         prescription, path = _service(appointments, profiles, prescriptions, storage).download_for_patient(
             appointment_id, current_user
         )
-        return FileResponse(path, filename=Path(prescription.file_url).name)
+        return FileResponse(path, filename=Path(prescription.file_url).name, headers={"Cache-Control": "no-store"})
     except PrescriptionAccessError as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except PrescriptionNotFoundError as error:

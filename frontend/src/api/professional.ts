@@ -60,10 +60,18 @@ export async function getPatientHistory(professionalId: string, patientId: strin
 export async function getPatientPrescriptions(professionalId: string, patientId: string, page: number, signal: AbortSignal) {
   return (await api.get<ProfessionalPrescriptionPage>(`/professionals/${encodeURIComponent(professionalId)}/prescriptions`, { params: { patient_id: patientId, page, page_size: 10 }, signal })).data;
 }
-export async function attachPrescription(professionalId: string, appointmentId: string, file: File, notes: string, signal: AbortSignal) {
+export type PrescriptionMetadata = {
+  tipo: NonNullable<Prescription['tipo']>; titulo: string; fecha_emision: string;
+  fecha_caducidad: string | null; codigo: string | null;
+};
+
+export async function attachPrescription(professionalId: string, appointmentId: string, file: File, notes: string, metadata: PrescriptionMetadata, signal: AbortSignal) {
   const form = new FormData();
   form.append('file', file);
   if (notes.trim()) form.append('notas', notes.trim());
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value) form.append(key, value);
+  }
   return (await api.post<Prescription>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, form, { signal })).data;
 }
 

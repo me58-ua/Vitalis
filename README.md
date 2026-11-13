@@ -1,6 +1,12 @@
 # Vitalis
 App multiplataforma de salud con IA para detección temprana de riesgos, seguimiento de hábitos y teleconsulta con profesionales.
 
+## Recetas del paciente
+
+`/patientPanel/misRecetas` muestra un documento por cita, con el título, el tipo (medicación, solicitud de prueba/procedimiento u otro), el profesional, la cita y las fechas introducidas por el profesional. La dosis y las instrucciones permanecen en el PDF o imagen original. El formulario exige título, tipo y fecha de emisión; la caducidad y el código del documento son opcionales. Sustituir un archivo actualiza el mismo registro y sus metadatos, conservando los permisos y el plazo de emisión existentes.
+
+La migración `0034_prescription_metadata` añade campos opcionales a los registros existentes sin inventar fechas. Para una instalación pendiente de actualizar, ejecuta `venv\Scripts\alembic.exe upgrade head` desde `backend`. Las recetas sin fecha de caducidad muestran «Vigencia no indicada». La vigencia se calcula por días naturales en la zona horaria del paciente; se avisa desde siete días antes y durante todo el día de caducidad. Este aviso se muestra en la página y no envía correos ni notificaciones programadas.
+
 ## Sesiones y demostración con varias cuentas
 
 La sesión se conserva al recargar la página mediante `sessionStorage`, que mantiene el almacenamiento separado por pestaña. El frontend verifica la sesión con `GET /auth/me` antes de mostrar páginas protegidas y renueva los tokens mediante `POST /auth/refresh` cuando el token de acceso ha caducado. Si la conexión falla durante la restauración, muestra un mensaje en español y permite reintentar o volver a iniciar sesión.
