@@ -96,6 +96,14 @@ PREGUNTAS: Final[dict[str, Pregunta]] = {
 }
 
 
+# Explicit order de las preguntas
+QUESTION_ORDER: Final[tuple[str, ...]] = (
+    "allergies", "chronic_conditions", "medication", "height", "weight",
+    "auditc_frequency", "auditc_quantity", "auditc_binge", "tobacco",
+    "exercise", "sleep", "diet", "family_history",
+)
+
+
 def get_question(question_id: str) -> Pregunta:
     try:
         return PREGUNTAS[question_id]

@@ -20,6 +20,9 @@
 .patient-dashboard .patient-menu-button { display: none; }
 .patient-dashboard-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 300px); gap: 24px; max-width: 1450px; margin: auto; padding: 40px; align-items: start; }
 .patient-main-column { display: grid; gap: 24px; min-width: 0; }
+.patient-onboarding-entry { padding: 24px; border-radius: 16px; background: #eff4ff; border: 1px solid #b8d9ce; }
+.patient-onboarding-entry h2 { color: #003527; font-size: 20px; margin: 0 0 12px; }
+.patient-onboarding-entry p { color: #404944; font-size: 14px; line-height: 1.6; }
 .patient-greeting h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
 .patient-greeting p { color: var(--muted); line-height: 1.6; margin: 0; }
 .patient-next-appointment { border-radius: 24px; border-left: 4px solid #006c49; padding: 24px; min-height: 240px; background: linear-gradient(90deg,#e6eeff 0%,#e6eefff2 40%,#e6eeff44 100%), url('../assets/figma/patient/NextAppointmentCardHeroEsqueForDashboard.png') center/cover; box-shadow: 0 1px 2px #0000000d; overflow: hidden; }

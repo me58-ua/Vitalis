@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
     AI_API_URL: str = ""
     AI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.8-flash"
     FILE_STORAGE_PATH: str = "storage"
     PRESCRIPTION_EMISSION_WINDOW_HOURS: int = 8
     PRESCRIPTION_MAX_SIZE_BYTES: int = 10 * 1024 * 1024

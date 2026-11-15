@@ -1,6 +1,7 @@
 // Synthetic fixtures are restricted to test code. Never imported by src/.
 import http from 'node:http';
 import { createHash, randomUUID } from 'node:crypto';
+import { onboardingFixture } from './onboarding-fixture.mjs';
 
 export async function fixtureServer(origin = 'http://localhost:3000') {
   const state = { refreshes: 0, reads: 0, forbidden: false, failNotifications: false, empty: false, delayRefresh: 0, access: 'test-access', registrations: [], logins: 0, logouts: 0, failLogout: false, failSearch: false, searchEmpty: false, downloads: 0, failTotals: false, failAudits: false, auditEmpty: false, auditQueries: [], failAppointments: false, failCreateAppointment: false, failCancelAppointment: false, appointmentCreates: [], appointmentPatches: [], appointmentQueries: [] };
@@ -166,6 +167,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     if (path.startsWith('/professionals/me/time-blocks/') && req.method === 'DELETE') {
       state.timeBlocks = state.timeBlocks.filter(item => item.id !== path.split('/').at(-1)); return send(204, null);
     }
+    if (onboardingFixture(path, req.method, raw, state, send)) return;
     if (path === '/patients/me/profile') {
       if (state.patientProfileFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
       return send(200, { id: '00000000-0000-4000-8000-000000009001', user_id: quickActor.id, birth_date: '1995-01-01', sex_at_birth: null, height_cm: null, weight_kg: null, address: null, blood_type: null, timezone: 'Europe/Madrid', family_history_reviewed: false, onboarding_completed: false, share_health_data: false, ai_processing_consent: Boolean(state.patientConsent), ai_processing_consent_at: null, ai_consent_required: !state.patientConsent, ai_consent_code: state.patientConsent ? null : 'AI_CONSENT_REQUIRED' });

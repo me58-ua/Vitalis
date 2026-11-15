@@ -23,8 +23,7 @@ from app.repositories.audit_repository import AuditRepository
 from app.schemas.health import (
     AllergyCreate, AllergyResponse, ChronicConditionCreate, ChronicConditionResponse,
     ConsentUpdate, HabitLogCreate, HabitLogResponse, HealthSnapshot, MedicationCreate,
-    MedicationResponse, OnboardingMessageRequest, OnboardingMessageResponse, OnboardingSkipResponse,
-    FamilyHistoryResponse, OnboardingFamilyHistoryConfirmation,
+    MedicationResponse, FamilyHistoryResponse,
 )
 from app.services.patient_health_service import PatientHealthService
 from app.models import AuditAction
@@ -156,63 +155,6 @@ def delete_my_family_history(
         ).delete_for_patient(current_user, entry_id)
     except FamilyHistoryNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-
-
-@router.post("/onboarding/message", response_model=OnboardingMessageResponse)
-def onboarding_message(
-    data: OnboardingMessageRequest, current_user: CurrentPatient, profiles: Profiles,
-    db: DbSession, notifications: Notifications,
-):
-    profile = _profile(current_user, profiles)
-    completed, saved, next_question_code = PatientHealthService(
-        profiles, risk_service=_risk_service(db, notifications)
-    ).save_onboarding_message(
-        profile, data.block, data.message, data.question_id
-    )
-    return OnboardingMessageResponse(block=data.block, next_question_code=next_question_code, saved=saved, onboarding_completed=completed)
-
-
-@router.post("/onboarding/family-history/confirm", response_model=OnboardingSkipResponse)
-def confirm_onboarding_family_history(
-    data: OnboardingFamilyHistoryConfirmation,
-    current_user: CurrentPatient,
-    profiles: Profiles,
-    entries: FamilyHistory,
-    db: DbSession,
-    notifications: Notifications,
-):
-    profile = _profile(current_user, profiles)
-    try:
-        family_history = FamilyHistoryService(
-            entries, profiles, risk_service=_risk_service(db, notifications)
-        )
-        PatientHealthService(
-            profiles, risk_service=_risk_service(db, notifications),
-            family_history_service=family_history,
-        ).confirm_family_history(profile, current_user, data.confirmed)
-    except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
-    return OnboardingSkipResponse(onboarding_completed=profile.onboarding_completed)
-
-
-@router.post("/onboarding/skip", response_model=OnboardingSkipResponse)
-def skip_onboarding(current_user: CurrentPatient, profiles: Profiles):
-    profile = _profile(current_user, profiles)
-    return OnboardingSkipResponse(onboarding_completed=PatientHealthService(profiles).skip(profile))
-
-
-@router.post("/onboarding/resume", response_model=OnboardingSkipResponse)
-def resume_onboarding(current_user: CurrentPatient, profiles: Profiles):
-    profile = _profile(current_user, profiles)
-    resumed, next_question, last_question, pending_family = PatientHealthService(
-        profiles
-    ).resume_state(profile)
-    return OnboardingSkipResponse(
-        onboarding_completed=not resumed,
-        next_question_code=next_question,
-        last_question_id=last_question,
-        family_history_confirmation_pending=pending_family,
-    )
 
 
 @router.get("/professionals/patients/{patient_id}/health-snapshot", response_model=HealthSnapshot)

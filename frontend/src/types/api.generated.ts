@@ -1126,74 +1126,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/onboarding/message": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Onboarding Message */
-        post: operations["onboarding_message_onboarding_message_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/family-history/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Confirm Onboarding Family History */
-        post: operations["confirm_onboarding_family_history_onboarding_family_history_confirm_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/skip": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Skip Onboarding */
-        post: operations["skip_onboarding_onboarding_skip_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resume Onboarding */
-        post: operations["resume_onboarding_onboarding_resume_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/professionals/patients/{patient_id}/health-snapshot": {
         parameters: {
             query?: never;
@@ -1205,6 +1137,74 @@ export interface paths {
         get: operations["patient_health_snapshot_professionals_patients__patient_id__health_snapshot_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chat State */
+        get: operations["chat_state_onboarding_chat_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/chat/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Consent */
+        post: operations["chat_consent_onboarding_chat_consent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/chat/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Answer */
+        post: operations["chat_answer_onboarding_chat_answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/chat/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Confirm */
+        post: operations["chat_confirm_onboarding_chat_confirm_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2481,6 +2481,13 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** ChatAnswer */
+        ChatAnswer: {
+            /** Question Id */
+            question_id: string;
+            /** Message */
+            message: string;
+        };
         /** ChatAvailabilityResponse */
         ChatAvailabilityResponse: {
             /**
@@ -2507,6 +2514,18 @@ export interface components {
             evaluated_at: string;
             /** Closes At */
             closes_at?: string | null;
+        };
+        /** ChatConfirmation */
+        ChatConfirmation: {
+            /** Draft Id */
+            draft_id: string;
+            /** Confirmed */
+            confirmed: boolean;
+        };
+        /** ChatConsent */
+        ChatConsent: {
+            /** Accepted */
+            accepted: boolean;
         };
         /** ChatInboxResponse */
         ChatInboxResponse: {
@@ -2563,6 +2582,41 @@ export interface components {
             id: string;
             /** Role */
             role: string;
+        };
+        /** ChatPending */
+        ChatPending: {
+            /** Question Id */
+            question_id: string;
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+            /** Summary */
+            summary: string[];
+            /** Draft Id */
+            draft_id: string;
+        };
+        /** ChatQuestion */
+        ChatQuestion: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** Block */
+            block: string;
+            /** Options */
+            options?: string[];
+        };
+        /** ChatReview */
+        ChatReview: {
+            /** Question Id */
+            question_id: string;
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+            /** Summary */
+            summary: string[];
         };
         /** ChatRoomResponse */
         ChatRoomResponse: {
@@ -3100,44 +3154,29 @@ export interface components {
              */
             created_at: string;
         };
-        /** OnboardingFamilyHistoryConfirmation */
-        OnboardingFamilyHistoryConfirmation: {
-            /** Confirmed */
-            confirmed: boolean;
-        };
-        /** OnboardingMessageRequest */
-        OnboardingMessageRequest: {
-            /** Message */
-            message: string;
-            /** Block */
-            block: string;
-            /** Question Id */
-            question_id?: string | null;
-        };
-        /** OnboardingMessageResponse */
-        OnboardingMessageResponse: {
-            /** Block */
-            block: string;
-            /** Next Question Code */
-            next_question_code: string;
-            /** Saved */
-            saved: boolean;
-            /** Onboarding Completed */
-            onboarding_completed: boolean;
-        };
-        /** OnboardingSkipResponse */
-        OnboardingSkipResponse: {
-            /** Onboarding Completed */
-            onboarding_completed: boolean;
-            /** Next Question Code */
-            next_question_code?: string | null;
-            /** Last Question Id */
-            last_question_id?: string | null;
+        /** OnboardingChatState */
+        OnboardingChatState: {
             /**
-             * Family History Confirmation Pending
-             * @default false
+             * Stage
+             * @enum {string}
              */
-            family_history_confirmation_pending: boolean;
+            stage: "consent" | "question" | "confirmation" | "completed" | "declined";
+            question?: components["schemas"]["ChatQuestion"] | null;
+            pending?: components["schemas"]["ChatPending"] | null;
+            /** Confirmed Answers */
+            confirmed_answers?: components["schemas"]["ChatReview"][];
+            /**
+             * Completed Questions
+             * @default 0
+             */
+            completed_questions: number;
+            /**
+             * Total Questions
+             * @default 13
+             */
+            total_questions: number;
+            /** Message */
+            message?: string | null;
         };
         /** PatientAppointmentCreate */
         PatientAppointmentCreate: {
@@ -6923,112 +6962,6 @@ export interface operations {
             };
         };
     };
-    onboarding_message_onboarding_message_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OnboardingMessageRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingMessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    confirm_onboarding_family_history_onboarding_family_history_confirm_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OnboardingFamilyHistoryConfirmation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSkipResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    skip_onboarding_onboarding_skip_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSkipResponse"];
-                };
-            };
-        };
-    };
-    resume_onboarding_onboarding_resume_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OnboardingSkipResponse"];
-                };
-            };
-        };
-    };
     patient_health_snapshot_professionals_patients__patient_id__health_snapshot_get: {
         parameters: {
             query?: never;
@@ -7047,6 +6980,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_state_onboarding_chat_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChatState"];
+                };
+            };
+        };
+    };
+    chat_consent_onboarding_chat_consent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatConsent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChatState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_answer_onboarding_chat_answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatAnswer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChatState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_confirm_onboarding_chat_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChatState"];
                 };
             };
             /** @description Validation Error */

@@ -10,6 +10,7 @@ import { fixtureServer } from './fixture-server.mjs';
 import { jitsiFixture } from './jitsi-fixture.mjs';
 import { checkPatientDashboard } from './patient-dashboard-browser.mjs';
 import { checkPatientPrescriptions } from './patient-prescriptions-browser.mjs';
+import { checkPatientOnboarding } from './patient-onboarding-browser.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'test-results');
@@ -228,6 +229,7 @@ try {
   results.push({ check: 'patient login redirects to patientPanel' });
   await checkPatientDashboard({ fixture, evaluate, click, until, command, screenshot, checkGeometry, results, reloadUntil });
   await checkPatientPrescriptions({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
+  await checkPatientOnboarding({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
   if (process.env.VITALIS_PATIENT_ONLY !== '1') {
   await click('.patient-brand');
   await until(`document.querySelector('.signed-in-state') !== null`);
