@@ -69,6 +69,24 @@ class FakeNotificationRepository:
 
 
 class NotificationTests(unittest.TestCase):
+    @patch("app.services.notification_dispatcher.send_product_notification_email", return_value=True)
+    def test_calculation_completion_creates_one_app_notice_and_one_email(self, send):
+        patient_id = uuid.uuid4()
+        notification = self.service.notify_risks_calculated(self.recipient_id, patient_id)
+        self.assertEqual(len(self.repository.items), 1)
+        self.assertEqual(notification.type, "risks_calculated")
+        self.assertEqual(notification.entity_id, patient_id)
+        self.assertIsNone(notification.read_at)
+        self.assertTrue(notification.email_required)
+        self.assertEqual(notification.email_status, EmailStatus.PENDING)
+        users = SimpleNamespace(get_by_id=lambda _: SimpleNamespace(email="patient@example.com"))
+        dispatcher = NotificationDispatcher(self.repository, users)
+        dispatcher.run_once()
+        dispatcher.run_once()
+        send.assert_called_once()
+        self.assertEqual(notification.email_status, EmailStatus.SENT)
+        self.assertEqual(len(self.repository.items), 1)
+
     def test_professional_review_notifies_all_admins_in_app(self):
         admins = [uuid.uuid4(), uuid.uuid4()]
         self.repository.active_admin_ids = lambda: admins

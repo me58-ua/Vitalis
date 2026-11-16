@@ -32,13 +32,56 @@ class Profiles:
 
 
 class OnboardingChatTests(unittest.TestCase):
+    def test_natural_diet_estimate_is_confirmed_before_persisting(self):
+        self.start_at('diet')
+        state = self.submit('diet', {'status': 'data', 'data': {'value': 3}},
+            'intento comer al menos una fruta cada dia, y dos distintas verduras como judias y patatas')
+        self.assertEqual(self.profiles.records, [])
+        self.assertIn('aproximadamente 3 raciones al día', state['pending']['summary'][0])
+        self.confirm(state)
+        record = self.profiles.records[0]
+        self.assertEqual(record.value, 3)
+        self.assertEqual(record.unit, 'raciones_fruta_verdura/dia')
+
+    def test_ambiguous_diet_has_relevant_guidance_and_no_writes(self):
+        self.start_at('diet')
+        with self.assertRaises(ValueError) as error:
+            self.submit('diet', {'status': 'clarify', 'data': {}}, 'intento comer mejor')
+        self.assertIn('fruta y verdura', str(error.exception))
+        self.assertNotIn('alergias', str(error.exception))
+        self.assertEqual(self.profiles.records, [])
+        self.assertEqual(self.service.state(self.profile)['stage'], 'question')
+
+    def test_record_prompts_have_one_envelope_and_explicit_denial_example(self):
+        for question_id in ('allergies', 'chronic_conditions', 'medication', 'family_history'):
+            with self.subTest(question_id=question_id):
+                prompt = extraction_prompt(question_id)
+                self.assertIn('{"status":"none","data":{}}', prompt)
+                self.assertNotIn('Return only JSON with', prompt)
+                extracted, summary = validate_extraction(question_id, {"status": "none", "data": {}})
+                self.assertEqual(extracted, {"status": "none", "data": {}})
+                self.assertTrue(summary)
+
+    def test_ninguna_chronic_conditions_requires_confirmation(self):
+        self.service.consent(self.profile, True)
+        self.service.skip(self.profile, 'allergies')
+        state = self.submit('chronic_conditions', {"status": "none", "data": {}}, 'ninguna')
+        self.assertEqual(state['stage'], 'confirmation')
+        self.assertEqual(state['pending']['summary'], ['Sin enfermedades crónicas diagnosticadas.'])
+        self.assertEqual(self.profiles.records, [])
+        result = self.confirm(state)
+        self.assertEqual(result['question']['id'], 'medication')
+        self.risk.evaluate_and_record.assert_not_called()
+
     def setUp(self):
-        self.profile = SimpleNamespace(id=uuid4(), ai_processing_consent=False,
+        self.profile = SimpleNamespace(id=uuid4(), user_id=uuid4(), ai_processing_consent=False,
             onboarding_completed=False, onboarding_state={}, family_history_reviewed=False,
             height_cm=None, weight_kg=None)
         self.profiles = Profiles()
         self.client, self.risk = Mock(), Mock()
         self.service = OnboardingChatService(self.profiles, self.risk, self.client)
+        self.notifications = Mock()
+        self.service.notifications = self.notifications
 
     def submit(self, question_id, payload, message="Respuesta sintética"):
         self.client.complete.return_value = payload
@@ -79,7 +122,8 @@ class OnboardingChatTests(unittest.TestCase):
         self.assertIsInstance(self.profiles.records[0], Allergy)
         self.service.confirm(self.profile, draft_id, True)
         self.assertEqual(len(self.profiles.records), 1)
-        self.risk.evaluate_and_record.assert_called_once()
+        self.risk.evaluate_and_record.assert_not_called()
+        self.notifications.notify_risks_calculated.assert_not_called()
 
     def test_correction_and_reload_preserve_question_without_persisting(self):
         self.start_at("height")
@@ -134,6 +178,9 @@ class OnboardingChatTests(unittest.TestCase):
             self.assertFalse(self.profile.onboarding_completed)
             self.assertEqual(draft["question"]["id"], question_id)
             result = self.confirm(draft)
+            if question_id != QUESTION_ORDER[-1]:
+                self.risk.evaluate_and_record.assert_not_called()
+                self.notifications.notify_risks_calculated.assert_not_called()
         self.assertEqual(result["stage"], "completed")
         self.assertTrue(self.profile.onboarding_completed)
         self.assertEqual(result["completed_questions"], len(QUESTION_ORDER))
@@ -141,6 +188,11 @@ class OnboardingChatTests(unittest.TestCase):
         self.assertEqual(sum(isinstance(r, HabitLog) for r in self.profiles.records), 4)
         self.assertEqual(sum(isinstance(r, FamilyHistoryEntry) for r in self.profiles.records), 1)
         self.assertTrue(self.profile.family_history_reviewed)
+        self.risk.evaluate_and_record.assert_called_once_with(self.profile.id, trigger="onboarding")
+        self.notifications.notify_risks_calculated.assert_called_once_with(self.profile.user_id, self.profile.id)
+        self.confirm(draft)
+        self.risk.evaluate_and_record.assert_called_once()
+        self.notifications.notify_risks_calculated.assert_called_once()
 
     def test_never_drinks_skips_only_quantity_and_binge(self):
         self.start_at("auditc_frequency")
@@ -197,7 +249,21 @@ class OnboardingChatTests(unittest.TestCase):
         self.assertEqual(self.profiles.records, [record])
         self.assertFalse(self.profile.family_history_reviewed)
         self.client.complete.assert_not_called()
-        self.risk.evaluate_and_record.assert_not_called()
+        self.risk.evaluate_and_record.assert_called_once_with(self.profile.id, trigger="onboarding")
+        self.notifications.notify_risks_calculated.assert_called_once()
+
+    def test_update_recalculates_once_only_when_finished_and_skip_retry_is_safe(self):
+        self.profile.ai_processing_consent = True
+        self.profile.onboarding_state = {'chat_v1': {'stage': 'completed'}}
+        for run in range(2):
+            self.service.restart(self.profile)
+            for question_id in QUESTION_ORDER[:-1]:
+                self.service.skip(self.profile, question_id)
+                self.assertEqual(self.risk.evaluate_and_record.call_count, run)
+            self.service.skip(self.profile, QUESTION_ORDER[-1])
+            self.service.skip(self.profile, QUESTION_ORDER[-1])
+            self.assertEqual(self.risk.evaluate_and_record.call_count, run + 1)
+            self.assertEqual(self.notifications.notify_risks_calculated.call_count, run + 1)
 
     def test_skip_requires_consent_is_idempotent_and_cannot_discard_pending(self):
         with self.assertRaises(ChatConflict):
@@ -325,7 +391,7 @@ class GeminiClientTests(unittest.TestCase):
 
 class OnboardingChatAPITests(unittest.TestCase):
     def setUp(self):
-        self.profile = SimpleNamespace(id=uuid4(), ai_processing_consent=False,
+        self.profile = SimpleNamespace(id=uuid4(), user_id=uuid4(), ai_processing_consent=False,
             onboarding_completed=False, onboarding_state={}, family_history_reviewed=False)
         self.profiles = Profiles()
         self.profiles.session.scalar.return_value = self.profile
@@ -362,8 +428,9 @@ class OnboardingChatAPITests(unittest.TestCase):
         self.app.dependency_overrides.pop(get_current_patient)
         self.assertEqual(self.http.get('/onboarding/chat').status_code, 401)
 
+    @patch('app.ai.onboarding.api.RiskService')
     @patch('app.ai.onboarding.gemini.GeminiOnboardingClient.complete')
-    def test_restart_and_skip_preserve_clinical_values_without_ai(self, complete):
+    def test_restart_and_skip_preserve_clinical_values_without_ai(self, complete, risk):
         self.profile.height_cm = 178
         self.profile.weight_kg = None
         self.profile.ai_processing_consent = True
@@ -380,6 +447,7 @@ class OnboardingChatAPITests(unittest.TestCase):
         self.assertIsNone(self.profile.weight_kg)
         self.assertEqual(self.profiles.records, [])
         complete.assert_not_called()
+        risk.return_value.evaluate_and_record.assert_called_once()
 
 
 if __name__ == "__main__":

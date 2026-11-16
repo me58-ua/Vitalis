@@ -125,6 +125,27 @@ class RiskCalculatorTests(unittest.TestCase):
         self.assertEqual(recorded, [])
         snapshots.create.assert_not_called()
 
+    def test_evaluate_and_record_notifies_the_patient_user(self):
+        repository = Mock()
+        repository.get_inputs.return_value = SimpleNamespace(profile=SimpleNamespace(
+            user_id="user-id", ai_processing_consent=True,
+            height_cm=170, weight_kg=70, birth_date=date(1990, 1, 1),
+            sex_at_birth="mujer",
+        ), alcohol_log=None, tobacco_logs=[], exercise_logs=[], family_history=[])
+        snapshots = Mock()
+        snapshots.latest_by_model.return_value = None
+        notifications = Mock()
+
+        recorded = RiskService(repository, snapshots, notifications).evaluate_and_record(
+            "patient-id", "onboarding"
+        )
+
+        self.assertEqual(len(recorded), 1)
+        snapshot = snapshots.create.call_args.args[0]
+        self.assertEqual(snapshot.patient_id, "patient-id")
+        self.assertEqual(snapshot.model, "bmi")
+        notifications.notify_risk.assert_called_once_with("user-id", "bmi", "info")
+
 
 if __name__ == "__main__":
     unittest.main()

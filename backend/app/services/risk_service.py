@@ -344,9 +344,11 @@ class RiskService:
                 trigger=trigger_value,
             )))
             if self.notifications is not None and result.alert_level not in {None, "none"}:
-                self.notifications.notify_risk(
-                    inputs.profile.user_id,
-                    result.model,
-                    result.alert_level,
-                )
+                inputs = self.repository.get_inputs(patient_id)
+                if inputs is not None:
+                    self.notifications.notify_risk(
+                        inputs.profile.user_id,
+                        result.model,
+                        result.alert_level,
+                    )
         return recorded

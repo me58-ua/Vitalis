@@ -58,7 +58,7 @@ def chat_answer(data: ChatAnswer, user: CurrentPatient, profiles: Profiles):
 
 @router.post("/confirm", response_model=OnboardingChatState)
 def chat_confirm(data: ChatConfirmation, user: CurrentPatient, profiles: Profiles, db: DbSession, notifications: Notifications):
-    service = OnboardingChatService(profiles, RiskService(RiskRepository(db), RiskSnapshotRepository(db), notifications))
+    service = OnboardingChatService(profiles, RiskService(RiskRepository(db), RiskSnapshotRepository(db)), notifications=notifications)
     return run(lambda: service.confirm(profile_for(user, profiles, True), data.draft_id, data.confirmed))
 
 
@@ -68,5 +68,6 @@ def chat_restart(user: CurrentPatient, profiles: Profiles):
 
 
 @router.post('/skip', response_model=OnboardingChatState)
-def chat_skip(data: ChatSkip, user: CurrentPatient, profiles: Profiles):
-    return run(lambda: OnboardingChatService(profiles).skip(profile_for(user, profiles, True), data.question_id))
+def chat_skip(data: ChatSkip, user: CurrentPatient, profiles: Profiles, db: DbSession, notifications: Notifications):
+    service = OnboardingChatService(profiles, RiskService(RiskRepository(db), RiskSnapshotRepository(db)), notifications=notifications)
+    return run(lambda: service.skip(profile_for(user, profiles, True), data.question_id))

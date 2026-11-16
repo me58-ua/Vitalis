@@ -17,10 +17,11 @@ class ChatConflict(ValueError):
 
 
 class OnboardingChatService:
-    def __init__(self, profiles, risk_service=None, client=None):
+    def __init__(self, profiles, risk_service=None, client=None, notifications=None):
         self.profiles = profiles
         self.risk_service = risk_service
         self.client = client or GeminiOnboardingClient()
+        self.notifications = notifications
 
     @staticmethod
     def _chat(profile):
@@ -85,6 +86,12 @@ class OnboardingChatService:
         profile.onboarding_completed = next_id is None
         self._store(profile, {**chat, 'pending': None, 'current': next_id,
                               'stage': 'completed' if next_id is None else 'question'})
+        if next_id is None and self.risk_service is not None:
+            # _store flushes all confirmed data before calculations. Results and
+            # the single completion notice commit together with the conversation.
+            self.risk_service.evaluate_and_record(profile.id, trigger="onboarding")
+            if self.notifications is not None:
+                self.notifications.notify_risks_calculated(profile.user_id, profile.id)
         return self.state(profile)
 
     def skip(self, profile, question_id):
@@ -95,7 +102,7 @@ class OnboardingChatService:
             return self.state(profile)
         if chat.get('stage') != 'question' or chat.get('current') != question_id:
             raise ChatConflict('La pregunta ha cambiado. Actualiza la conversación.')
-        # Workflow metadata only: no extraction, clinical writes, or risk evaluation.
+        # Skips preserve clinical values; the final skip also finishes the conversation.
         return self._advance(profile, {**chat, 'manual_skipped': [*chat.get('manual_skipped', []), question_id]})
 
     def consent(self, profile, accepted):
@@ -127,6 +134,8 @@ class OnboardingChatService:
         try:
             extracted, summary = validate_extraction(question_id, payload)
         except (KeyError, TypeError, ValueError):
+            if question_id == "diet":
+                raise ValueError("Indica aproximadamente cuánta fruta y verdura comes al día, por ejemplo: «una fruta y dos raciones de verdura». Puedes responder «no sé» si no lo sabes.") from None
             raise ValueError("No he podido interpretar todos los datos. Responde en un único mensaje con las unidades y detalles solicitados. Si no lo sabes, escribe «no sé». Para alergias, indica la gravedad; para medicamentos, la dosis y la frecuencia.") from None
         draft = {"draft_id": str(uuid4()), "question_id": question_id,
                  "question": PREGUNTAS[question_id].text, "answer": message,
@@ -162,9 +171,6 @@ class OnboardingChatService:
         if draft['extracted']['status'] != 'unknown' or question_id not in declarations:
             declarations[question_id] = draft['extracted']['status']
         self._advance(profile, {**chat, "answers": answers, "skipped": skipped, 'declarations': declarations})
-        if self.risk_service is not None:
-            # All derived assessments see confirmed values only.
-            self.risk_service.evaluate_and_record(profile.id, trigger="onboarding")
         return self.state(profile)
 
     def _persist(self, profile, question_id, extracted, chat):

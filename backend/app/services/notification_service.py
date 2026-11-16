@@ -105,6 +105,17 @@ class NotificationService:
             scheduled_for=now,
         )
 
+    def notify_risks_calculated(self, recipient_id: UUID, patient_id: UUID):
+        return self.notify(
+            recipient_id,
+            "risks_calculated",
+            entity="risk_assessment",
+            entity_id=patient_id,
+            email_required=True,
+            title="Cálculo de riesgos completado",
+            message="Hemos calculado tus riesgos con los datos guardados al finalizar la conversación. Entra en Vitalis para consultar los resultados.",
+        )
+
     def notify_risk(self, recipient_id: UUID, model: str, alert_level: str, now: datetime | None = None):
         if alert_level == "none":
             return None
