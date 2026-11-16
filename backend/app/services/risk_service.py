@@ -15,10 +15,10 @@ from app.schemas.risk import RiskResult
 
 logger = logging.getLogger(__name__)
 
-OMS_SOURCE = "WHO adult BMI and physical activity guidance: https://www.who.int/"
-AUDIT_C_SOURCE = "Bush et al. 1998, AUDIT-C sex-specific thresholds"
-TOBACCO_SOURCE = "Vitalis v1 fixed cigarette-consumption bands"
-FAMILY_SOURCE = "Vitalis v1 family-history rules"
+OMS_SOURCE = "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight"
+AUDIT_C_SOURCE = "https://www.hepatitis.va.gov/pdf/auditC-card.pdf"
+TOBACCO_SOURCE = "https://www.who.int/news-room/fact-sheets/detail/tobacco"
+FAMILY_SOURCE = "https://www.cdc.gov/family-health-history/family-health-history-and-you/family-health-history-and-adults.html"
 DISCLAIMER = "This is a screening aid, not a diagnosis or a probability."
 
 BMI_UNDERWEIGHT = 18.5
@@ -86,13 +86,21 @@ def calc_bmi(
     bmi = float(weight_kg) / (float(height_cm) / 100) ** 2
     if bmi < BMI_UNDERWEIGHT:
         category, alert = "underweight", "info"
-    elif bmi <= BMI_HEALTHY_MAX:
+    elif bmi < 25:
         category, alert = "healthy", "info"
-    elif bmi <= BMI_OVERWEIGHT_MAX:
+    elif bmi < 30:
         category, alert = "overweight", "elevated"
     else:
         category, alert = "obesity", "high"
-    return _ok("bmi", round(bmi, 2), category, alert, "BMI was calculated from the supplied adult measurements.", OMS_SOURCE)
+    meanings = {
+        "underweight": "Está por debajo de 18,5, en el intervalo de bajo peso. Conviene revisar tu alimentación y posibles causas con un profesional.",
+        "healthy": "Está entre 18,5 y menos de 25, el intervalo de referencia habitual en adultos. Mantener hábitos saludables ayuda a cuidar tu salud.",
+        "overweight": "Está entre 25 y menos de 30, en el intervalo de sobrepeso. Puede asociarse con mayor riesgo de diabetes tipo 2 y enfermedad cardiovascular. Una consulta puede ayudarte a valorar otros factores y acordar hábitos adecuados.",
+        "obesity": "Es igual o superior a 30, en el intervalo de obesidad. Se asocia con mayor riesgo de diabetes tipo 2 y enfermedad cardiovascular. Te recomendamos pedir cita para una valoración y un plan personalizado.",
+    }
+    explanation = f"El IMC relaciona el peso con la altura al cuadrado. Tu resultado es {bmi:.2f} kg/m². " + meanings[category]
+    explanation += " Es orientativo: no distingue músculo de grasa ni determina por sí solo tu estado de salud."
+    return _ok("bmi", round(bmi, 2), category, alert, explanation, OMS_SOURCE)
 
 
 def calc_audit_c(
@@ -128,7 +136,13 @@ def calc_audit_c(
         return _insufficient("audit_c", ["sex_at_birth"], "The AUDIT-C sex-specific threshold is unavailable.", AUDIT_C_SOURCE)
     category = "positive_screen" if total >= threshold else "lower_screen"
     alert = "elevated" if total >= threshold else "info"
-    return _ok("audit_c", float(total), category, alert, f"AUDIT-C total {total}; positive screening threshold for this sex is {threshold}.", AUDIT_C_SOURCE)
+    explanation = f"AUDIT-C resume la frecuencia, cantidad y episodios de consumo elevado de alcohol. Tu puntuación es {total} de 12; el umbral de cribado aplicado es {threshold} (3 para mujeres y 4 para hombres). "
+    explanation += (
+        "Alcanzas o superas ese umbral: conviene pedir cita para revisar el consumo y cómo reducir posibles daños, como problemas hepáticos y cardiovasculares. Un cribado positivo no diagnostica dependencia."
+        if total >= threshold else
+        "Estás por debajo del umbral de cribado. Esto no significa que el consumo esté libre de riesgo; cuanto menos alcohol, menor exposición a sus daños."
+    )
+    return _ok("audit_c", float(total), category, alert, explanation, AUDIT_C_SOURCE)
 
 
 def calc_tobacco(logs: Iterable[object]) -> RiskResult:
@@ -154,7 +168,13 @@ def calc_tobacco(logs: Iterable[object]) -> RiskResult:
         category, alert = "moderate", "elevated"
     else:
         category, alert = "high", "high"
-    return _ok("tobacco", round(average, 2), category, alert, "Average recent cigarette consumption was calculated from tobacco logs.", TOBACCO_SOURCE)
+    explanation = f"Tus registros recientes indican una media de {average:g} cigarrillos al día. "
+    if average == 0:
+        explanation += "No consta consumo de cigarrillos en estos registros. Mantenerte sin fumar y evitar el humo ajeno protege tu salud; este dato no evalúa otros productos de tabaco ni el consumo pasado."
+    else:
+        band = "hasta 10" if average <= 10 else "más de 10 y hasta 20" if average <= 20 else "más de 20"
+        explanation += f"Estás en la franja de {band} cigarrillos al día usada por Vitalis para organizar el consumo, no para calcular una probabilidad de enfermedad. Incluso fumar poco aumenta el riesgo de cáncer, enfermedad cardiovascular y problemas respiratorios; no hay un nivel seguro. Pide cita si quieres apoyo para dejar de fumar."
+    return _ok("tobacco", round(average, 2), category, alert, explanation, TOBACCO_SOURCE)
 
 
 def calc_sedentary(logs: Iterable[object]) -> RiskResult:
@@ -180,7 +200,9 @@ def calc_sedentary(logs: Iterable[object]) -> RiskResult:
         category, alert = "very_low_activity", "high"
     else:
         category, alert = "inactive", "high"
-    return _ok("sedentary", round(weekly_minutes, 2), category, alert, "Recent weekly exercise minutes were averaged and compared with the WHO 150-minute threshold.", OMS_SOURCE)
+    explanation = f"Tus registros indican una media de {weekly_minutes:g} minutos de ejercicio por semana. La referencia para adultos es de 150 a 300 minutos de actividad moderada, o de 75 a 150 de actividad vigorosa, o una combinación equivalente. "
+    explanation += "La actividad física ayuda a reducir el riesgo cardiovascular y de diabetes tipo 2. Estos registros no indican intensidad ni tiempo sentado, por lo que no permiten confirmar si cumples toda la recomendación. Si necesitas aumentar tu actividad, acuerda un plan gradual adaptado a tu salud."
+    return _ok("sedentary", round(weekly_minutes, 2), category, alert, explanation, "https://www.who.int/news-room/fact-sheets/detail/physical-activity")
 
 
 def calc_family_history(
@@ -211,12 +233,34 @@ def calc_family_history(
         )
         model = f"family_{category}"
         alert = "elevated" if first_degree or (category == "diabetes" and bmi is not None and bmi >= 25) else "info"
-        explanation = "Family history was grouped from explicitly recorded entries."
+        relatives = {"madre": "madre", "padre": "padre", "hermano": "hermano/a", "hijo": "hijo/a", "abuelo": "abuelo/a", "tio": "tío/a", "otro": "otro familiar"}
+        relationships = sorted({relatives.get(getattr(e.relationship, "value", e.relationship), "familiar") for e in category_entries})
+        explanation = "Has registrado este antecedente en: " + ", ".join(relationships) + ". "
+        source = FAMILY_SOURCE
+        if category == "huntington":
+            explanation += "Huntington es una enfermedad hereditaria que puede afectar al movimiento, el pensamiento y el estado de ánimo. Te recomendamos pedir cita para revisar el árbol familiar y valorar asesoramiento genético antes de decidir sobre pruebas. Tener un familiar afectado no confirma que hayas heredado la alteración ni permite calcular aquí tu probabilidad individual."
+            source = "https://medlineplus.gov/genetics/condition/huntingtons-disease/"
+        elif category == "cancer":
+            colorectal = any(any(word in (getattr(e, "detail", None) or "").casefold() for word in ("colon", "colón", "colorrectal", "recto")) for e in category_entries)
+            if colorectal:
+                explanation += "El antecedente de cáncer de colon o recto puede influir en el riesgo familiar, aunque muchos casos no son hereditarios. Pide cita para revisar el parentesco, la edad al diagnóstico y otros casos, y valorar si necesitas un cribado distinto o asesoramiento genético. Este registro no demuestra un síndrome hereditario."
+                source = "https://www.cdc.gov/colorectal-cancer-hereditary/about/index.html"
+            else:
+                explanation += "Algunos cánceres tienen un componente hereditario, pero un antecedente no demuestra que sea tu caso. Pide cita para revisar el tipo de cáncer, el parentesco, la edad al diagnóstico y otros casos para orientar la prevención y valorar asesoramiento genético."
+                source = "https://www.cdc.gov/cancer/risk-factors/family-health-history.html"
+        elif category == "diabetes":
+            explanation += "La diabetes altera la regulación de la glucosa en sangre. Los antecedentes familiares pueden reflejar factores genéticos y hábitos compartidos, especialmente en la diabetes tipo 2. Conviene pedir cita para revisar qué tipo de diabetes tuvo tu familiar, tus factores personales y si necesitas controles de glucosa; el antecedente no significa que tengas diabetes."
+            source = "https://www.niddk.nih.gov/health-information/diabetes/overview/what-is-diabetes/type-2-diabetes"
+        elif category == "cardiovascular":
+            explanation += "Las enfermedades cardiovasculares afectan al corazón o a los vasos sanguíneos. Los antecedentes familiares pueden aumentar el riesgo, especialmente cuando aparecen a edades tempranas, y pueden combinar factores hereditarios y hábitos compartidos. Pide cita para revisar el diagnóstico familiar, la edad de aparición, la presión arterial y el colesterol, y decidir qué controles necesitas. Este antecedente no demuestra que tengas una enfermedad cardiovascular."
+            source = "https://www.cdc.gov/heart-disease-family-history/about/"
+        else:
+            explanation += "El antecedente se ha clasificado como otra enfermedad. Sin un diagnóstico concreto no podemos describir su mecanismo de herencia ni sus consecuencias. Pide cita y comparte el nombre de la enfermedad, el parentesco y la edad al diagnóstico para valorar si necesitas prevención o asesoramiento genético; este registro no establece un riesgo hereditario por sí solo."
         if first_degree:
-            explanation += " A first-degree relative warrants discussing a preventive appointment."
+            explanation += " Se trata de un familiar de primer grado, un dato importante en la valoración."
         if category == "diabetes" and bmi is not None and bmi >= 25:
-            explanation += " Diabetes family history is elevated because BMI is at least 25."
-        results.append(_ok(model, float(len(category_entries)), "family_history", alert, explanation, FAMILY_SOURCE))
+            explanation += " Además, tu IMC es igual o superior a 25, otro factor que conviene revisar."
+        results.append(_ok(model, float(len(category_entries)), "family_history", alert, explanation, source))
     return results
 
 

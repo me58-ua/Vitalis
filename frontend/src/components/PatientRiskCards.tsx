@@ -32,6 +32,8 @@ export function PatientRiskCards({ results, onHistory }: { results: PatientRiskI
       {!item ? <p>Evaluación no disponible.</p> : item.status === 'insufficient_data' ? <><p>Datos insuficientes</p>{model === 'bmi' && <p>No se puede calcular el BMI porque faltan datos.</p>}<p className="field-help">Falta información: {(item.missing ?? []).map(field => missingNames[field] ?? 'dato requerido por el servidor').join(', ') || 'completa tus datos de salud'}.</p></>
         : item.status === 'error' ? <p role="alert">No se ha podido completar esta evaluación.</p>
           : <><p className="patient-risk-value">{riskValue(model, item.metric_value)}</p><p>{item.category ? categories[item.category] ?? 'Clasificación no disponible' : 'Sin clasificación'}</p>
+            <p className="patient-risk-explanation">{item.explanation}</p>
+            {item.source.startsWith('https://') && <p><a href={item.source} target="_blank" rel="noreferrer">Consultar fuente de salud</a></p>}
             <span className="patient-trend">{trendNames[item.trend] ?? 'Tendencia no disponible'}</span></>}
       <button className="text-button" onClick={() => onHistory(model)}>Ver historial</button>
       <p className="patient-disclaimer">Evaluación orientativa; no sustituye una consulta médica.</p>

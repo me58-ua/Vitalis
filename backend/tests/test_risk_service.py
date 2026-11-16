@@ -14,9 +14,70 @@ from app.services.risk_service import (
 )
 from app.schemas.risk import RiskResult
 from app.repositories.risk_repository import RiskRepository
+from app.models import HereditaryConditions, FamilyRelationship
 
 
 class RiskCalculatorTests(unittest.TestCase):
+    def test_every_hereditary_enum_has_explanation_and_authoritative_source(self):
+        expected = {
+            'diabetes': ('glucosa', 'www.niddk.nih.gov'),
+            'cancer': ('cáncer', 'www.cdc.gov'),
+            'cardiovascular': ('corazón', 'www.cdc.gov'),
+            'huntington': ('Huntington', 'medlineplus.gov'),
+            'otro': ('Sin un diagnóstico concreto', 'www.cdc.gov'),
+        }
+        self.assertEqual(set(expected), {condition.value for condition in HereditaryConditions})
+        for condition in HereditaryConditions:
+            with self.subTest(condition=condition):
+                result, = calc_family_history([SimpleNamespace(
+                    condition_category=condition, relationship=FamilyRelationship.GRANDPARENT, detail=None,
+                )])
+                text, domain = expected[condition.value]
+                self.assertIn(text, result.explanation)
+                self.assertIn('cita', result.explanation)
+                self.assertTrue(result.source.startswith('https://' + domain + '/'))
+                self.assertEqual(result.status, 'ok')
+
+    def test_bmi_thresholds_do_not_classify_values_below_25_or_30_too_early(self):
+        for bmi, category in ((18.49, 'underweight'), (18.5, 'healthy'), (24.95, 'healthy'), (25, 'overweight'), (29.95, 'overweight'), (30, 'obesity')):
+            with self.subTest(bmi=bmi):
+                result = calc_bmi(200, bmi * 4, date(1990, 1, 1))
+                self.assertEqual(result.category, category)
+                self.assertIn('IMC', result.explanation)
+                self.assertIn('orientativo', result.explanation)
+        self.assertIn('pedir cita', calc_bmi(200, 120, date(1990, 1, 1)).explanation)
+
+    def test_alcohol_explanations_follow_the_applied_threshold(self):
+        positive = calc_audit_c(1, 1, 1, 'mujer')
+        lower = calc_audit_c(1, 1, 1, 'hombre')
+        self.assertIn('umbral de cribado aplicado es 3', positive.explanation)
+        self.assertIn('no diagnostica dependencia', positive.explanation)
+        self.assertIn('por debajo', lower.explanation)
+        self.assertIn('no significa', lower.explanation)
+
+    def test_tobacco_explains_consumption_bands_without_claiming_safe_consumption(self):
+        for value, band in ((1, 'hasta 10'), (10, 'hasta 10'), (11, 'más de 10 y hasta 20'), (20, 'más de 10 y hasta 20'), (21, 'más de 20')):
+            result = calc_tobacco([SimpleNamespace(value=value, unit='cigarrillos/dia')])
+            self.assertIn(band, result.explanation)
+            self.assertIn('no hay un nivel seguro', result.explanation)
+        self.assertIn('No consta consumo', calc_tobacco([SimpleNamespace(value=0, unit='cigarrillos/dia')]).explanation)
+
+    def test_grandparent_huntington_and_uncle_colon_cancer_have_actionable_explanations(self):
+        results = calc_family_history([
+            SimpleNamespace(condition_category='huntington', relationship='abuelo', detail=None),
+            SimpleNamespace(condition_category='cancer', relationship='tio', detail='cáncer de colon'),
+        ])
+        self.assertEqual({r.model for r in results}, {'family_huntington', 'family_cancer'})
+        huntington, cancer = results
+        self.assertIn('hereditaria', huntington.explanation)
+        self.assertIn('asesoramiento genético', huntington.explanation)
+        self.assertIn('no confirma', huntington.explanation)
+        self.assertIn('abuelo/a', huntington.explanation)
+        self.assertIn('colon', cancer.explanation)
+        self.assertIn('cribado', cancer.explanation)
+        self.assertIn('tío/a', cancer.explanation)
+        self.assertTrue(all(r.source.startswith('https://') for r in results))
+
     def test_partial_confirmed_alcohol_scores_override_an_old_complete_log(self):
         session = Mock()
         profile = SimpleNamespace(id='patient', onboarding_state={'alcohol_current': {'frequency': 2, 'quantity': None, 'binge': None}})

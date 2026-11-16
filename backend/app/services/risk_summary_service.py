@@ -18,10 +18,10 @@ SOURCES = {
     "audit_c": "https://pubmed.ncbi.nlm.nih.gov/9698702/",
     "tobacco": "https://www.who.int/initiatives/mpower",
     "family_history": FAMILY_SOURCE,
-    "diabetes": "https://diabetes.org/about-diabetes/diagnosis",
-    "cancer": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics",
-    "cardiovascular": "https://www.escardio.org/Guidelines/Clinical-Practice-Guidelines",
-    "huntington": "https://hdsa.org/what-is-hd/",
+    "diabetes": "https://www.niddk.nih.gov/health-information/diabetes/overview/what-is-diabetes/type-2-diabetes",
+    "cancer": "https://www.cdc.gov/cancer/risk-factors/family-health-history.html",
+    "cardiovascular": "https://www.cdc.gov/heart-disease-family-history/about/",
+    "huntington": "https://medlineplus.gov/genetics/condition/huntingtons-disease/",
 }
 
 
