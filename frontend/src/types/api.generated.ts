@@ -3119,7 +3119,7 @@ export interface components {
             completed_questions: number;
             /**
              * Total Questions
-             * @default 14
+             * @default 13
              */
             total_questions: number;
             /** Message */

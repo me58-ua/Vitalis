@@ -69,7 +69,6 @@ PREGUNTAS: Final[dict[str, Pregunta]] = {
     ),
     "height": Pregunta("height", "¿Cuál es tu altura en centímetros?", "cuerpo"),
     "weight": Pregunta("weight", "¿Cuál es tu peso en kilogramos?", "cuerpo"),
-    "blood_type": Pregunta("blood_type", "¿Cuál es tu grupo sanguíneo (A+, A-, B+, B-, AB+, AB-, O+ u O-)? Si no lo sabes, puedes omitir la pregunta.", "cuerpo"),
     "tobacco": Pregunta("tobacco", "¿Cuántos cigarrillos fumas al día?", "habitos"),
     "exercise": Pregunta("exercise", "¿Cuántos minutos dedicas al ejercicio a la semana?", "habitos"),
     "sleep": Pregunta("sleep", "¿Cuántas horas duermes normalmente cada noche?", "habitos"),
@@ -99,7 +98,7 @@ PREGUNTAS: Final[dict[str, Pregunta]] = {
 
 # Explicit order de las preguntas
 QUESTION_ORDER: Final[tuple[str, ...]] = (
-    "allergies", "chronic_conditions", "medication", "height", "weight", "blood_type",
+    "allergies", "chronic_conditions", "medication", "height", "weight",
     "auditc_frequency", "auditc_quantity", "auditc_binge", "tobacco",
     "exercise", "sleep", "diet", "family_history",
 )

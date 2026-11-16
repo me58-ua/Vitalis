@@ -60,6 +60,8 @@ class GeminiOnboardingClient:
                 # Classify common account restrictions without returning provider
                 # messages, which may contain the API key or project identifiers.
                 provider_message = str(error).casefold()
+                if code == 403 and 'free tier is not available' in provider_message:
+                    raise AIUnavailable('Google no ofrece el nivel gratuito de Gemini para este proyecto. Debes configurar la facturación en Google AI Studio para usarlo.') from None
                 if code == 403 and "leaked" in provider_message:
                     raise AIUnavailable("Google ha bloqueado la clave de Gemini por una posible filtración. Sustitúyela en el servidor.") from None
                 if code == 403 and ("referer" in provider_message or "referrer" in provider_message):

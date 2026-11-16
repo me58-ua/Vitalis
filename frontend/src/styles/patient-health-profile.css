@@ -43,7 +43,6 @@
 .health-biometric-grid dt { font-size: 11px; color: #404944; margin-bottom: 12px; }
 .health-biometric-grid dd { font-size: 24px; font-weight: 650; color: #003527; margin: 0; overflow-wrap: anywhere; }
 .health-biometric-grid dd small { font-size: 12px; font-weight: 400; }
-.health-biometric-grid > div:last-child { grid-column: 1/-1; }
 .health-muted { color: #404944; font-size: 12px; line-height: 1.6; margin: 16px 0 0; }
 .health-habit { padding: 14px 0; display: flex; align-items: start; justify-content: space-between; gap: 8px; border-bottom: 1px solid #e7eaf1; }
 .health-habit:last-of-type { border: 0; }

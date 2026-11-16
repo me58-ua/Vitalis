@@ -24,7 +24,16 @@ class OnboardingChatService:
 
     @staticmethod
     def _chat(profile):
-        return (profile.onboarding_state or {}).get("chat_v1", {})
+        chat = dict((profile.onboarding_state or {}).get("chat_v1", {}))
+        # Retired questions must not trap an in-flight conversation or inflate progress.
+        for field in ('answers', 'manual_skipped', 'skipped'):
+            chat[field] = [item for item in chat.get(field, []) if (item.get('question_id') if isinstance(item, dict) else item) in QUESTION_ORDER]
+        if chat.get('stage') in {'question', 'confirmation'} and chat.get('current') not in QUESTION_ORDER:
+            done = {a['question_id'] for a in chat['answers']} | set(chat['manual_skipped']) | set(chat['skipped'])
+            chat['current'] = next((q for q in QUESTION_ORDER if q not in done), None)
+            chat['pending'] = None
+            chat['stage'] = 'question' if chat['current'] else 'completed'
+        return chat
 
     def _store(self, profile, chat):
         profile.onboarding_state = {**(profile.onboarding_state or {}), "chat_v1": chat}
@@ -169,7 +178,7 @@ class OnboardingChatService:
             self.profiles.replace_health_records(list_model, profile.id, [])
         if status != "data":
             return
-        if question_id in {"height", "weight", "blood_type"}:
+        if question_id in {"height", "weight"}:
             for key, value in data.items():
                 setattr(profile, key, value)
         elif question_id in HABITS:

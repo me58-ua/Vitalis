@@ -45,7 +45,7 @@ class OnboardingChatState(BaseModel):
     pending: ChatPending | None = None
     confirmed_answers: list[ChatReview] = Field(default_factory=list)
     completed_questions: int = 0
-    total_questions: int = 14
+    total_questions: int = 13
     message: str | None = None
     skipped_questions: list[str] = Field(default_factory=list)
     auto_skipped_questions: list[str] = Field(default_factory=list)

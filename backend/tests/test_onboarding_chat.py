@@ -119,7 +119,6 @@ class OnboardingChatTests(unittest.TestCase):
             "allergies": {"status": "none"}, "chronic_conditions": {"status": "none"},
             "medication": {"status": "none"}, "height": {"status": "data", "data": {"height_cm": 178}},
             "weight": {"status": "data", "data": {"weight_kg": 74}},
-            "blood_type": {"status": "data", "data": {"blood_type": "O+"}},
             "auditc_frequency": {"status": "data", "data": {"frequency": 1}},
             "auditc_quantity": {"status": "data", "data": {"quantity": 0}},
             "auditc_binge": {"status": "data", "data": {"binge": 0}},
@@ -249,13 +248,14 @@ class OnboardingChatTests(unittest.TestCase):
         self.service.skip(self.profile, 'auditc_quantity')
         self.assertIsNone(self.profile.onboarding_state['alcohol_current']['quantity'])
 
-    def test_blood_group_uses_the_ai_confirmation_boundary(self):
-        self.profile.blood_type = None
+    def test_retired_question_does_not_trap_an_active_conversation(self):
         self.start_at('blood_type')
-        draft = self.submit('blood_type', {'status': 'data', 'data': {'blood_type': 'AB-'}})
-        self.assertIsNone(self.profile.blood_type)
-        self.confirm(draft)
-        self.assertEqual(self.profile.blood_type, 'AB-')
+        chat = self.profile.onboarding_state['chat_v1']
+        chat['answers'] = [{'question_id': q, 'question': 'q', 'answer': 'a', 'summary': [], 'extracted': {'status': 'unknown', 'data': {}}} for q in QUESTION_ORDER[:5]]
+        state = self.service.state(self.profile)
+        self.assertEqual(state['question']['id'], 'auditc_frequency')
+        self.assertEqual(state['total_questions'], len(QUESTION_ORDER))
+        self.assertNotIn('blood_type', QUESTION_ORDER)
 
     def test_unknown_leaves_existing_clinical_data_and_review_status_untouched(self):
         self.profile.family_history_reviewed = True
@@ -276,6 +276,17 @@ class OnboardingChatTests(unittest.TestCase):
 
 
 class GeminiClientTests(unittest.TestCase):
+    @patch('app.ai.onboarding.gemini.settings', SimpleNamespace(GEMINI_API_KEY='synthetic-key', GOOGLE_API_KEY='', AI_API_KEY='', GEMINI_MODEL='gemini-3.8-flash'))
+    @patch('app.ai.onboarding.gemini.genai.Client')
+    def test_free_tier_restriction_has_actionable_message_without_secrets(self, factory):
+        error = RuntimeError('The Gemini API free tier is not available for this project. synthetic-key')
+        error.status_code = 403
+        factory.side_effect = error
+        with self.assertRaises(AIUnavailable) as raised:
+            GeminiOnboardingClient().complete('Extract', 'Height?', '178 cm')
+        self.assertIn('facturación', str(raised.exception))
+        self.assertNotIn('synthetic-key', str(raised.exception))
+
     @patch("app.ai.onboarding.gemini.settings", SimpleNamespace(GEMINI_API_KEY="synthetic-key", GOOGLE_API_KEY="", AI_API_KEY="", GEMINI_MODEL="gemini-4-hydrogen"))
     @patch("app.ai.onboarding.gemini.genai.Client")
     def test_interactions_call_has_instructions_answer_model_and_no_stored_history(self, factory):

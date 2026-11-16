@@ -5,7 +5,6 @@ const questions = [
   ['medication', '¿Tomas actualmente algún medicamento?', 'medicacion'],
   ['height', '¿Cuál es tu altura en centímetros?', 'cuerpo'],
   ['weight', '¿Cuál es tu peso en kilogramos?', 'cuerpo'],
-  ['blood_type', '¿Cuál es tu grupo sanguíneo?', 'cuerpo'],
   ['auditc_frequency', '¿Con qué frecuencia consume alguna bebida alcohólica?', 'alcohol'],
   ['auditc_quantity', '¿Cuántas consumiciones bebe en un día de consumo normal?', 'alcohol'],
   ['auditc_binge', '¿Con qué frecuencia toma 6 o más bebidas?', 'alcohol'],

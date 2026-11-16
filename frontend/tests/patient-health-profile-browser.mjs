@@ -6,7 +6,7 @@ export async function checkPatientHealthProfile({ fixture, evaluate, click, fill
   assert.equal(await evaluate(`document.querySelector('.site-header') === null`), true);
   assert.equal(await evaluate(`document.querySelectorAll('.health-section button, .health-section input, .health-section select').length`), 0);
   assert.equal(await evaluate(`document.querySelector('#health-biometrics').textContent.includes('178')`), true);
-  assert.equal(await evaluate(`document.querySelector('#health-biometrics').textContent.includes('Sin registrar')`), true);
+  assert.equal(await evaluate(`document.querySelector('#health-biometrics').textContent.includes('Grupo sanguíneo')`), false);
   assert.equal(await evaluate(`document.querySelector('.health-profile-main').textContent.includes('Presión Arterial') || document.querySelector('.health-profile-main').textContent.includes('Descargar Expediente') || document.querySelector('.health-profile-main').textContent.includes('Compartir')`), false);
   await until(`Array.from(document.images).every(img => img.complete && img.naturalWidth > 0)`);
   results.push({ check: 'saved profile is read-only: no per-section edit/add controls, existing measurements and unknown values rendered correctly', assets: await checkGeometry() });

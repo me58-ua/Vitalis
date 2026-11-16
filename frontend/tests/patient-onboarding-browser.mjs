@@ -57,14 +57,14 @@ export async function checkPatientOnboarding({ fixture, evaluate, click, fill, u
     await until(`document.querySelector('.onboarding-confirmation') === null`);
   }
   await until(`location.pathname === '/patientPanel/onboarding/listo' && document.querySelector('.health-complete-card h1')?.textContent === 'Tu perfil de salud está listo'`);
-  assert.equal(fixture.state.onboardingSaves, 14);
+  assert.equal(fixture.state.onboardingSaves, 13);
   await reloadUntil(`document.querySelector('.health-complete-card h1')?.textContent === 'Tu perfil de salud está listo'`);
   await screenshot('patient-onboarding-complete-mobile');
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
   await screenshot('patient-onboarding-complete-desktop');
   await click('.health-complete-card .primary');
   await checkPatientHealthProfile({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
-  results.push({ check: 'onboarding mobile geometry, duplicate OK protection, all 14 questions individually confirmed, completion survives reload' });
+  results.push({ check: 'onboarding mobile geometry, duplicate OK protection, all 13 questions individually confirmed, completion survives reload' });
   await command('Page.navigate', { url: `${await evaluate('location.origin')}/patientPanel` });
   await until(`document.querySelector('.patient-greeting') !== null`);
 }
