@@ -25,6 +25,13 @@ class RiskCalculatorTests(unittest.TestCase):
             'cardiovascular': ('corazón', 'www.cdc.gov'),
             'huntington': ('Huntington', 'medlineplus.gov'),
             'otro': ('Sin un diagnóstico concreto', 'www.cdc.gov'),
+            'hypertension': ('presión arterial', 'www.cdc.gov'),
+            'high_cholesterol': ('colesterol', 'www.cdc.gov'),
+            'stroke': ('ictus', 'www.cdc.gov'),
+            'osteoporosis': ('huesos', 'www.niams.nih.gov'),
+            'cystic_fibrosis': ('fibrosis quística', 'medlineplus.gov'),
+            'sickle_cell_disease': ('hemoglobina', 'medlineplus.gov'),
+            'familial_hypercholesterolemia': ('LDL', 'www.cdc.gov'),
         }
         self.assertEqual(set(expected), {condition.value for condition in HereditaryConditions})
         for condition in HereditaryConditions:
@@ -133,11 +140,13 @@ class RiskCalculatorTests(unittest.TestCase):
         result = calc_sedentary([SimpleNamespace(value=150, unit="min/semana")] * 3)
         self.assertEqual(result.category, "active")
 
-    def test_family_history_applies_first_degree_and_bmi_rule(self):
+    def test_family_history_does_not_score_risk_from_relative_or_bmi(self):
         entry = SimpleNamespace(condition_category="diabetes", relationship="otro")
         result = calc_family_history([entry], bmi=25)
         self.assertEqual(result[0].model, "family_diabetes")
-        self.assertEqual(result[0].alert_level, "elevated")
+        self.assertEqual(result[0].alert_level, "info")
+        first_degree = calc_family_history([SimpleNamespace(condition_category='stroke', relationship='padre')])
+        self.assertEqual(first_degree[0].alert_level, 'info')
 
     def test_service_returns_nothing_without_ai_consent_and_continues_after_failure(self):
         profile = SimpleNamespace(

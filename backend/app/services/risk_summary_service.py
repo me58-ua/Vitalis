@@ -7,7 +7,7 @@ from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.services.audit_service import AuditService
 from app.services.risk_service import (
     AUDIT_C_SOURCE, FAMILY_SOURCE, OMS_SOURCE, TOBACCO_SOURCE,
-    RiskService, calc_trend,
+    RiskService, calc_trend, FAMILY_GUIDANCE,
 )
 from app.models import AuditAction
 from app.repositories.audit_repository import AuditRepository
@@ -22,6 +22,7 @@ SOURCES = {
     "cancer": "https://www.cdc.gov/cancer/risk-factors/family-health-history.html",
     "cardiovascular": "https://www.cdc.gov/heart-disease-family-history/about/",
     "huntington": "https://medlineplus.gov/genetics/condition/huntingtons-disease/",
+    **{category: source for category, (_, source) in FAMILY_GUIDANCE.items()},
 }
 
 

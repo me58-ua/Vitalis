@@ -18,13 +18,31 @@ class FamilyRelationship(str, enum.Enum):
     UNCLE = "tio"
     OTHER = "otro"
 
-# Ampliable cuando se incorporen nuevas condiciones hereditarias.
-class HereditaryConditions(str, enum.Enum):
+# Family history includes shared susceptibility as well as inherited disorders.
+class FamilyHistoryCondition(str, enum.Enum):
     DIABETES = "diabetes"
     CANCER = "cancer"
     CARDIOVASCULAR = "cardiovascular"
+    HYPERTENSION = "hypertension"
+    HIGH_CHOLESTEROL = "high_cholesterol"
+    STROKE = "stroke"
+    OSTEOPOROSIS = "osteoporosis"
     HUNTINGTON = "huntington"
+    CYSTIC_FIBROSIS = "cystic_fibrosis"
+    SICKLE_CELL_DISEASE = "sickle_cell_disease"
+    FAMILIAL_HYPERCHOLESTEROLEMIA = "familial_hypercholesterolemia"
     OTHER = "otro"
+
+
+# Compatibility for existing callers; persistence values remain unchanged.
+HereditaryConditions = FamilyHistoryCondition
+
+
+class FamilyHistoryStatus(str, enum.Enum):
+    NOT_COLLECTED = "not_collected"
+    KNOWN_CONDITIONS = "known_conditions"
+    NO_KNOWN_CONDITIONS = "no_known_conditions"
+    UNKNOWN = "unknown"
 
 
 class FamilyHistoryEntry(Base):
@@ -58,6 +76,8 @@ class FamilyHistoryEntry(Base):
         nullable=False,
     )
     detail: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    relative_detail: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
     age_at_diagnosis: Mapped[int | None] = mapped_column(Integer, nullable=True)
     recorded_date: Mapped[date] = mapped_column(Date, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

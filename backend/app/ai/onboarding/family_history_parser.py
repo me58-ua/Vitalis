@@ -6,14 +6,26 @@ from typing import Any
 
 from app.models import FamilyRelationship, HereditaryConditions
 
+FAMILY_CATEGORY_VALUES = '|'.join(condition.value for condition in HereditaryConditions)
+FAMILY_EXTRACTION_RULES = (
+    'Record relatives diseases as family medical history even when not confirmed hereditary. '
+    'Never add them to the patient personal diagnoses. Never infer a genetic disorder or risk level from family history alone. '
+    'Map ictus/derrame cerebral to stroke, hipertension/tension alta to hypertension, colesterol alto to high_cholesterol, '
+    'fibrosis quistica to cystic_fibrosis, anemia falciforme/drepanocitosis to sickle_cell_disease. '
+    'Use familial_hypercholesterolemia ONLY when that specific diagnosis is explicitly reported; ordinary high cholesterol is not enough. '
+    'Preserve separate entries for multiple relatives with the same condition. '
+    'Preserve exact disease/type in detail, exact relative such as abuela materna in relative_detail, and additional reported facts in notes. '
+    'Use null for unknown age; missing age must never block a record. Do not invent facts.'
+)
+
 
 FAMILY_HISTORY_PROMPT = (
     'Return only JSON with {"status":"entries|none|unknown",'
     '"entries":[{"relationship":"madre|padre|hermano|hijo|abuelo|tio|otro",'
-    '"category":"diabetes|cancer|cardiovascular|huntington|otro",'
-    '"detail":"string|null","age":0-120|null}]}. '
+    f'"category":"{FAMILY_CATEGORY_VALUES}",'
+    '"detail":"string|null","age":0-120|null,"relative_detail":"string|null","notes":"string|null"}]}. '
     "The patient's answer is in Spanish. Use exactly the Spanish enum values shown in the schema. "
-    "Interpret only the current answer. Do not infer diseases, relationships, or ages."
+    "Interpret only the current answer. Do not infer diseases, relationships, or ages. " + FAMILY_EXTRACTION_RULES
 )
 
 
@@ -23,6 +35,8 @@ class FamilyHistoryDraft:
     category: str
     detail: str | None
     age: int | None
+    relative_detail: str | None = None
+    notes: str | None = None
 
 
 @dataclass(frozen=True)
@@ -64,7 +78,11 @@ def sanitize_entries(raw: Any) -> list[FamilyHistoryDraft]:
         age = item.get("age")
         if isinstance(age, bool) or not isinstance(age, int) or not 0 <= age <= 120:
             age = None
-        result.append(FamilyHistoryDraft(relationship, category, detail, age))
+        relative_detail = item.get('relative_detail')
+        notes = item.get('notes')
+        result.append(FamilyHistoryDraft(relationship, category, detail, age,
+            relative_detail[:100] if isinstance(relative_detail, str) else None,
+            notes[:500] if isinstance(notes, str) else None))
     return result
 
 

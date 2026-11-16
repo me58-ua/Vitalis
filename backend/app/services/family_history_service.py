@@ -48,10 +48,16 @@ class FamilyHistoryService:
         detail: str | None,
         age_at_diagnosis: int | None,
         recorded_date: date | None = None,
+        relative_detail: str | None = None,
+        notes: str | None = None,
     ) -> FamilyHistoryEntry:
         profile = self._owned_profile(user)
         if detail is not None and len(detail) > 150:
             raise ValueError("Family history detail cannot exceed 150 characters")
+        if relative_detail is not None and len(relative_detail) > 100:
+            raise ValueError('Relative detail cannot exceed 100 characters')
+        if notes is not None and len(notes) > 500:
+            raise ValueError('Family history notes cannot exceed 500 characters')
         if age_at_diagnosis is not None and not 0 <= age_at_diagnosis <= 120:
             raise ValueError("Age at diagnosis must be between 0 and 120")
         entry = self.entries.create(
@@ -60,6 +66,8 @@ class FamilyHistoryService:
                 relationship=relationship,
                 condition_category=condition_category,
                 detail=detail,
+                relative_detail=relative_detail,
+                notes=notes,
                 age_at_diagnosis=age_at_diagnosis,
                 recorded_date=recorded_date or date.today(),
             )

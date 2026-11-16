@@ -19,6 +19,13 @@ class RiskSnapshotModel(str, enum.Enum):
     FAMILY_CARDIOVASCULAR = "family_cardiovascular"
     FAMILY_HUNTINGTON = "family_huntington"
     FAMILY_OTHER = "family_other"
+    FAMILY_HYPERTENSION = "family_hypertension"
+    FAMILY_HIGH_CHOLESTEROL = "family_high_cholesterol"
+    FAMILY_STROKE = "family_stroke"
+    FAMILY_OSTEOPOROSIS = "family_osteoporosis"
+    FAMILY_CYSTIC_FIBROSIS = "family_cystic_fibrosis"
+    FAMILY_SICKLE_CELL_DISEASE = "family_sickle_cell_disease"
+    FAMILY_FAMILIAL_HYPERCHOLESTEROLEMIA = "family_familial_hypercholesterolemia"
 
 
 class RiskSnapshotTrigger(str, enum.Enum):

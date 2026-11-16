@@ -7,6 +7,7 @@ from app.repositories.audit_repository import AuditRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.services.audit_service import AuditService
+from app.services.family_history_status import family_history_status
 
 
 class PatientHistoryAccessError(Exception):
@@ -49,6 +50,7 @@ class PatientHealthService(LegacyOnboardingMixin):
             if not profile.share_health_data:
                 return {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
             result = {"consent_shared": True, **self.profiles.list_health_records(profile.id)}
+            result['family_history_status'] = family_history_status(profile, result.get('family_history_entries', []))
             if self.health_documents is not None:
                 result["health_documents"] = self.health_documents.list_for_patient(profile.id)
             return result
@@ -70,6 +72,7 @@ class PatientHealthService(LegacyOnboardingMixin):
                 "alcohol_logs": self.profiles.list_alcohol_logs(profile.id)
                 if hasattr(self.profiles, "list_alcohol_logs") else [],
                 "family_history_entries": records.get("family_history_entries", []),
+                "family_history_status": family_history_status(profile, records.get('family_history_entries', [])),
             }
             if self.health_documents is not None:
                 result["health_documents"] = self.health_documents.list_for_patient(profile.id)

@@ -11,6 +11,17 @@ from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.models import RiskSnapshot, RiskSnapshotTrigger
 from app.services.notification_service import NotificationService
 from app.schemas.risk import RiskResult
+from app.models import FamilyHistoryCondition
+
+FAMILY_GUIDANCE = {
+    'hypertension': ('La hipertensión es una elevación persistente de la presión arterial. Puede agruparse en familias por factores genéticos y hábitos compartidos. Pide cita para revisar tus mediciones y factores personales; el antecedente no diagnostica hipertensión.', 'https://www.cdc.gov/high-blood-pressure/risk-factors/'),
+    'high_cholesterol': ('El colesterol alto puede favorecer la acumulación de grasa en las arterias. Los antecedentes familiares merecen revisarse junto con tus propios análisis. Pide cita para valorar un control de lípidos; este antecedente no confirma hipercolesterolemia familiar, que es un diagnóstico específico.', 'https://www.cdc.gov/cholesterol/risk-factors/index.html'),
+    'stroke': ('El ictus afecta al flujo de sangre al cerebro. Puede agruparse en familias por susceptibilidad genética, entorno y hábitos compartidos, sin ser necesariamente una enfermedad hereditaria de un solo gen. Pide cita para revisar presión arterial, tabaco, diabetes y otros factores; este antecedente aislado no establece un riesgo alto ni un diagnóstico personal.', 'https://www.cdc.gov/stroke/risk-factors/index.html'),
+    'osteoporosis': ('La osteoporosis debilita los huesos y favorece las fracturas. Los antecedentes familiares, especialmente de osteoporosis o fractura de cadera en progenitores, pueden ser relevantes. Pide cita para revisar edad, fracturas y otros factores y valorar si necesitas un estudio de salud ósea; no implica que tengas osteoporosis.', 'https://www.niams.nih.gov/health-topics/osteoporosis'),
+    'cystic_fibrosis': ('La fibrosis quística es una enfermedad genética que puede afectar a pulmones y aparato digestivo. Su herencia suele ser autosómica recesiva; una persona portadora no equivale a una persona afectada. Pide cita para revisar el parentesco y valorar asesoramiento genético antes de decidir sobre pruebas. El antecedente no confirma que seas portador ni que tengas la enfermedad.', 'https://medlineplus.gov/genetics/condition/cystic-fibrosis/'),
+    'sickle_cell_disease': ('La enfermedad de células falciformes afecta a la hemoglobina y puede causar anemia y episodios dolorosos. Tiene herencia autosómica recesiva; el rasgo falciforme y la enfermedad no son lo mismo. Pide cita para revisar la información familiar y valorar asesoramiento genético y pruebas si procede. No podemos determinar tu condición genética con este antecedente.', 'https://medlineplus.gov/genetics/condition/sickle-cell-disease/'),
+    'familial_hypercholesterolemia': ('La hipercolesterolemia familiar es un trastorno genético que eleva el colesterol LDL y puede favorecer enfermedad coronaria temprana. Pide cita para revisar el diagnóstico familiar, tus niveles de colesterol y si conviene una valoración especializada. El diagnóstico en un familiar no demuestra que tú también lo tengas.', 'https://www.cdc.gov/heart-disease-family-history/about/about-familial-hypercholesterolemia.html'),
+}
 
 
 logger = logging.getLogger(__name__)
@@ -209,18 +220,11 @@ def calc_family_history(
     entries: Iterable[object],
     bmi: float | None = None,
 ) -> list[RiskResult]:
-    """Create one deterministic result per supported hereditary condition.
-
-    Entries provide ``condition_category`` and ``relationship``. First-degree
-    relationships (parent, sibling, or child) can reach ``elevated``; other
-    relationships are capped at informational severity. Diabetes is elevated
-    when a family entry exists and BMI is at least 25, or when it has a
-    first-degree relative.
-    """
+    """Describe reported family conditions without assigning a clinical risk score."""
     grouped: dict[str, list[object]] = {}
     for entry in entries:
         category = getattr(entry.condition_category, "value", entry.condition_category)
-        if category in {"diabetes", "cancer", "cardiovascular", "huntington"}:
+        if category in {condition.value for condition in FamilyHistoryCondition} - {'otro'}:
             grouped.setdefault(category, []).append(entry)
         elif category == "otro":
             grouped.setdefault("other", []).append(entry)
@@ -232,12 +236,16 @@ def calc_family_history(
             for entry in category_entries
         )
         model = f"family_{category}"
-        alert = "elevated" if first_degree or (category == "diabetes" and bmi is not None and bmi >= 25) else "info"
+        # These are reported facts and educational guidance, not clinical scores.
+        alert = "info"
         relatives = {"madre": "madre", "padre": "padre", "hermano": "hermano/a", "hijo": "hijo/a", "abuelo": "abuelo/a", "tio": "tío/a", "otro": "otro familiar"}
         relationships = sorted({relatives.get(getattr(e.relationship, "value", e.relationship), "familiar") for e in category_entries})
         explanation = "Has registrado este antecedente en: " + ", ".join(relationships) + ". "
         source = FAMILY_SOURCE
-        if category == "huntington":
+        if category in FAMILY_GUIDANCE:
+            guidance, source = FAMILY_GUIDANCE[category]
+            explanation += guidance
+        elif category == "huntington":
             explanation += "Huntington es una enfermedad hereditaria que puede afectar al movimiento, el pensamiento y el estado de ánimo. Te recomendamos pedir cita para revisar el árbol familiar y valorar asesoramiento genético antes de decidir sobre pruebas. Tener un familiar afectado no confirma que hayas heredado la alteración ni permite calcular aquí tu probabilidad individual."
             source = "https://medlineplus.gov/genetics/condition/huntingtons-disease/"
         elif category == "cancer":

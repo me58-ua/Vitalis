@@ -56,6 +56,8 @@ class LegacyOnboardingMixin:
                                 "category": entry.category,
                                 "detail": entry.detail,
                                 "age": entry.age,
+                                "relative_detail": entry.relative_detail,
+                                "notes": entry.notes,
                             }
                             for entry in extracted.entries
                         ],
@@ -114,6 +116,8 @@ class LegacyOnboardingMixin:
                     HereditaryConditions(entry["category"]),
                     entry.get("detail"),
                     entry.get("age"),
+                    relative_detail=entry.get('relative_detail'),
+                    notes=entry.get('notes'),
                 )
             profile.family_history_reviewed = True
             self._record_risk(profile.id, "family_change")

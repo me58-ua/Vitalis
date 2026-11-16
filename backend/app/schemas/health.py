@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from app.models.family_history import HereditaryConditions, FamilyRelationship
+from app.models.family_history import FamilyHistoryStatus
 from app.models.health import AllergySeverity, HabitType
 from app.schemas.health_documents import HealthDocumentResponse
 
@@ -110,6 +111,8 @@ class FamilyHistoryCreate(BaseModel):
     relationship: FamilyRelationship
     condition_category: HereditaryConditions
     detail: str | None = Field(default=None, max_length=150)
+    relative_detail: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=500)
     age_at_diagnosis: int | None = Field(default=None, ge=0, le=120)
     recorded_date: date
 
@@ -123,6 +126,7 @@ class FamilyHistoryResponse(FamilyHistoryCreate):
 
 
 class HealthSnapshot(BaseModel):
+    family_history_status: FamilyHistoryStatus = FamilyHistoryStatus.NOT_COLLECTED
     consent_shared: bool
     message_code: str | None = None
     height_cm: float | None = None

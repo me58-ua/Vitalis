@@ -5,6 +5,7 @@ import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { getHealthProfile } from '../../api/healthProfile';
 import { restartOnboarding, onboardingError } from '../../api/onboarding';
 import { PatientQueryFeedback, patientDate } from '../../components/PatientDashboardDialogs';
+import { familyConditionNames } from '../../utils/familyHistory';
 import allergiesIcon from '../../assets/figma/health-profile/allergies.svg';
 import medicationIcon from '../../assets/figma/health-profile/medication.svg';
 import historyIcon from '../../assets/figma/health-profile/history.svg';
@@ -59,7 +60,7 @@ export function PatientHealthProfilePage() {
         </Section>
         <Section id="health-conditions" title="Antecedentes y condiciones" subtitle="Condiciones crónicas diagnosticadas" icon={historyIcon}>
           {!data.chronic_conditions.length ? <p className="health-empty">{empty('chronic_conditions', 'Has indicado que no tienes enfermedades crónicas diagnosticadas.')}</p> : data.chronic_conditions.map(item => <article className="health-record" key={item.id}><h3>{item.condition_name}</h3><p>{item.active ? 'Activa' : 'Inactiva'} · Diagnóstico: {item.diagnosis_date ? item.diagnosis_date.split('-').reverse().join('/') : 'fecha no indicada'}</p></article>)}
-          <h3 className="health-subtitle">Antecedentes familiares</h3>{!data.family_history_entries.length ? <p className="health-empty">{empty('family_history', 'Has indicado que no tienes antecedentes familiares conocidos.')}</p> : data.family_history_entries.map(item => <article className="health-record" key={item.id}><h3>{item.relationship} · {item.condition_category}</h3>{item.detail && <p>{item.detail}</p>}<p>Edad al diagnóstico: {item.age_at_diagnosis == null ? 'no indicada' : `${item.age_at_diagnosis} años`}</p></article>)}
+          <h3 className="health-subtitle">Antecedentes médicos familiares</h3><p className="health-muted">Incluyen enfermedades que se repiten en la familia y trastornos hereditarios. No son diagnósticos personales ni confirman una enfermedad genética.</p>{!data.family_history_entries.length ? <p className="health-empty">{empty('family_history', 'Has indicado que no tienes antecedentes familiares conocidos.')}</p> : data.family_history_entries.map(item => <article className="health-record" key={item.id}><h3>{item.relative_detail || item.relationship} · {familyConditionNames[item.condition_category] ?? item.condition_category}</h3>{item.detail && <p>{item.detail}</p>}<p>Edad al diagnóstico: {item.age_at_diagnosis == null ? 'desconocida' : `${item.age_at_diagnosis} años`}</p>{item.notes && <p>Notas: {item.notes}</p>}</article>)}
         </Section>
       </div><div className="health-profile-column">
         <Section id="health-biometrics" title="Biometría basal" subtitle="Altura y peso registrados" icon={biometricsIcon}>

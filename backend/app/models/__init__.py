@@ -13,7 +13,7 @@ from app.models.chat_message import ChatMessage
 from app.models.appointment_note import AppointmentNote
 from app.models.prescription import Prescription, PrescriptionAuthorization
 from app.models.health import AlcoholLog, Allergy, AllergySeverity, ChronicCondition, HabitLog, HabitType, Medication
-from app.models.family_history import FamilyHistoryEntry, FamilyRelationship, HereditaryConditions
+from app.models.family_history import FamilyHistoryEntry, FamilyRelationship, HereditaryConditions, FamilyHistoryCondition, FamilyHistoryStatus
 from app.models.health_document import HealthDocument, HealthDocumentType
 from app.models.audit_log import AuditAction, AuditLog
 from app.models.video_session_event import VideoSessionEvent
@@ -51,6 +51,8 @@ __all__ = [
 	"FamilyHistoryEntry",
 	"FamilyRelationship",
 	"HereditaryConditions",
+	"FamilyHistoryCondition",
+	"FamilyHistoryStatus",
 	"HealthDocument",
 	"HealthDocumentType",
 	"AuditAction",

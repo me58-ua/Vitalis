@@ -211,6 +211,8 @@ class OnboardingChatService:
                 records.append(FamilyHistoryEntry(patient_id=profile.id,
                     relationship=entry["relationship"], condition_category=entry["category"],
                     detail=entry["detail"], age_at_diagnosis=entry["age"], recorded_date=date.today()))
+                records[-1].relative_detail = entry.get('relative_detail')
+                records[-1].notes = entry.get('notes')
             self.profiles.replace_health_records(FamilyHistoryEntry, profile.id, records)
         else:
             model = {"allergies": Allergy, "chronic_conditions": ChronicCondition, "medication": Medication}[question_id]

@@ -2759,12 +2759,21 @@ export interface components {
             /** Diagnosis */
             diagnosis?: string | null;
         };
+        /**
+         * FamilyHistoryCondition
+         * @enum {string}
+         */
+        FamilyHistoryCondition: "diabetes" | "cancer" | "cardiovascular" | "hypertension" | "high_cholesterol" | "stroke" | "osteoporosis" | "huntington" | "cystic_fibrosis" | "sickle_cell_disease" | "familial_hypercholesterolemia" | "otro";
         /** FamilyHistoryResponse */
         FamilyHistoryResponse: {
             relationship: components["schemas"]["FamilyRelationship"];
-            condition_category: components["schemas"]["HereditaryConditions"];
+            condition_category: components["schemas"]["FamilyHistoryCondition"];
             /** Detail */
             detail?: string | null;
+            /** Relative Detail */
+            relative_detail?: string | null;
+            /** Notes */
+            notes?: string | null;
             /** Age At Diagnosis */
             age_at_diagnosis?: number | null;
             /**
@@ -2785,6 +2794,11 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * FamilyHistoryStatus
+         * @enum {string}
+         */
+        FamilyHistoryStatus: "not_collected" | "known_conditions" | "no_known_conditions" | "unknown";
         /**
          * FamilyRelationship
          * @enum {string}
@@ -2943,6 +2957,8 @@ export interface components {
         HealthDocumentType: "informe" | "analitica" | "otro";
         /** HealthSnapshot */
         HealthSnapshot: {
+            /** @default not_collected */
+            family_history_status: components["schemas"]["FamilyHistoryStatus"];
             /** Consent Shared */
             consent_shared: boolean;
             /** Message Code */
@@ -3004,11 +3020,6 @@ export interface components {
              */
             prescriptions: components["schemas"]["PrescriptionHistoryResponse"][];
         };
-        /**
-         * HereditaryConditions
-         * @enum {string}
-         */
-        HereditaryConditions: "diabetes" | "cancer" | "cardiovascular" | "huntington" | "otro";
         /** MedicationResponse */
         MedicationResponse: {
             /** Name */
@@ -3197,6 +3208,8 @@ export interface components {
         };
         /** PatientHealthProfileResponse */
         PatientHealthProfileResponse: {
+            /** @default not_collected */
+            family_history_status: components["schemas"]["FamilyHistoryStatus"];
             profile: components["schemas"]["PatientProfileResponse"];
             /** Allergies */
             allergies: components["schemas"]["AllergyResponse"][];

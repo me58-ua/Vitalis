@@ -4,6 +4,10 @@ export const riskNames: Record<string, string> = {
   bmi: 'Índice de masa corporal', audit_c: 'Consumo de alcohol', tobacco: 'Tabaco', sedentary: 'Sedentarismo',
   family_diabetes: 'Antecedentes de diabetes', family_cancer: 'Antecedentes de cáncer', family_cardiovascular: 'Antecedentes cardiovasculares',
   family_huntington: 'Antecedentes de Huntington', family_other: 'Otros antecedentes familiares',
+  family_hypertension: 'Antecedentes de hipertensión', family_high_cholesterol: 'Antecedentes de colesterol alto',
+  family_stroke: 'Antecedentes de ictus', family_osteoporosis: 'Antecedentes de osteoporosis',
+  family_cystic_fibrosis: 'Antecedentes de fibrosis quística', family_sickle_cell_disease: 'Antecedentes de enfermedad de células falciformes',
+  family_familial_hypercholesterolemia: 'Antecedentes de hipercolesterolemia familiar',
 };
 const categories: Record<string, string> = {
   underweight: 'Bajo peso', healthy: 'Intervalo saludable', overweight: 'Sobrepeso', obesity: 'Obesidad',

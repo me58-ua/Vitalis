@@ -75,7 +75,7 @@ PREGUNTAS: Final[dict[str, Pregunta]] = {
     "diet": Pregunta("diet", "¿Cuántas raciones de fruta y verdura consumes al día?", "habitos"),
     "family_history": Pregunta(
         "family_history",
-        "¿Tienes antecedentes familiares de alguna enfermedad importante? Puedes indicar el parentesco y la enfermedad, o responder «ninguno» o «no sé».",
+        "¿Qué antecedentes médicos familiares conoces? Indica el familiar, la enfermedad y, si la sabes, la edad al diagnóstico. Puedes incluir, por ejemplo, diabetes, cáncer, hipertensión, colesterol alto o ictus, aunque no sean enfermedades hereditarias confirmadas. Si no conoces la edad puedes omitirla. También puedes responder «ninguno» o «no sé».",
         "antecedentes_familiares",
     ),
     "allergies": Pregunta(

@@ -32,6 +32,26 @@ class Profiles:
 
 
 class OnboardingChatTests(unittest.TestCase):
+    def test_family_history_preserves_multiple_relatives_details_notes_and_unknown_age(self):
+        self.start_at('family_history')
+        entries = [
+            {'relationship': 'padre', 'category': 'stroke', 'detail': 'Ictus', 'age': None},
+            {'relationship': 'abuelo', 'relative_detail': 'abuela materna', 'category': 'diabetes', 'detail': 'Diabetes tipo 2', 'age': 60, 'notes': 'Tratamiento con insulina'},
+            {'relationship': 'padre', 'category': 'diabetes', 'detail': None, 'age': None},
+            {'relationship': 'tio', 'category': 'high_cholesterol', 'detail': 'Colesterol alto', 'age': None},
+        ]
+        state = self.submit('family_history', {'status': 'data', 'data': {'entries': entries}})
+        self.assertEqual(self.profiles.records, [])
+        self.assertIn('abuela materna', state['pending']['summary'][1])
+        self.assertIn('Tratamiento con insulina', state['pending']['summary'][1])
+        self.confirm(state)
+        self.assertEqual(len(self.profiles.records), 4)
+        self.assertTrue(all(isinstance(record, FamilyHistoryEntry) for record in self.profiles.records))
+        self.assertIsNone(self.profiles.records[0].age_at_diagnosis)
+        self.assertEqual(self.profiles.records[1].relative_detail, 'abuela materna')
+        self.assertEqual(self.profiles.records[1].notes, 'Tratamiento con insulina')
+        self.assertEqual(self.profiles.records[3].condition_category, 'high_cholesterol')
+
     def test_natural_diet_estimate_is_confirmed_before_persisting(self):
         self.start_at('diet')
         state = self.submit('diet', {'status': 'data', 'data': {'value': 3}},
