@@ -9,6 +9,7 @@ from app.api import admin_reporting
 from app.api import professional_management
 from app.api import working_hours
 from app.api import spontaneous_chat
+from app.api import patient_health_profile
 from app.ai.onboarding import api as onboarding_chat
 from app.api import appointments, auth, chat, habits, health_documents, notifications, patient_health, prescriptions, privacy, professionals, profiles, risk, users, video, ws_chat
 
@@ -72,6 +73,7 @@ app.include_router(appointments.patient_router)
 app.include_router(profiles.router)
 app.include_router(professionals.router)
 app.include_router(patient_health.router)
+app.include_router(patient_health_profile.router)
 app.include_router(onboarding_chat.router)
 app.include_router(prescriptions.router)
 app.include_router(health_documents.router)

@@ -155,13 +155,11 @@ class ProfileTests(unittest.TestCase):
             get_patient_profile(self.user, FakeProfileRepository())
         self.assertEqual(error.exception.status_code, 404)
 
-    def test_patient_profile_endpoint_updates_profile(self):
-        result = update_patient_profile(
-            PatientProfileUpdate(blood_type="O+"),
-            self.user,
-            self.profiles,
-        )
-        self.assertEqual(result.blood_type, "O+")
+    def test_patient_health_fields_require_ai_conversation(self):
+        for data in (PatientProfileUpdate(blood_type="O+"), PatientProfileUpdate(height_cm=180), PatientProfileUpdate(weight_kg=75)):
+            with self.assertRaises(HTTPException) as error:
+                update_patient_profile(data, self.user, self.profiles)
+            self.assertEqual(error.exception.status_code, 409)
 
     def test_patient_password_endpoint_returns_bad_request_for_wrong_password(self):
         with self.assertRaises(HTTPException) as error:

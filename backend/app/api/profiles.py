@@ -57,6 +57,8 @@ def update_patient_profile(
     current_user: CurrentPatient,
     profiles: Profiles,
 ):
+    if data.model_fields_set & {'height_cm', 'weight_kg', 'blood_type'}:
+        raise HTTPException(status_code=409, detail='Actualiza tus datos de salud mediante el asistente IA y confirma el resumen.')
     try:
         return ProfileService(None, profiles).update_patient_profile(current_user, data)
     except ProfileNotFoundError as error:

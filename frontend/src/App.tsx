@@ -7,6 +7,8 @@ import { LoginPage } from './pages/LoginPage';
 import { RequireRole } from './auth/RequireRole';
 import { PatientPanelPage } from './pages/patient/PatientPanelPage';
 import { PatientOnboardingPage } from './pages/patient/PatientOnboardingPage';
+import { PatientOnboardingCompletePage } from './pages/patient/PatientOnboardingCompletePage';
+import { PatientHealthProfilePage } from './pages/patient/PatientHealthProfilePage';
 import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage';
 import { PatientPrescriptionsPage } from './pages/patient/PatientPrescriptionsPage';
 import { ProfessionalProfilePage } from './pages/professional/ProfessionalProfilePage';
@@ -38,7 +40,7 @@ export function App() {
       <Route path="/patientPanel/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />
-  </Route><Route element={<RequireRole role="patient" />}><Route path="/patientPanel" element={<PatientPanelPage />} /><Route path="/patientPanel/onboarding" element={<PatientOnboardingPage />} /><Route path="/patientPanel/misRecetas" element={<PatientPrescriptionsPage />} /><Route path="/patientPanel/chats" element={<PatientMessagesPage />} /></Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
+  </Route><Route element={<RequireRole role="patient" />}><Route path="/patientPanel" element={<PatientPanelPage />} /><Route path="/patientPanel/onboarding" element={<PatientOnboardingPage />} /><Route path="/patientPanel/onboarding/listo" element={<PatientOnboardingCompletePage />} /><Route path="/patientPanel/perfilSalud" element={<PatientHealthProfilePage />} /><Route path="/patientPanel/misRecetas" element={<PatientPrescriptionsPage />} /><Route path="/patientPanel/chats" element={<PatientMessagesPage />} /></Route><Route element={<RequireRole role="professional" />}><Route element={<ProfessionalLayout />}>
     <Route path="/professionalDashboard" element={<ProfessionalDashboardPage />} />
     <Route path="/professionalDashboard/misPacientes" element={<MyPatientsPage />} />
     <Route path="/professionalDashboard/perfil" element={<ProfessionalProfilePage />} />

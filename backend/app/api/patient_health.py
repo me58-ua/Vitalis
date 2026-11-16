@@ -91,68 +91,10 @@ def update_consent(
     return {"share_health_data": profile.share_health_data}
 
 
-@router.post("/patients/me/health/allergies", response_model=AllergyResponse, status_code=201)
-def add_allergy(data: AllergyCreate, current_user: CurrentPatient, profiles: Profiles):
-    return profiles.add_health_record(Allergy(patient_id=_profile(current_user, profiles).id, **data.model_dump()))
-
-
-@router.post("/patients/me/health/chronic-conditions", response_model=ChronicConditionResponse, status_code=201)
-def add_chronic_condition(data: ChronicConditionCreate, current_user: CurrentPatient, profiles: Profiles):
-    return profiles.add_health_record(ChronicCondition(patient_id=_profile(current_user, profiles).id, **data.model_dump()))
-
-
-@router.post("/patients/me/health/medications", response_model=MedicationResponse, status_code=201)
-def add_medication(data: MedicationCreate, current_user: CurrentPatient, profiles: Profiles):
-    return profiles.add_health_record(Medication(patient_id=_profile(current_user, profiles).id, **data.model_dump()))
-
-
-@router.post("/patients/me/health/habits", response_model=HabitLogResponse, status_code=201)
-def add_habit(
-    data: HabitLogCreate, current_user: CurrentPatient, profiles: Profiles,
-    db: DbSession, notifications: Notifications,
-):
-    try:
-        value, unit = normalize_habit_value(data.habit_type, data.value, data.unit)
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    record = profiles.add_health_record(
-        HabitLog(
-            patient_id=_profile(current_user, profiles).id,
-            habit_type=data.habit_type,
-            value=value,
-            unit=unit,
-            date=data.date,
-        )
-    )
-    if data.habit_type in {HabitType.TOBACCO, HabitType.EXERCISE}:
-        _risk_service(db, notifications).evaluate_and_record(
-            _profile(current_user, profiles).id, "habit_change"
-        )
-    return record
-
-
 @router.get("/patients/me/family-history", response_model=list[FamilyHistoryResponse])
 def list_my_family_history(current_user: CurrentPatient, profiles: Profiles, entries: FamilyHistory):
     try:
         return FamilyHistoryService(entries, profiles).list_for_patient(current_user)
-    except FamilyHistoryNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-
-
-@router.delete("/patients/me/family-history/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_my_family_history(
-    entry_id: int,
-    current_user: CurrentPatient,
-    profiles: Profiles,
-    entries: FamilyHistory,
-    audits: Audits,
-    db: DbSession,
-    notifications: Notifications,
-) -> None:
-    try:
-        FamilyHistoryService(
-            entries, profiles, audits, _risk_service(db, notifications)
-        ).delete_for_patient(current_user, entry_id)
     except FamilyHistoryNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
 

@@ -18,6 +18,12 @@ export async function answerOnboarding(question_id: string, message: string, sig
 export async function confirmOnboarding(draft_id: string, confirmed: boolean, signal: AbortSignal) {
   return (await api.post<OnboardingState>('/onboarding/chat/confirm', { draft_id, confirmed }, { signal })).data;
 }
+export async function restartOnboarding(signal: AbortSignal) {
+  return (await api.post<OnboardingState>('/onboarding/chat/restart', {}, { signal })).data;
+}
+export async function skipOnboardingQuestion(question_id: string, signal: AbortSignal) {
+  return (await api.post<OnboardingState>('/onboarding/chat/skip', { question_id }, { signal })).data;
+}
 export function onboardingError(error: unknown) {
   if (axios.isAxiosError<{ detail?: unknown }>(error) && typeof error.response?.data.detail === 'string') return error.response.data.detail;
   return errorMessage(error);

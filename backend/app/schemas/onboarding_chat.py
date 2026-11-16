@@ -19,6 +19,10 @@ class ChatConsent(BaseModel):
     accepted: bool
 
 
+class ChatSkip(BaseModel):
+    question_id: str = Field(min_length=1, max_length=60)
+
+
 class ChatConfirmation(BaseModel):
     draft_id: str = Field(min_length=1, max_length=60)
     confirmed: bool
@@ -41,5 +45,8 @@ class OnboardingChatState(BaseModel):
     pending: ChatPending | None = None
     confirmed_answers: list[ChatReview] = Field(default_factory=list)
     completed_questions: int = 0
-    total_questions: int = 13
+    total_questions: int = 14
     message: str | None = None
+    skipped_questions: list[str] = Field(default_factory=list)
+    auto_skipped_questions: list[str] = Field(default_factory=list)
+    is_update: bool = False

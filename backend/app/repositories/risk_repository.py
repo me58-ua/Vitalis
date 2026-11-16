@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import date, timedelta
 from uuid import UUID
@@ -11,10 +13,17 @@ from app.models import AlcoholLog, FamilyHistoryEntry, HabitLog, PatientProfile
 @dataclass(frozen=True)
 class RiskInputs:
     profile: PatientProfile
-    alcohol_log: AlcoholLog | None
+    alcohol_log: AlcoholLog | AlcoholAnswers | None
     tobacco_logs: list[HabitLog]
     exercise_logs: list[HabitLog]
     family_history: list[FamilyHistoryEntry]
+
+
+@dataclass(frozen=True)
+class AlcoholAnswers:
+    frequency: int | None
+    quantity: int | None
+    binge: int | None
 
 
 class RiskRepository:
@@ -34,6 +43,11 @@ class RiskRepository:
             .order_by(AlcoholLog.date.desc(), AlcoholLog.id.desc())
             .limit(1)
         )
+        current = (getattr(profile, 'onboarding_state', None) or {}).get('alcohol_current')
+        if isinstance(current, dict):
+            # Confirmed partial answers override an older complete log; missing
+            # scores remain missing and cannot produce a misleading assessment.
+            alcohol_log = AlcoholAnswers(**{key: current.get(key) for key in ('frequency', 'quantity', 'binge')})
         habits = list(
             self.session.scalars(
                 select(HabitLog)

@@ -24,6 +24,12 @@ class Profiles:
     def add_health_record(self, record):
         self.records.append(record)
 
+    def replace_health_records(self, model, profile_id, records):
+        self.records = [r for r in self.records if not isinstance(r, model)] + records
+
+    def list_alcohol_logs(self, profile_id):
+        return [r for r in reversed(self.records) if isinstance(r, AlcoholLog)]
+
 
 class OnboardingChatTests(unittest.TestCase):
     def setUp(self):
@@ -43,7 +49,7 @@ class OnboardingChatTests(unittest.TestCase):
 
     def start_at(self, question_id):
         self.profile.ai_processing_consent = True
-        self.profile.onboarding_state = {"chat_v1": {"stage": "question", "current": question_id}}
+        self.profile.onboarding_state = {**self.profile.onboarding_state, "chat_v1": {"stage": "question", "current": question_id}}
 
     def test_consent_first_and_decline_never_calls_ai_or_records_risk(self):
         self.assertEqual(self.service.state(self.profile)["stage"], "consent")
@@ -113,6 +119,7 @@ class OnboardingChatTests(unittest.TestCase):
             "allergies": {"status": "none"}, "chronic_conditions": {"status": "none"},
             "medication": {"status": "none"}, "height": {"status": "data", "data": {"height_cm": 178}},
             "weight": {"status": "data", "data": {"weight_kg": 74}},
+            "blood_type": {"status": "data", "data": {"blood_type": "O+"}},
             "auditc_frequency": {"status": "data", "data": {"frequency": 1}},
             "auditc_quantity": {"status": "data", "data": {"quantity": 0}},
             "auditc_binge": {"status": "data", "data": {"binge": 0}},
@@ -130,7 +137,7 @@ class OnboardingChatTests(unittest.TestCase):
             result = self.confirm(draft)
         self.assertEqual(result["stage"], "completed")
         self.assertTrue(self.profile.onboarding_completed)
-        self.assertEqual(result["completed_questions"], 13)
+        self.assertEqual(result["completed_questions"], len(QUESTION_ORDER))
         self.assertEqual(sum(isinstance(r, AlcoholLog) for r in self.profiles.records), 1)
         self.assertEqual(sum(isinstance(r, HabitLog) for r in self.profiles.records), 4)
         self.assertEqual(sum(isinstance(r, FamilyHistoryEntry) for r in self.profiles.records), 1)
@@ -141,11 +148,11 @@ class OnboardingChatTests(unittest.TestCase):
         # Supply the preceding confirmed sequence so progression is realistic.
         self.profile.onboarding_state["chat_v1"]["answers"] = [
             {"question_id": q, "question": "q", "answer": "a", "summary": [], "extracted": {"status": "none", "data": {}}}
-            for q in QUESTION_ORDER[:5]]
+            for q in QUESTION_ORDER[:QUESTION_ORDER.index('auditc_frequency')]]
         state = self.submit("auditc_frequency", {"status": "data", "data": {"frequency": 0}})
         result = self.confirm(state)
         self.assertEqual(result["question"]["id"], "tobacco")
-        self.assertEqual(result["total_questions"], 11)
+        self.assertEqual(result["total_questions"], len(QUESTION_ORDER) - 2)
         self.assertEqual(len(self.profiles.records), 1)
         self.assertIsNone(self.profiles.records[0].quantity)
 
@@ -173,6 +180,88 @@ class OnboardingChatTests(unittest.TestCase):
         self.assertIn("Do not diagnose", extraction_prompt("medication"))
         with self.assertRaises(ValueError):
             validate_extraction("medication", {"status": "data", "data": {"records": [{"name": "Test"}]}})
+
+    def test_skip_existing_and_empty_fields_never_changes_clinical_data(self):
+        self.profile.height_cm = 178
+        self.profile.weight_kg = None
+        self.profile.blood_type = None
+        record = Allergy(patient_id=self.profile.id, name='Polen', severity='leve')
+        self.profiles.records = [record]
+        self.service.consent(self.profile, True)
+        for question_id in QUESTION_ORDER:
+            state = self.service.skip(self.profile, question_id)
+        self.assertEqual(state['stage'], 'completed')
+        self.assertEqual(state['completed_questions'], len(QUESTION_ORDER))
+        self.assertEqual(self.profile.height_cm, 178)
+        self.assertIsNone(self.profile.weight_kg)
+        self.assertIsNone(self.profile.blood_type)
+        self.assertEqual(self.profiles.records, [record])
+        self.assertFalse(self.profile.family_history_reviewed)
+        self.client.complete.assert_not_called()
+        self.risk.evaluate_and_record.assert_not_called()
+
+    def test_skip_requires_consent_is_idempotent_and_cannot_discard_pending(self):
+        with self.assertRaises(ChatConflict):
+            self.service.skip(self.profile, 'allergies')
+        self.service.consent(self.profile, True)
+        state = self.service.skip(self.profile, 'allergies')
+        self.assertEqual(self.service.skip(self.profile, 'allergies')['question']['id'], state['question']['id'])
+        state = self.submit('chronic_conditions', {'status': 'none'})
+        with self.assertRaises(ChatConflict):
+            self.service.skip(self.profile, 'chronic_conditions')
+        self.assertEqual(self.service.state(self.profile)['pending']['draft_id'], state['pending']['draft_id'])
+
+    def test_restart_preserves_data_and_declarations_and_resumes_pending(self):
+        self.service.consent(self.profile, True)
+        self.confirm(self.submit('allergies', {'status': 'none'}))
+        for question_id in QUESTION_ORDER[1:]:
+            self.service.skip(self.profile, question_id)
+        self.profile.height_cm = 178
+        state = self.service.restart(self.profile)
+        self.assertTrue(state['is_update'])
+        self.assertEqual(state['question']['id'], 'allergies')
+        self.assertEqual(state['completed_questions'], 0)
+        self.assertEqual(self.profile.height_cm, 178)
+        self.assertEqual(self.profile.onboarding_state['chat_v1']['declarations']['allergies'], 'none')
+        state = self.submit('allergies', {'status': 'none'})
+        self.assertEqual(self.service.restart(self.profile)['pending']['draft_id'], state['pending']['draft_id'])
+
+    def test_repeated_update_replaces_section_and_none_clears_only_that_section(self):
+        old = Allergy(patient_id=self.profile.id, name='Antigua', severity='leve')
+        other = FamilyHistoryEntry(patient_id=self.profile.id, relationship='madre', condition_category='diabetes')
+        self.profiles.records = [old, other]
+        self.start_at('allergies')
+        draft = self.submit('allergies', {'status': 'data', 'data': {'records': [{'name': 'Nueva', 'severity': 'moderada'}]}})
+        self.assertEqual(self.profiles.records, [old, other])
+        self.confirm(draft)
+        self.assertEqual([r.name for r in self.profiles.records if isinstance(r, Allergy)], ['Nueva'])
+        self.assertIn(other, self.profiles.records)
+        self.start_at('allergies')
+        self.confirm(self.submit('allergies', {'status': 'none'}))
+        self.assertEqual(self.profiles.records, [other])
+
+    def test_partial_alcohol_answer_stays_missing_and_old_scores_survive_skip(self):
+        self.start_at('auditc_frequency')
+        self.confirm(self.submit('auditc_frequency', {'status': 'data', 'data': {'frequency': 2}}))
+        self.assertEqual(self.profile.onboarding_state['alcohol_current'], {'frequency': 2, 'quantity': None, 'binge': None})
+        self.assertFalse(any(isinstance(r, AlcoholLog) for r in self.profiles.records))
+        self.start_at('auditc_quantity')
+        self.service.skip(self.profile, 'auditc_quantity')
+        self.assertIsNone(self.profile.onboarding_state['alcohol_current']['quantity'])
+
+    def test_blood_group_uses_the_ai_confirmation_boundary(self):
+        self.profile.blood_type = None
+        self.start_at('blood_type')
+        draft = self.submit('blood_type', {'status': 'data', 'data': {'blood_type': 'AB-'}})
+        self.assertIsNone(self.profile.blood_type)
+        self.confirm(draft)
+        self.assertEqual(self.profile.blood_type, 'AB-')
+
+    def test_unknown_leaves_existing_clinical_data_and_review_status_untouched(self):
+        self.profile.family_history_reviewed = True
+        self.start_at('family_history')
+        self.confirm(self.submit('family_history', {'status': 'unknown'}))
+        self.assertTrue(self.profile.family_history_reviewed)
 
     def test_medication_persists_only_the_fields_shown_for_confirmation(self):
         self.start_at("medication")
@@ -261,6 +350,25 @@ class OnboardingChatAPITests(unittest.TestCase):
         self.assertEqual(self.http.post('/onboarding/chat/answer', json={"question_id": "height", "message": ""}).status_code, 422)
         self.app.dependency_overrides.pop(get_current_patient)
         self.assertEqual(self.http.get('/onboarding/chat').status_code, 401)
+
+    @patch('app.ai.onboarding.gemini.GeminiOnboardingClient.complete')
+    def test_restart_and_skip_preserve_clinical_values_without_ai(self, complete):
+        self.profile.height_cm = 178
+        self.profile.weight_kg = None
+        self.profile.ai_processing_consent = True
+        self.profile.onboarding_state = {'chat_v1': {'stage': 'completed'}}
+        response = self.http.post('/onboarding/chat/restart')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['question']['id'], 'allergies')
+        for question_id in QUESTION_ORDER:
+            response = self.http.post('/onboarding/chat/skip', json={'question_id': question_id})
+            self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['stage'], 'completed')
+        self.assertEqual(response.json()['skipped_questions'], list(QUESTION_ORDER))
+        self.assertEqual(self.profile.height_cm, 178)
+        self.assertIsNone(self.profile.weight_kg)
+        self.assertEqual(self.profiles.records, [])
+        complete.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -64,5 +64,7 @@
 .onboarding-privacy p { font-size: 12px; line-height: 1.7; color: #404944; margin: 0; }
 .onboarding-error { padding: 12px 20px; background: #fff0ed; color: #8c2419; font-size: 13px; }
 .onboarding-working { color: #006c49; font-size: 13px; }
+.onboarding-skip { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 20px; border-top: 1px solid #eef0f5; }
+.onboarding-skip small { font-size: 11px; color: #404944; line-height: 1.6; }
 @media (max-width: 1150px) { .onboarding-main { padding: 24px; } .onboarding-columns { grid-template-columns: minmax(0, 1fr); } .onboarding-side { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
 @media (max-width: 600px) { .onboarding-main { padding: 16px; } .onboarding-heading { align-items: flex-start; flex-direction: column; padding: 20px; gap: 16px; } .onboarding-steps { padding: 16px; gap: 8px; } .onboarding-steps li { flex-direction: column; align-items: flex-start; gap: 8px; } .onboarding-steps strong { font-size: 11px; } .onboarding-stream { padding: 16px; height: 60vh; } .onboarding-message { gap: 8px; } .onboarding-message > div { max-width: calc(100% - 40px); } .onboarding-message.patient > div { max-width: 90%; } .onboarding-avatar { width: 28px; height: 28px; } .onboarding-bubble { padding: 12px; } .onboarding-composer > div { flex-direction: column; } .onboarding-side { grid-template-columns: minmax(0, 1fr); } }

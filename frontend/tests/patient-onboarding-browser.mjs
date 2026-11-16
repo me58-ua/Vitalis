@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { checkPatientHealthProfile } from './patient-health-profile-browser.mjs';
 
 export async function checkPatientOnboarding({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil }) {
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
-  await command('Page.navigate', { url: `${await evaluate('location.origin')}/patientPanel/onboarding` });
+  await command('Page.navigate', { url: `${await evaluate('location.origin')}/patientPanel/onboarding/listo` });
   await until(`document.querySelector('.onboarding-actions .primary')?.textContent.includes('acepto')`);
+  assert.equal(await evaluate('location.pathname'), '/patientPanel/onboarding');
   assert.equal(await evaluate(`document.querySelector('.site-header') === null`), true);
   assert.equal(fixture.state.onboardingAnswers, undefined);
   assert.equal(await evaluate(`document.querySelector('.onboarding-composer') === null`), true);
@@ -54,11 +56,15 @@ export async function checkPatientOnboarding({ fixture, evaluate, click, fill, u
     await click('.onboarding-confirmation .primary');
     await until(`document.querySelector('.onboarding-confirmation') === null`);
   }
-  await until(`document.querySelector('.onboarding-stream').textContent.includes('¡Tu perfil de salud está completado!')`);
-  assert.equal(fixture.state.onboardingSaves, 13);
-  assert.equal(await evaluate(`document.querySelector('progress').value`), 100);
-  await reloadUntil(`document.querySelector('.onboarding-stream')?.textContent.includes('¡Tu perfil de salud está completado!')`);
-  results.push({ check: 'onboarding mobile geometry, duplicate OK protection, all 13 questions individually confirmed, completion survives reload' });
+  await until(`location.pathname === '/patientPanel/onboarding/listo' && document.querySelector('.health-complete-card h1')?.textContent === 'Tu perfil de salud está listo'`);
+  assert.equal(fixture.state.onboardingSaves, 14);
+  await reloadUntil(`document.querySelector('.health-complete-card h1')?.textContent === 'Tu perfil de salud está listo'`);
+  await screenshot('patient-onboarding-complete-mobile');
+  await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1050, deviceScaleFactor: 1, mobile: false });
+  await screenshot('patient-onboarding-complete-desktop');
+  await click('.health-complete-card .primary');
+  await checkPatientHealthProfile({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
+  results.push({ check: 'onboarding mobile geometry, duplicate OK protection, all 14 questions individually confirmed, completion survives reload' });
   await command('Page.navigate', { url: `${await evaluate('location.origin')}/patientPanel` });
   await until(`document.querySelector('.patient-greeting') !== null`);
 }

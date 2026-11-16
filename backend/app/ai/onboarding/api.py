@@ -9,7 +9,7 @@ from app.models import PatientProfile, User
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
-from app.schemas.onboarding_chat import ChatAnswer, ChatConfirmation, ChatConsent, OnboardingChatState
+from app.schemas.onboarding_chat import ChatAnswer, ChatConfirmation, ChatConsent, ChatSkip, OnboardingChatState
 from app.services.notification_service import NotificationService
 from app.ai.onboarding.service import ChatConflict, OnboardingChatService
 from app.services.risk_service import RiskService
@@ -60,3 +60,13 @@ def chat_answer(data: ChatAnswer, user: CurrentPatient, profiles: Profiles):
 def chat_confirm(data: ChatConfirmation, user: CurrentPatient, profiles: Profiles, db: DbSession, notifications: Notifications):
     service = OnboardingChatService(profiles, RiskService(RiskRepository(db), RiskSnapshotRepository(db), notifications))
     return run(lambda: service.confirm(profile_for(user, profiles, True), data.draft_id, data.confirmed))
+
+
+@router.post('/restart', response_model=OnboardingChatState)
+def chat_restart(user: CurrentPatient, profiles: Profiles):
+    return run(lambda: OnboardingChatService(profiles).restart(profile_for(user, profiles, True)))
+
+
+@router.post('/skip', response_model=OnboardingChatState)
+def chat_skip(data: ChatSkip, user: CurrentPatient, profiles: Profiles):
+    return run(lambda: OnboardingChatService(profiles).skip(profile_for(user, profiles, True), data.question_id))

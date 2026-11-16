@@ -21,6 +21,7 @@ class OnboardingQuestionTests(unittest.TestCase):
             "auditc_binge",
             "height",
             "weight",
+            "blood_type",
             "tobacco",
             "exercise",
             "sleep",

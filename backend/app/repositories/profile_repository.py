@@ -63,3 +63,12 @@ class ProfileRepository:
     def delete_health_record(self, record):
         self.session.delete(record)
         self.session.flush()
+
+    def replace_health_records(self, model, profile_id, records):
+        """Replace one confirmed section atomically inside the request transaction."""
+        for record in self.session.scalars(select(model).where(model.patient_id == profile_id)):
+            self.session.delete(record)
+        self.session.flush()
+        for record in records:
+            self.session.add(record)
+        self.session.flush()

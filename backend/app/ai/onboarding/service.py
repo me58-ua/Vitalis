@@ -46,10 +46,48 @@ class OnboardingChatService:
                          "options": [label for label, _ in question.options]} if question else None,
             "pending": pending,
             "confirmed_answers": [{k: v for k, v in a.items() if k != "extracted"} for a in answers],
-            "completed_questions": len(answers),
+            "completed_questions": len(answers) + len(chat.get("manual_skipped", [])),
             "total_questions": len(QUESTION_ORDER) - len(chat.get("skipped", [])),
             "message": NO_CONSENT if stage == "declined" else None,
+            "skipped_questions": chat.get("manual_skipped", []),
+            "auto_skipped_questions": chat.get("skipped", []),
+            "is_update": chat.get("is_update", False),
         }
+
+    @staticmethod
+    def declarations(chat):
+        return {**{a['question_id']: a.get('extracted', {}).get('status', 'unknown') for a in chat.get('answers', [])},
+                **chat.get('declarations', {})}
+
+    def restart(self, profile):
+        chat = self._chat(profile)
+        if chat.get('stage') in {'question', 'confirmation'}:
+            return self.state(profile)
+        self._store(profile, {'stage': 'question' if profile.ai_processing_consent else 'consent',
+            'current': QUESTION_ORDER[0], 'answers': [], 'manual_skipped': [], 'skipped': [],
+            'declarations': self.declarations(chat), 'is_update': chat.get('stage') == 'completed' or chat.get('is_update', False)})
+        profile.onboarding_completed = False
+        self.profiles.session.flush()
+        return self.state(profile)
+
+    def _advance(self, profile, chat):
+        done = {a['question_id'] for a in chat.get('answers', [])} | set(chat.get('manual_skipped', [])) | set(chat.get('skipped', []))
+        next_id = next((q for q in QUESTION_ORDER if q not in done), None)
+        profile.onboarding_completed = next_id is None
+        self._store(profile, {**chat, 'pending': None, 'current': next_id,
+                              'stage': 'completed' if next_id is None else 'question'})
+        return self.state(profile)
+
+    def skip(self, profile, question_id):
+        chat = self._chat(profile)
+        if not profile.ai_processing_consent:
+            raise ChatConflict('Primero da tu consentimiento para continuar.')
+        if question_id in chat.get('manual_skipped', []):
+            return self.state(profile)
+        if chat.get('stage') != 'question' or chat.get('current') != question_id:
+            raise ChatConflict('La pregunta ha cambiado. Actualiza la conversación.')
+        # Workflow metadata only: no extraction, clinical writes, or risk evaluation.
+        return self._advance(profile, {**chat, 'manual_skipped': [*chat.get('manual_skipped', []), question_id]})
 
     def consent(self, profile, accepted):
         chat = self._chat(profile)
@@ -61,7 +99,7 @@ class OnboardingChatService:
         # Preserve confirmed progress when consent is given again; discard any old draft.
         chat = {**chat, "stage": "question" if accepted else "declined", "pending": None,
                 "current": chat.get("current") or QUESTION_ORDER[0]}
-        if accepted and len(chat.get("answers", [])) + len(chat.get("skipped", [])) == len(QUESTION_ORDER):
+        if accepted and len(chat.get("answers", [])) + len(chat.get("manual_skipped", [])) + len(chat.get("skipped", [])) == len(QUESTION_ORDER):
             chat["stage"] = "completed"
             profile.onboarding_completed = True
         self._store(profile, chat)
@@ -84,6 +122,10 @@ class OnboardingChatService:
         draft = {"draft_id": str(uuid4()), "question_id": question_id,
                  "question": PREGUNTAS[question_id].text, "answer": message,
                  "summary": summary, "extracted": extracted}
+        if chat.get('is_update') and question_id in {'allergies', 'chronic_conditions', 'medication', 'family_history'} and extracted['status'] != 'unknown':
+            draft['summary'] = [*summary, 'Este resumen sustituirá los datos anteriores de este apartado. Incluye todos los datos que quieras conservar.']
+        if extracted['status'] == 'unknown':
+            draft['summary'] = ['No has indicado un dato nuevo. Se mantienen los datos anteriores; si no había datos, seguirán sin registrar.']
         self._store(profile, {**chat, "stage": "confirmation", "pending": draft})
         return self.state(profile)
 
@@ -107,10 +149,10 @@ class OnboardingChatService:
         # An explicit zero skips only the two dependent alcohol questions.
         if question_id == "auditc_frequency" and draft["extracted"]["data"].get("frequency") == 0:
             skipped = ["auditc_quantity", "auditc_binge"]
-        next_id = next((q for q in QUESTION_ORDER if q not in {a["question_id"] for a in answers} and q not in skipped), None)
-        profile.onboarding_completed = next_id is None
-        self._store(profile, {**chat, "answers": answers, "skipped": skipped, "pending": None,
-                              "current": next_id, "stage": "completed" if next_id is None else "question"})
+        declarations = self.declarations(chat)
+        if draft['extracted']['status'] != 'unknown' or question_id not in declarations:
+            declarations[question_id] = draft['extracted']['status']
+        self._advance(profile, {**chat, "answers": answers, "skipped": skipped, 'declarations': declarations})
         if self.risk_service is not None:
             # All derived assessments see confirmed values only.
             self.risk_service.evaluate_and_record(profile.id, trigger="onboarding")
@@ -118,11 +160,16 @@ class OnboardingChatService:
 
     def _persist(self, profile, question_id, extracted, chat):
         status, data = extracted["status"], extracted["data"]
+        if status == 'unknown':
+            return
         if question_id == "family_history":
-            profile.family_history_reviewed = status != "unknown"
+            profile.family_history_reviewed = True
+        list_model = {'allergies': Allergy, 'chronic_conditions': ChronicCondition, 'medication': Medication, 'family_history': FamilyHistoryEntry}.get(question_id)
+        if list_model is not None and status == 'none':
+            self.profiles.replace_health_records(list_model, profile.id, [])
         if status != "data":
             return
-        if question_id in {"height", "weight"}:
+        if question_id in {"height", "weight", "blood_type"}:
             for key, value in data.items():
                 setattr(profile, key, value)
         elif question_id in HABITS:
@@ -130,22 +177,32 @@ class OnboardingChatService:
             self.profiles.add_health_record(HabitLog(patient_id=profile.id, habit_type=habit,
                 value=data["value"], unit=CANONICAL_UNITS[habit], date=date.today()))
         elif question_id in ALCOHOL:
-            values = {}
+            existing = self.profiles.list_alcohol_logs(profile.id)
+            latest = existing[0] if existing else None
+            values = {key: getattr(latest, key, None) for key in ('frequency', 'quantity', 'binge')}
+            values.update((profile.onboarding_state or {}).get('alcohol_current', {}))
             for answer in [*chat.get("answers", []), {"question_id": question_id, "extracted": extracted}]:
                 if answer["question_id"] in ALCOHOL:
                     values.update(answer["extracted"]["data"])
-            if values.get("frequency") == 0 or all(k in values for k in ("frequency", "quantity", "binge")):
+            if values.get('frequency') == 0:
+                values['quantity'] = values['binge'] = None
+            profile.onboarding_state = {**(profile.onboarding_state or {}), 'alcohol_current': values}
+            if values.get("frequency") == 0 or all(values.get(k) is not None for k in ("frequency", "quantity", "binge")):
                 self.profiles.add_health_record(AlcoholLog(patient_id=profile.id, date=date.today(),
                     frequency=values["frequency"], quantity=values.get("quantity"), binge=values.get("binge")))
         elif question_id == "family_history":
+            records = []
             for entry in data["entries"]:
-                self.profiles.add_health_record(FamilyHistoryEntry(patient_id=profile.id,
+                records.append(FamilyHistoryEntry(patient_id=profile.id,
                     relationship=entry["relationship"], condition_category=entry["category"],
                     detail=entry["detail"], age_at_diagnosis=entry["age"], recorded_date=date.today()))
+            self.profiles.replace_health_records(FamilyHistoryEntry, profile.id, records)
         else:
             model = {"allergies": Allergy, "chronic_conditions": ChronicCondition, "medication": Medication}[question_id]
+            records = []
             for item in data["records"]:
                 values = dict(item)
                 if values.get("diagnosis_date"):
                     values["diagnosis_date"] = date.fromisoformat(values["diagnosis_date"])
-                self.profiles.add_health_record(model(patient_id=profile.id, **values))
+                records.append(model(patient_id=profile.id, **values))
+            self.profiles.replace_health_records(model, profile.id, records)

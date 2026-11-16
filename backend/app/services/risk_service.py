@@ -73,7 +73,8 @@ def calc_bmi(
     with adult WHO thresholds. Missing or invalid measurements are not guessed.
     """
     if height_cm is None or weight_kg is None:
-        return _insufficient("bmi", ["height_cm", "weight_kg"], "Height and weight are required.", OMS_SOURCE)
+        missing = [key for key, value in (("height_cm", height_cm), ("weight_kg", weight_kg)) if value is None]
+        return _insufficient("bmi", missing, "No se puede calcular el BMI porque faltan datos de altura o peso.", OMS_SOURCE)
     if birth_date is None:
         return _insufficient("bmi", ["birth_date"], "Adult age cannot be established.", OMS_SOURCE)
     reference = today or date.today()

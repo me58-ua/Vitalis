@@ -13,9 +13,29 @@ from app.services.risk_service import (
     RiskService,
 )
 from app.schemas.risk import RiskResult
+from app.repositories.risk_repository import RiskRepository
 
 
 class RiskCalculatorTests(unittest.TestCase):
+    def test_partial_confirmed_alcohol_scores_override_an_old_complete_log(self):
+        session = Mock()
+        profile = SimpleNamespace(id='patient', onboarding_state={'alcohol_current': {'frequency': 2, 'quantity': None, 'binge': None}})
+        session.get.return_value = profile
+        session.scalar.return_value = SimpleNamespace(frequency=0, quantity=None, binge=None)
+        session.scalars.side_effect = [[], []]
+        inputs = RiskRepository(session).get_inputs(profile.id)
+        result = calc_audit_c(inputs.alcohol_log.frequency, inputs.alcohol_log.quantity, inputs.alcohol_log.binge, 'hombre')
+        self.assertEqual(result.status, 'insufficient_data')
+        self.assertIsNone(result.metric_value)
+        self.assertEqual(inputs.alcohol_log.frequency, 2)
+    def test_bmi_missing_measurements_do_not_produce_a_numeric_value(self):
+        for height, weight, missing in ((None, 70, ['height_cm']), (170, None, ['weight_kg']), (None, None, ['height_cm', 'weight_kg'])):
+            result = calc_bmi(height, weight, date(1990, 1, 1))
+            self.assertEqual(result.status, 'insufficient_data')
+            self.assertIsNone(result.metric_value)
+            self.assertEqual(result.missing, missing)
+            self.assertIn('No se puede calcular el BMI', result.explanation)
+
     def test_bmi_requires_adult_and_uses_metric_inputs(self):
         result = calc_bmi(170, 70, date(1990, 1, 1), today=date(2026, 1, 1))
         self.assertEqual(result.status, "ok")

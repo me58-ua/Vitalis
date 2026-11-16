@@ -29,7 +29,7 @@ export function PatientRiskCards({ results, onHistory }: { results: PatientRiskI
     const item = results.find(result => result.model === model);
     return <article className={`patient-risk-card ${item?.status === 'ok' ? `risk-${item.alert_level}` : ''}`} key={model}>
       <h3>{riskNames[model] ?? 'Evaluación adicional'}</h3>
-      {!item ? <p>Evaluación no disponible.</p> : item.status === 'insufficient_data' ? <><p>Datos insuficientes</p><p className="field-help">Falta información: {(item.missing ?? []).map(field => missingNames[field] ?? 'dato requerido por el servidor').join(', ') || 'completa tus datos de salud'}.</p></>
+      {!item ? <p>Evaluación no disponible.</p> : item.status === 'insufficient_data' ? <><p>Datos insuficientes</p>{model === 'bmi' && <p>No se puede calcular el BMI porque faltan datos.</p>}<p className="field-help">Falta información: {(item.missing ?? []).map(field => missingNames[field] ?? 'dato requerido por el servidor').join(', ') || 'completa tus datos de salud'}.</p></>
         : item.status === 'error' ? <p role="alert">No se ha podido completar esta evaluación.</p>
           : <><p className="patient-risk-value">{riskValue(model, item.metric_value)}</p><p>{item.category ? categories[item.category] ?? 'Clasificación no disponible' : 'Sin clasificación'}</p>
             <span className="patient-trend">{trendNames[item.trend] ?? 'Tendencia no disponible'}</span></>}

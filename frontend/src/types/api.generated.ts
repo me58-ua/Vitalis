@@ -1023,75 +1023,6 @@ export interface paths {
         patch: operations["update_consent_patients_me_consentimiento_patch"];
         trace?: never;
     };
-    "/patients/me/health/allergies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add Allergy */
-        post: operations["add_allergy_patients_me_health_allergies_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/patients/me/health/chronic-conditions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add Chronic Condition */
-        post: operations["add_chronic_condition_patients_me_health_chronic_conditions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/patients/me/health/medications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add Medication */
-        post: operations["add_medication_patients_me_health_medications_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/patients/me/health/habits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List My Habits */
-        get: operations["list_my_habits_patients_me_health_habits_get"];
-        put?: never;
-        /** Add Habit */
-        post: operations["add_habit_patients_me_health_habits_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/patients/me/family-history": {
         parameters: {
             query?: never;
@@ -1109,23 +1040,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/patients/me/family-history/{entry_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete My Family History */
-        delete: operations["delete_my_family_history_patients_me_family_history__entry_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/professionals/patients/{patient_id}/health-snapshot": {
         parameters: {
             query?: never;
@@ -1135,6 +1049,23 @@ export interface paths {
         };
         /** Patient Health Snapshot */
         get: operations["patient_health_snapshot_professionals_patients__patient_id__health_snapshot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/patients/me/health-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Health Profile */
+        get: operations["get_health_profile_patients_me_health_profile_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1205,6 +1136,40 @@ export interface paths {
         put?: never;
         /** Chat Confirm */
         post: operations["chat_confirm_onboarding_chat_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/chat/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Restart */
+        post: operations["chat_restart_onboarding_chat_restart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/chat/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Skip */
+        post: operations["chat_skip_onboarding_chat_skip_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1378,6 +1343,23 @@ export interface paths {
         };
         /** Download Patient Health Document */
         get: operations["download_patient_health_document_professionals__professional_id__patients__patient_id__health_documents__document_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/patients/me/health/habits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Habits */
+        get: operations["list_my_habits_patients_me_health_habits_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2165,6 +2147,15 @@ export interface components {
             patient_profile?: components["schemas"]["AdminPatientProfileInput"] | null;
             professional_profile?: components["schemas"]["AdminProfessionalProfileInput"] | null;
         };
+        /** AlcoholCurrent */
+        AlcoholCurrent: {
+            /** Frequency */
+            frequency?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Binge */
+            binge?: number | null;
+        };
         /** AlcoholLogHistoryResponse */
         AlcoholLogHistoryResponse: {
             /** Alcohol Logs */
@@ -2197,12 +2188,6 @@ export interface components {
              * Format: date-time
              */
             recorded_at: string;
-        };
-        /** AllergyCreate */
-        AllergyCreate: {
-            /** Name */
-            name: string;
-            severity: components["schemas"]["AllergySeverity"];
         };
         /** AllergyResponse */
         AllergyResponse: {
@@ -2631,6 +2616,11 @@ export interface components {
             can_write: boolean;
             status: components["schemas"]["AppointmentStatus"];
         };
+        /** ChatSkip */
+        ChatSkip: {
+            /** Question Id */
+            question_id: string;
+        };
         /** ChatThreadResponse */
         ChatThreadResponse: {
             /**
@@ -2648,18 +2638,6 @@ export interface components {
             other_name: string;
             /** Photo Url */
             photo_url?: string | null;
-        };
-        /** ChronicConditionCreate */
-        ChronicConditionCreate: {
-            /** Condition Name */
-            condition_name: string;
-            /** Diagnosis Date */
-            diagnosis_date?: string | null;
-            /**
-             * Active
-             * @default true
-             */
-            active: boolean;
         };
         /** ChronicConditionResponse */
         ChronicConditionResponse: {
@@ -2871,19 +2849,6 @@ export interface components {
              */
             date: string;
         };
-        /** HabitLogCreate */
-        HabitLogCreate: {
-            habit_type: components["schemas"]["HabitType"];
-            /** Value */
-            value?: number | null;
-            /** Unit */
-            unit: string;
-            /**
-             * Date
-             * Format: date
-             */
-            date: string;
-        };
         /** HabitLogResponse */
         HabitLogResponse: {
             habit_type: components["schemas"]["HabitType"];
@@ -3044,24 +3009,6 @@ export interface components {
          * @enum {string}
          */
         HereditaryConditions: "diabetes" | "cancer" | "cardiovascular" | "huntington" | "otro";
-        /** MedicationCreate */
-        MedicationCreate: {
-            /** Name */
-            name: string;
-            /** Dosage */
-            dosage: string;
-            /** Frequency */
-            frequency: string;
-            /** Start Date */
-            start_date?: string | null;
-            /** End Date */
-            end_date?: string | null;
-            /**
-             * Active
-             * @default true
-             */
-            active: boolean;
-        };
         /** MedicationResponse */
         MedicationResponse: {
             /** Name */
@@ -3172,11 +3119,20 @@ export interface components {
             completed_questions: number;
             /**
              * Total Questions
-             * @default 13
+             * @default 14
              */
             total_questions: number;
             /** Message */
             message?: string | null;
+            /** Skipped Questions */
+            skipped_questions?: string[];
+            /** Auto Skipped Questions */
+            auto_skipped_questions?: string[];
+            /**
+             * Is Update
+             * @default false
+             */
+            is_update: boolean;
         };
         /** PatientAppointmentCreate */
         PatientAppointmentCreate: {
@@ -3238,6 +3194,29 @@ export interface components {
             status: components["schemas"]["AppointmentStatus"];
             /** Appointment Reason */
             appointment_reason: string | null;
+        };
+        /** PatientHealthProfileResponse */
+        PatientHealthProfileResponse: {
+            profile: components["schemas"]["PatientProfileResponse"];
+            /** Allergies */
+            allergies: components["schemas"]["AllergyResponse"][];
+            /** Chronic Conditions */
+            chronic_conditions: components["schemas"]["ChronicConditionResponse"][];
+            /** Medications */
+            medications: components["schemas"]["MedicationResponse"][];
+            /** Habit Logs */
+            habit_logs: components["schemas"]["HabitLogResponse"][];
+            /** Family History Entries */
+            family_history_entries: components["schemas"]["FamilyHistoryResponse"][];
+            /** Alcohol Logs */
+            alcohol_logs: components["schemas"]["AlcoholLogResponse"][];
+            alcohol_current?: components["schemas"]["AlcoholCurrent"] | null;
+            /** Declarations */
+            declarations: {
+                [key: string]: string;
+            };
+            /** Onboarding Stage */
+            onboarding_stage: string;
         };
         /** PatientListResponse */
         PatientListResponse: {
@@ -6745,174 +6724,6 @@ export interface operations {
             };
         };
     };
-    add_allergy_patients_me_health_allergies_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AllergyCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AllergyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_chronic_condition_patients_me_health_chronic_conditions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChronicConditionCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChronicConditionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_medication_patients_me_health_medications_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MedicationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MedicationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_my_habits_patients_me_health_habits_get: {
-        parameters: {
-            query?: {
-                habit_type?: components["schemas"]["HabitType"] | null;
-                search?: string | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                page?: number;
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HabitHistoryListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_habit_patients_me_health_habits_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HabitLogCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HabitLogResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_my_family_history_patients_me_family_history_get: {
         parameters: {
             query?: never;
@@ -6929,35 +6740,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FamilyHistoryResponse"][];
-                };
-            };
-        };
-    };
-    delete_my_family_history_patients_me_family_history__entry_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                entry_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -6989,6 +6771,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_health_profile_patients_me_health_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientHealthProfileResponse"];
                 };
             };
         };
@@ -7089,6 +6891,59 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ChatConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChatState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_restart_onboarding_chat_restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChatState"];
+                };
+            };
+        };
+    };
+    chat_skip_onboarding_chat_skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatSkip"];
             };
         };
         responses: {
@@ -7486,6 +7341,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_habits_patients_me_health_habits_get: {
+        parameters: {
+            query?: {
+                habit_type?: components["schemas"]["HabitType"] | null;
+                search?: string | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitHistoryListResponse"];
                 };
             };
             /** @description Validation Error */

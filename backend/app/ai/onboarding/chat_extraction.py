@@ -28,7 +28,9 @@ ALCOHOL = {"auditc_frequency": "frequency", "auditc_quantity": "quantity", "audi
 
 def extraction_prompt(question_id):
     question = PREGUNTAS[question_id]
-    if question_id in NUMERIC:
+    if question_id == 'blood_type':
+        shape = 'Return data as {"blood_type":"A+|A-|B+|B-|AB+|AB-|O+|O-"}. Extract only an explicit blood group.'
+    elif question_id in NUMERIC:
         key, _, unit, low, high = NUMERIC[question_id]
         shape = f'Return data as {{"{key}":number}} in {unit}; allowed range {low} to {high}. Convert explicit units only.'
     elif question_id in ALCOHOL:
@@ -61,7 +63,13 @@ def validate_extraction(question_id, payload):
     if status != "data" or not isinstance(payload.get("data"), dict):
         raise ValueError("No he podido obtener todos los datos. Responde de nuevo en un único mensaje, con las unidades o los detalles solicitados.")
     data = payload["data"]
-    if question_id in NUMERIC:
+    if question_id == 'blood_type':
+        group = data.get('blood_type')
+        if group not in {'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}:
+            raise ValueError('Indica un grupo sanguíneo válido o pulsa Omitir.')
+        data = {'blood_type': group}
+        summary = [f'Grupo sanguíneo: {group}.']
+    elif question_id in NUMERIC:
         key, label, unit, low, high = NUMERIC[question_id]
         value = data.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value) or not low <= value <= high:
