@@ -4,12 +4,17 @@ import { professionalError } from '../api/professionalErrors';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import type { WorkingHours, WorkingHoursBatch } from '../types/api';
 import { DateTimeField } from './DateTimeField';
-import { groupWorkingHours, workingDays as days, type WorkingHoursGroup } from '../utils/workingHours';
+import { groupWorkingHours, workingDays as days, workingHourChannels, type WorkingHoursGroup } from '../utils/workingHours';
 
 
-export function ProfessionalWorkingHours({ onBusy, onChanged }: { onBusy: (busy: boolean) => void; onChanged: () => void }) {
-  const state = useAdminQuery(getWorkingHours, professionalError);
-  const [channel, setChannel] = useState<WorkingHours['channel']>('consultation');
+export function useWorkingHours() {
+  return useAdminQuery(getWorkingHours, professionalError);
+}
+
+export function ProfessionalWorkingHours({ state, onBusy, onChanged }: {
+  state: ReturnType<typeof useWorkingHours>; onBusy: (busy: boolean) => void; onChanged: () => void;
+}) {
+  const [channel, setChannel] = useState<WorkingHours['channel']>('in_person');
   const [editing, setEditing] = useState<WorkingHoursGroup | 'new' | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -29,11 +34,11 @@ export function ProfessionalWorkingHours({ onBusy, onChanged }: { onBusy: (busy:
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     const start = String(form.get('hours_start')), end = String(form.get('hours_end'));
-    const duration = channel === 'consultation' ? Number(form.get('hours_duration')) : 30;
+    const duration = channel !== 'chat' ? Number(form.get('hours_duration')) : 30;
     const selectedDays = form.getAll('hours_days').map(Number);
     if (selectedDays.length === 0) { setError('Selecciona al menos un día de la semana.'); return; }
     const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
-    if (end <= start || (channel === 'consultation' && duration > minutes(end) - minutes(start))) { setError('El fin debe ser posterior al inicio y debe caber al menos una cita completa. Para pasar de medianoche, usa franjas de días distintos.'); return; }
+    if (end <= start || (channel !== 'chat' && duration > minutes(end) - minutes(start))) { setError('El fin debe ser posterior al inicio y debe caber al menos una cita completa. Para pasar de medianoche, usa franjas de días distintos.'); return; }
     const payload: WorkingHoursBatch = { channel, days_of_week: selectedDays, schedule_ids: editing && editing !== 'new' ? editing.rows.map(row => row.id) : [], start_time: start, end_time: end, slot_duration_min: duration, is_active: form.has('hours_active') };
     void mutate(signal => saveWorkingHoursBatch(payload, signal), 'Horario guardado para todos los días seleccionados. Las citas existentes se conservan.');
   }
@@ -45,8 +50,8 @@ export function ProfessionalWorkingHours({ onBusy, onChanged }: { onBusy: (busy:
     void mutate(signal => saveWorkingHoursBatch({ channel, days_of_week: group.rows.map(item => item.day_of_week), schedule_ids: group.rows.map(item => item.id), start_time: first.start_time, end_time: first.end_time, slot_duration_min: first.slot_duration_min, is_active: !first.is_active }, signal), first.is_active ? 'Franjas desactivadas.' : 'Franjas activadas.');
   }
   return <details className="agenda-working-hours"><summary>Configurar horarios de citas y chat</summary>
-    <h2>Horario semanal de atención</h2><p>Horas de Madrid. Configura por separado citas/videoconsultas y chat sin cita. Puedes añadir varios tramos por día. Un día sin franjas activas queda cerrado para ese canal.</p>
-    <div className="working-hours-tabs" role="group" aria-label="Canal de atención"><button className="button secondary" type="button" disabled={busy} aria-pressed={channel === 'consultation'} onClick={() => { setChannel('consultation'); setEditing(null); setDeleting(null); setError(''); }}>Citas y videoconsultas</button><button className="button secondary" type="button" disabled={busy} aria-pressed={channel === 'chat'} onClick={() => { setChannel('chat'); setEditing(null); setDeleting(null); setError(''); }}>Chat espontáneo</button></div>
+    <h2>Horario semanal de atención</h2><p>Horas de Madrid. Puedes añadir varios tramos por día. Un día sin franjas activas queda cerrado para esa modalidad.</p>
+    <div className="working-hours-tabs" role="group" aria-label="Modalidad de atención">{workingHourChannels.map(({ value, label }) => <button key={value} className={`button secondary agenda-channel-${value}`} type="button" disabled={busy} aria-pressed={channel === value} onClick={() => { setChannel(value); setEditing(null); setDeleting(null); setError(''); setNotice(''); }}><span className="agenda-channel-dot" aria-hidden="true" />{label}</button>)}</div>
     {channel === 'chat' && <p>El paciente puede iniciar un chat sin reservar cita. No se añade a «Mis pacientes». Fuera de este horario, durante bloqueos o mientras tienes una cita en curso, los chats quedan en solo lectura.</p>}
     {state.loading && <p role="status">Cargando horarios…</p>}{state.error && <div className="error-state" role="alert"><p>{state.error}</p><button onClick={state.retry}>Reintentar horarios</button></div>}
     {notice && <p className="success-state" role="status">{notice}</p>}{error && <p className="error-state" role="alert">{error}</p>}
@@ -56,11 +61,11 @@ export function ProfessionalWorkingHours({ onBusy, onChanged }: { onBusy: (busy:
       {group && <p className="field-help full">Los cambios se aplicarán juntos a los días seleccionados. Si desmarcas un día del grupo, se eliminará esa franja de ese día.</p>}
       <label>Desde *<DateTimeField type="time" name="hours_start" required step={60} defaultValue={row?.start_time.slice(0, 5) ?? '09:00'} /></label>
       <label>Hasta *<DateTimeField type="time" name="hours_end" required step={60} defaultValue={row?.end_time.slice(0, 5) ?? '13:00'} /></label>
-      {channel === 'consultation' && <label>Duración de cada cita (minutos) *<input type="number" name="hours_duration" required min={1} max={1440} step={1} defaultValue={row?.slot_duration_min ?? 30} /></label>}
+      {channel !== 'chat' && <label>Duración de cada cita (minutos) *<input type="number" name="hours_duration" required min={1} max={1440} step={1} defaultValue={row?.slot_duration_min ?? 30} /></label>}
       <label className="checkbox full"><input type="checkbox" name="hours_active" defaultChecked={row?.is_active ?? true} />Franja activa</label>
       <button className="button primary" type="submit">{busy ? 'Guardando…' : 'Guardar horario'}</button><button className="button secondary" type="button" onClick={() => setEditing(null)}>Cancelar edición</button>
     </fieldset></form>}
-    {state.data && <ul className="working-hours-list">{groups.map(group => { const item = group.row; return <li key={group.key}><strong>{group.label} · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)}</strong><p>{item.is_active ? 'Activa' : 'Desactivada'}{channel === 'consultation' && ` · Citas de ${item.slot_duration_min} minutos`}</p>
+    {state.data && <ul className="working-hours-list">{groups.map(group => { const item = group.row; return <li key={group.key}><strong>{group.label} · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)}</strong><p>{item.is_active ? 'Activa' : 'Desactivada'}{channel !== 'chat' && ` · Citas de ${item.slot_duration_min} minutos`}</p>
       {deleting === group.key ? <><p>¿Eliminar esta franja de {group.label}? Las citas ya reservadas se conservan.</p><button className="button secondary" disabled={busy} onClick={() => { void mutate(signal => deleteWorkingHoursBatch(group.rows.map(item => item.id), signal), 'Franjas eliminadas.'); }}>Confirmar eliminación</button><button className="text-button" disabled={busy} onClick={() => setDeleting(null)}>Conservar franja</button></> : <div className="working-hours-actions"><button className="text-button" disabled={busy} onClick={() => { setEditing(group); setError(''); }}>Editar franja</button><button className="text-button" disabled={busy} onClick={() => toggle(group)}>{item.is_active ? 'Desactivar' : 'Activar'}</button><button className="text-button" disabled={busy} onClick={() => setDeleting(group.key)}>Eliminar franja</button></div>}
     </li>; })}</ul>}
     {state.data?.filter(item => item.channel === channel && item.is_active).length === 0 && <p>No hay franjas activas para este canal. No se admiten nuevas consultas en él hasta que actives alguna.</p>}

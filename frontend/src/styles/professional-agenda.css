@@ -62,6 +62,16 @@
 .agenda-working-hours summary { cursor: pointer; font-weight: 700; padding: .5rem 0; }
 .working-hours-tabs, .working-hours-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
 .working-hours-tabs [aria-pressed="true"] { background: #003e31; color: white; }
+.agenda-channel-in_person { --agenda-channel: #177557; --agenda-channel-tint: #dcf4e8; }
+.agenda-channel-video { --agenda-channel: #2458a1; --agenda-channel-tint: #e6eeff; }
+.agenda-channel-chat { --agenda-channel: #8a4793; --agenda-channel-tint: #f4e6f8; }
+.agenda-channel-dot { display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--agenda-channel); }
+.working-hours-tabs .button, .agenda-channel-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.working-hours-tabs [aria-pressed="true"] .agenda-channel-dot { outline: 1px solid white; }
+.agenda-channel-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; font-size: .875rem; }
+.agenda-working-band { position: absolute; width: 5px; border-radius: 2px; background: var(--agenda-channel); }
+.agenda-event:is(.agenda-channel-in_person, .agenda-channel-video) { border-inline-start-color: var(--agenda-channel); }
+.agenda-event-confirmed:is(.agenda-channel-in_person, .agenda-channel-video) { background: var(--agenda-channel-tint); }
 .working-hours-list { padding-left: 1.2rem; }
 .working-hours-list li { margin: 1rem 0; }
 .working-hours-form { margin: 1rem 0; }

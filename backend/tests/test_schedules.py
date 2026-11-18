@@ -65,6 +65,7 @@ class ScheduleServiceTests(unittest.TestCase):
         self.schedule = SimpleNamespace(
             id=uuid.uuid4(),
             professional_id=self.professional_id,
+            channel="in_person",
             day_of_week=0,
             start_time=time(9),
             end_time=time(17),

@@ -97,7 +97,7 @@ class AppointmentRepository:
     def get_schedule(self, schedule_id: UUID) -> ProfessionalSchedule | None:
         return self.session.get(ProfessionalSchedule, schedule_id)
 
-    def list_active_schedules(self, professional_id: UUID, day_of_week: int):
+    def list_active_schedules(self, professional_id: UUID, day_of_week: int, channel: str):
         return list(
             self.session.scalars(
                 select(ProfessionalSchedule)
@@ -105,7 +105,7 @@ class AppointmentRepository:
                     ProfessionalSchedule.professional_id == professional_id,
                     ProfessionalSchedule.day_of_week == day_of_week,
                     ProfessionalSchedule.is_active.is_(True),
-                    ProfessionalSchedule.channel == "consultation",
+                    ProfessionalSchedule.channel == channel,
                 )
                 .order_by(ProfessionalSchedule.start_time)
             )

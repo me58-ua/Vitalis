@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.appointments import ScheduleFields, ProfessionalScheduleUpdate
+from app.schemas.appointments import ProfessionalScheduleUpdate, ScheduleChannel, ScheduleFields
 
 
 class WorkingHoursCreate(ScheduleFields):
@@ -21,7 +21,7 @@ class WorkingHoursBatch(BaseModel):
     model_config = ConfigDict(extra='forbid')
     days_of_week: list[int] = Field(min_length=1, max_length=7)
     schedule_ids: list[UUID] = Field(default_factory=list, max_length=7)
-    channel: Literal['consultation', 'chat']
+    channel: ScheduleChannel
     start_time: time
     end_time: time
     slot_duration_min: int = Field(default=30, gt=0, le=1440)
@@ -61,7 +61,7 @@ class WorkingHoursResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     professional_id: UUID
-    channel: Literal['consultation', 'chat']
+    channel: ScheduleChannel
     day_of_week: int
     start_time: time
     end_time: time

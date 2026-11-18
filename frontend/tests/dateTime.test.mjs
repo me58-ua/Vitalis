@@ -36,7 +36,7 @@ test('visible dates and instants always use Spanish order and Madrid 24-hour tim
   assert.doesNotMatch(dateTimeFormat.format(value), /AM|PM/);
 });
 test('working hours combine days but preserve different channels, states and consultation lengths', () => {
-  const row = (id, day, changes = {}) => ({ id, day_of_week: day, channel: 'consultation', start_time: '09:00:00', end_time: '13:00:00', slot_duration_min: 30, is_active: true, ...changes });
+  const row = (id, day, changes = {}) => ({ id, day_of_week: day, channel: 'in_person', start_time: '09:00:00', end_time: '13:00:00', slot_duration_min: 30, is_active: true, ...changes });
   const groups = groupWorkingHours([row('fri', 4), row('mon', 0), row('tue', 1), row('long', 2, { slot_duration_min: 60 }), row('off', 3, { is_active: false }), row('chat', 0, { channel: 'chat' })]);
   assert.equal(groups.length, 4);
   const combined = groups.find(group => group.rows.length === 3);

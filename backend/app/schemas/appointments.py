@@ -6,6 +6,8 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from app.models import AppointmentStatus, AppointmentType
 
+ScheduleChannel = Literal["in_person", "video", "chat"]
+
 
 class ScheduleFields(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
@@ -13,7 +15,7 @@ class ScheduleFields(BaseModel):
     end_time: time
     slot_duration_min: int = Field(gt=0, le=1440)
     is_active: bool
-    channel: Literal["consultation", "chat"] = "consultation"
+    channel: ScheduleChannel = "in_person"
 
     @field_validator("start_time", "end_time")
     @classmethod
@@ -27,7 +29,7 @@ class ScheduleFields(BaseModel):
         if self.end_time <= self.start_time:
             raise ValueError("end_time must be after start_time")
         duration = (self.end_time.hour * 60 + self.end_time.minute) - (self.start_time.hour * 60 + self.start_time.minute)
-        if self.channel == "consultation" and self.slot_duration_min > duration:
+        if self.channel != "chat" and self.slot_duration_min > duration:
             raise ValueError("SCHEDULE_SLOT_TOO_LONG")
         return self
 
@@ -135,7 +137,7 @@ class ProfessionalScheduleUpdate(BaseModel):
     end_time: time | None = None
     slot_duration_min: int | None = Field(default=None, gt=0, le=1440)
     is_active: bool | None = None
-    channel: Literal["consultation", "chat"] | None = None
+    channel: ScheduleChannel | None = None
 
     @field_validator("start_time", "end_time")
     @classmethod

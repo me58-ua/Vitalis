@@ -99,7 +99,7 @@ class AppointmentService:
         local_start = datetime.combine(requested_date, time.min, tzinfo=timezone_info)
         local_end = local_start + timedelta(days=1)
         schedules = self.appointments.list_active_schedules(
-            professional_id, requested_date.weekday()
+            professional_id, requested_date.weekday(), appointment_type.value
         )
         booked = self.appointments.list_booked_appointments(
             professional_id, local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc)

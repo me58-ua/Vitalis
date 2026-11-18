@@ -21,8 +21,8 @@ class FakeAppointments:
         self.created = []
         self.session = FakeSession()
 
-    def list_active_schedules(self, professional_id, day_of_week):
-        return [schedule for schedule in self.schedules if schedule.day_of_week == day_of_week]
+    def list_active_schedules(self, professional_id, day_of_week, channel):
+        return [schedule for schedule in self.schedules if schedule.day_of_week == day_of_week and schedule.channel == channel]
 
     def list_booked_appointments(self, professional_id, start, end):
         return [
@@ -64,6 +64,7 @@ class PatientBookingTests(unittest.TestCase):
         self.patient_id = uuid.uuid4()
         self.requested_date = date(2026, 9, 28)
         self.schedule = SimpleNamespace(
+            channel="video",
             day_of_week=self.requested_date.weekday(),
             start_time=time(9, 0),
             end_time=time(11, 0),
@@ -105,6 +106,21 @@ class PatientBookingTests(unittest.TestCase):
         self.assertEqual(appointment.patient_id, self.patient_id)
         self.assertEqual(appointment.status, AppointmentStatus.CONFIRMED)
         self.assertEqual(len(self.appointments.created), 1)
+
+    def test_each_modality_uses_only_its_own_schedule(self):
+        get_slots = lambda modality: self.service.list_available_slots(self.professional_id, self.requested_date, modality)
+        self.assertEqual(get_slots(AppointmentType.IN_PERSON), [])
+        self.appointments.schedules.append(SimpleNamespace(
+            **(vars(self.schedule) | {"channel": "in_person", "start_time": time(14), "end_time": time(15)}),
+        ))
+        self.assertEqual([start.hour for start, _ in get_slots(AppointmentType.IN_PERSON)], [14, 14])
+        self.assertEqual([start.hour for start, _ in get_slots(AppointmentType.VIDEO)], [9, 9, 10, 10])
+        start, end = get_slots(AppointmentType.IN_PERSON)[0]
+        with self.assertRaisesRegex(AppointmentValidationError, "not an available slot"):
+            self.service.create_for_patient(
+                SimpleNamespace(id=self.patient_id, role=UserRole.PATIENT),
+                PatientAppointmentCreate(professional_id=self.professional_id, start_time=start, end_time=end, type=AppointmentType.VIDEO),
+            )
 
     def test_patient_cannot_book_arbitrary_time(self):
         start = datetime(2026, 9, 28, 6, 0, tzinfo=timezone.utc)

@@ -1,5 +1,11 @@
 import type { WorkingHours } from '../types/api';
 
+export const workingHourChannels = [
+  { value: 'in_person', label: 'Presencial' },
+  { value: 'video', label: 'Videoconsulta' },
+  { value: 'chat', label: 'Chat espontáneo' },
+] as const;
+
 export const workingDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 export interface WorkingHoursGroup { key: string; rows: WorkingHours[]; row: WorkingHours; label: string }
 

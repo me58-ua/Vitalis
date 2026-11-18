@@ -75,6 +75,9 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.access = 'test-rotated';
       return send(200, { access_token: state.access, refresh_token: 'test-refresh-rotated', token_type: 'bearer' });
     }
+    const publicProfessional = () => ({ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
+    if (path === '/professionals') return send(200, { professionals: [publicProfessional()], total: 1, page: 1, page_size: 10 });
+    if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, publicProfessional());
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });
     if (path === '/auth/me') return state.failMe ? send(503, { detail: 'TEST_UNAVAILABLE' }) : send(200, demoLogin?.user ?? account);
@@ -103,7 +106,15 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.workingHours = [...state.workingHours.filter(other => other.id !== item.id), item];
       return send(id ? 200 : 201, item);
     }
-    if (path === '/professionals') return send(200, { professionals: [{ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name }], total: 1, page: 1, page_size: 10 });
+    if (/^\/professionals\/[0-9a-f-]{36}\/availability$/.test(path)) {
+      if (quickActor.role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      const date = params.get('requested_date'), type = params.get('appointment_type');
+      const hours = type === 'in_person' ? ['09:00', '09:30'] : ['14:00', '14:30'];
+      const slots = date?.endsWith('-01') ? [{ type, start_time: `${date}T${hours[0]}:00+01:00`, end_time: `${date}T${hours[1]}:00+01:00` }] : [];
+      state.bookingAvailability = { date, type, slots };
+      return send(200, { ...state.bookingAvailability, professional_id: path.split('/')[2] });
+    }
     if (path.endsWith('/chat-availability')) return send(200, availability(path.split('/')[2]));
     const quickResponse = chat => ({ ...chat, availability: availability(chat.professional_id), can_write: chat.status === 'open' && state.quickAvailable });
     if (path === '/spontaneous-chats') {
@@ -238,7 +249,6 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.patientDashboardPages = [...(state.patientDashboardPages || []), page];
       return send(200, { appointments: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize });
     }
-    if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, { ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
     if (path.startsWith('/appointments/')) {
       const id = path.split('/')[2];
       const item = state.videoTestAppointment?.id === id ? state.videoTestAppointment : state.inboxTestAppointment?.id === id ? state.inboxTestAppointment : professionalAppointments.find(item => item.id === id);

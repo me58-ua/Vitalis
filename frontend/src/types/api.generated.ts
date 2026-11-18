@@ -1964,10 +1964,10 @@ export interface components {
             is_active: boolean;
             /**
              * Channel
-             * @default consultation
+             * @default in_person
              * @enum {string}
              */
-            channel: "consultation" | "chat";
+            channel: "in_person" | "video" | "chat";
             /**
              * Professional Id
              * Format: uuid
@@ -1994,10 +1994,10 @@ export interface components {
             is_active: boolean;
             /**
              * Channel
-             * @default consultation
+             * @default in_person
              * @enum {string}
              */
-            channel: "consultation" | "chat";
+            channel: "in_person" | "video" | "chat";
             /**
              * Professional Id
              * Format: uuid
@@ -3958,10 +3958,10 @@ export interface components {
             is_active: boolean;
             /**
              * Channel
-             * @default consultation
+             * @default in_person
              * @enum {string}
              */
-            channel: "consultation" | "chat";
+            channel: "in_person" | "video" | "chat";
             /**
              * Professional Id
              * Format: uuid
@@ -3991,7 +3991,7 @@ export interface components {
             /** Is Active */
             is_active?: boolean | null;
             /** Channel */
-            channel?: ("consultation" | "chat") | null;
+            channel?: ("in_person" | "video" | "chat") | null;
         };
         /** ProfileChangeDecision */
         ProfileChangeDecision: {
@@ -4435,7 +4435,7 @@ export interface components {
              * Channel
              * @enum {string}
              */
-            channel: "consultation" | "chat";
+            channel: "in_person" | "video" | "chat";
             /**
              * Start Time
              * Format: time
@@ -4488,10 +4488,10 @@ export interface components {
             is_active: boolean;
             /**
              * Channel
-             * @default consultation
+             * @default in_person
              * @enum {string}
              */
-            channel: "consultation" | "chat";
+            channel: "in_person" | "video" | "chat";
         };
         /** WorkingHoursResponse */
         WorkingHoursResponse: {
@@ -4509,7 +4509,7 @@ export interface components {
              * Channel
              * @enum {string}
              */
-            channel: "consultation" | "chat";
+            channel: "in_person" | "video" | "chat";
             /** Day Of Week */
             day_of_week: number;
             /**
@@ -4545,7 +4545,7 @@ export interface components {
             /** Is Active */
             is_active?: boolean | null;
             /** Channel */
-            channel?: ("consultation" | "chat") | null;
+            channel?: ("in_person" | "video" | "chat") | null;
         };
     };
     responses: never;

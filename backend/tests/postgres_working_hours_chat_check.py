@@ -49,6 +49,7 @@ def check():
             m30 = migration('0030_channel_working_hours.py')
             m31 = migration('0031_spontaneous_chats.py')
             m32 = migration('0032_professional_profile_details.py')
+            m38 = migration('0038_modality_working_hours.py')
             with Operations.context(MigrationContext.configure(connection)):
                 m29.upgrade(); m30.upgrade(); m31.upgrade(); m32.upgrade()
             with Session(bind=connection, join_transaction_mode='create_savepoint') as db:
@@ -60,8 +61,17 @@ def check():
                 db.add(ProfessionalProfile(user_id=professional.id, specialty='General', license_number='CHECK-CHAT', approval_status='approved'))
                 db.add(PatientProfile(user_id=patient.id, share_health_data=True))
                 db.commit()
+                connection.exec_driver_sql(
+                    "INSERT INTO professional_schedules (professional_id, day_of_week, start_time, end_time, is_active) "
+                    "VALUES (%s, 6, '09:00', '12:00', false)", (professional.id,),
+                )
+                with Operations.context(MigrationContext.configure(connection)):
+                    m38.upgrade()
+                assert connection.exec_driver_sql(
+                    "SELECT channel FROM professional_schedules WHERE day_of_week=6 ORDER BY channel"
+                ).scalars().all() == ['in_person', 'video']
                 identities = {row.role: row.id for row in (patient, professional, admin)}
-                actor = SimpleNamespace(id=professional.id, role=UserRole.PROFESSIONAL, is_active=True)
+                actor = SimpleNamespace(id=professional.id, role=UserRole.PROFESSIONAL, is_active=True, name=professional.name)
                 def dependency():
                     try:
                         yield db
@@ -98,19 +108,25 @@ def check():
                 directory = call('get', '/professionals', 200)['professionals'][0]
                 assert directory['languages'] == published['languages'] and directory['years_experience'] == 15
                 actor.id, actor.role = professional.id, UserRole.PROFESSIONAL
-                consultation = call('post', '/professionals/me/working-hours', 201, json=dict(channel='consultation', day_of_week=0, start_time='09:00', end_time='12:00', slot_duration_min=30))
-                grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='consultation', days_of_week=[0, 1, 4], start_time='15:00', end_time='17:00'))
-                grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='consultation', days_of_week=[0, 2, 4], schedule_ids=[row['id'] for row in grouped], start_time='15:30', end_time='17:00'))
+                video = call('post', '/professionals/me/working-hours', 201, json=dict(channel='video', day_of_week=0, start_time='09:00', end_time='12:00', slot_duration_min=30))
+                call('post', '/professionals/me/working-hours', 201, json=dict(channel='in_person', day_of_week=0, start_time='14:00', end_time='15:00'))
+                grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='in_person', days_of_week=[0, 1, 4], start_time='15:00', end_time='17:00'))
+                grouped = call('post', '/professionals/me/working-hours/batch', 200, json=dict(channel='in_person', days_of_week=[0, 2, 4], schedule_ids=[row['id'] for row in grouped], start_time='15:30', end_time='17:00'))
                 assert [row['day_of_week'] for row in grouped] == [0, 2, 4]
                 before = call('get', '/professionals/me/working-hours', 200)
-                call('post', '/professionals/me/working-hours/batch', 409, json=dict(channel='consultation', days_of_week=[1, 4], start_time='16:00', end_time='18:00'))
+                call('post', '/professionals/me/working-hours/batch', 409, json=dict(channel='in_person', days_of_week=[1, 4], start_time='16:00', end_time='18:00'))
                 assert call('get', '/professionals/me/working-hours', 200) == before, 'Partial batch survived rollback'
                 call('post', '/professionals/me/working-hours/batch-delete', 204, json={'schedule_ids': [row['id'] for row in grouped]})
-                call('post', '/professionals/me/working-hours', 409, json=dict(channel='consultation', day_of_week=0, start_time='11:00', end_time='13:00'))
+                call('post', '/professionals/me/working-hours', 409, json=dict(channel='video', day_of_week=0, start_time='11:00', end_time='13:00'))
                 chat_hours = [call('post', '/professionals/me/working-hours', 201, json=dict(channel='chat', day_of_week=day, start_time='00:00', end_time='23:59')) for day in range(7)]
                 call('get', '/professionals/me/working-hours', 200)
                 actor.id, actor.role = patient.id, UserRole.PATIENT
                 call('get', '/professionals/me/working-hours', 403)
+                availability = public_profile + '/availability'
+                for modality, hour, count in [('video', 9, 6), ('in_person', 14, 2)]:
+                    slots = call('get', availability, 200, params={'requested_date': '2030-07-01', 'appointment_type': modality})['slots']
+                    assert len(slots) == count and slots[0]['start_time'][11:13] == str(hour).zfill(2)
+                    assert all(slot['type'] == modality for slot in slots)
                 chat = call('post', '/spontaneous-chats', 201, json={'professional_id': str(professional.id)})
                 same = call('post', '/spontaneous-chats', 201, json={'professional_id': str(professional.id)})
                 assert same['id'] == chat['id']
@@ -146,11 +162,12 @@ def check():
                 # A new booking is restricted to consultations, never chat hours.
                 actor.id, actor.role = admin.id, UserRole.ADMIN
                 booking = dict(patient_id=str(patient.id), professional_id=str(professional.id), type='video', start_time='2030-07-01T07:00:00Z', end_time='2030-07-01T07:30:00Z')
-                call('post', '/admin/appointments', 201, json=booking)
-                failure = client.post('/admin/appointments', json=booking | {'start_time': '2030-07-01T13:00:00Z', 'end_time': '2030-07-01T13:30:00Z'})
+                booked = call('post', '/admin/appointments', 201, json=booking)
+                call('patch', '/admin/appointments/' + booked['id'], 409, json={'type': 'in_person'})
+                failure = client.post('/admin/appointments', json=booking | {'start_time': '2030-07-01T12:00:00Z', 'end_time': '2030-07-01T12:30:00Z'})
                 assert failure.status_code == 409 and failure.json()['detail'] == 'OUTSIDE_WORKING_HOURS'
                 actor.id, actor.role = professional.id, UserRole.PROFESSIONAL
-                call('delete', '/professionals/me/working-hours/' + consultation['id'], 204)
+                call('delete', '/professionals/me/working-hours/' + video['id'], 204)
                 assert db.scalar(select(func.count()).select_from(Appointment)) == 1
                 file_keys = PrivacyRepository(db).erase_spontaneous_chats(patient.id)
                 assert len(file_keys) == 2
@@ -158,12 +175,12 @@ def check():
                 assert db.scalar(select(func.count()).select_from(SpontaneousChatMessage)) == 0
                 db.commit()
             with Operations.context(MigrationContext.configure(connection)):
-                m32.downgrade(); m31.downgrade(); m30.downgrade()
+                m38.downgrade(); m32.downgrade(); m31.downgrade(); m30.downgrade()
             assert connection.exec_driver_sql('SELECT to_regclass(%s)', (f'{schema}.spontaneous_chats',)).scalar() is None
         finally:
             app.dependency_overrides.clear(); app.dependency_overrides.update(overrides)
             transaction.rollback()
-    print('PostgreSQL: migrations 0030–0032, profile language/experience approval and public propagation, private notification preferences and role guards; atomic multi-day hours, complete chat and privacy checks passed; schema rolled back.')
+    print('PostgreSQL: schedule migrations, modality-specific slots and booking constraints, profile approval, chat and privacy checks passed; schema rolled back.')
 
 
 if __name__ == '__main__': check()

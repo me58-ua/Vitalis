@@ -30,9 +30,7 @@ function BookingForm({ professional }: { professional: BookingProfessional }) {
   const [error, setError] = useState('');
   const submitting = useRef(false);
   const navigate = useNavigate();
-  // The current API uses a shared schedule. Only a video-disabled professional
-  // has availability that the server can attribute to a single modality.
-  const canBook = professional.is_accepting_new_patients && !professional.telehealth_enabled && type === 'in_person';
+  const canBook = professional.is_accepting_new_patients && (type === 'in_person' || professional.telehealth_enabled);
   const loadSlots = useCallback((signal: AbortSignal) => canBook
     ? getBookingAvailability(professional.id, { requested_date: day, appointment_type: type }, signal)
     : Promise.resolve(null), [canBook, professional.id, day, type]);
@@ -112,7 +110,6 @@ function BookingForm({ professional }: { professional: BookingProfessional }) {
         <h2>Franjas de atención</h2>
         <p>{dayLabel(day, { dateStyle: 'full' })}</p>
         {!professional.is_accepting_new_patients && <p role="status">Este profesional no acepta nuevos pacientes.</p>}
-        {professional.is_accepting_new_patients && !canBook && <p role="status">La agenda de este profesional todavía no distingue los horarios de videoconsulta y de atención presencial. La reserva en línea no está disponible por ahora.</p>}
         {canBook && availability.loading && <p role="status">Cargando horarios…</p>}
         {canBook && availability.error && <div className="error-state" role="alert"><p>{availability.error}</p><button type="button" className="button secondary" onClick={availability.retry}>Reintentar</button></div>}
         {canBook && availability.data && (slots.length ? <div className="booking-slots" role="group" aria-label="Horarios disponibles">{slots.map(item =>

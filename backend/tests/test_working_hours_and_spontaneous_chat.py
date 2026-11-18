@@ -23,7 +23,7 @@ from app.services.appointment_service import AppointmentNotFoundError
 
 class WorkingHoursTests(unittest.TestCase):
     def test_batch_rejects_empty_duplicate_invalid_days_and_identifiers(self):
-        base = dict(channel='consultation', start_time='09:00', end_time='13:00')
+        base = dict(channel='in_person', start_time='09:00', end_time='13:00')
         for days in ([], [0, 0], [-1], [7]):
             with self.assertRaises(ValidationError): WorkingHoursBatch(**base, days_of_week=days)
         self.assertEqual(WorkingHoursBatch(**base, days_of_week=[4, 0, 1]).days_of_week, [0, 1, 4])
@@ -39,11 +39,14 @@ class WorkingHoursTests(unittest.TestCase):
         repo.save.assert_not_called()
         repo.delete.assert_not_called()
     def test_wall_clock_duration_and_owner_validation(self):
-        base = dict(day_of_week=0, start_time='09:00', end_time='13:00', channel='consultation')
+        base = dict(day_of_week=0, start_time='09:00', end_time='13:00', channel='in_person')
         for changes in ({'day_of_week': 7}, {'end_time': '08:00'}, {'start_time': '09:00+02:00'},
-                        {'slot_duration_min': 241}, {'professional_id': str(uuid4())}, {'channel': 'video'}, {'start_time': '09:00:01'}):
+                        {'slot_duration_min': 241}, {'professional_id': str(uuid4())}, {'channel': 'consultation'}, {'start_time': '09:00:01'}):
             with self.subTest(changes=changes), self.assertRaises(ValidationError): WorkingHoursCreate(**(base | changes))
         self.assertEqual(WorkingHoursCreate(**(base | {'channel': 'chat', 'end_time': '09:10'})).channel, 'chat')
+        self.assertEqual(WorkingHoursCreate(**(base | {'channel': 'video'})).channel, 'video')
+        with self.assertRaises(ValidationError):
+            WorkingHoursCreate(**(base | {'channel': 'video', 'end_time': '09:10'}))
         with self.assertRaises(ValidationError): WorkingHoursUpdate(is_active=None)
 
     def test_update_revalidates_result_and_owned_rows(self):
@@ -51,7 +54,7 @@ class WorkingHoursTests(unittest.TestCase):
         user = SimpleNamespace(id=uuid4(), role=UserRole.PROFESSIONAL)
         repo.get_owned.return_value = None
         with self.assertRaises(AppointmentNotFoundError): WorkingHoursService(repo).save(user, WorkingHoursUpdate(end_time='10:00'), uuid4())
-        repo.get_owned.return_value = SimpleNamespace(id=uuid4(), channel='consultation', day_of_week=0, start_time=time(9), end_time=time(13), slot_duration_min=30, is_active=True)
+        repo.get_owned.return_value = SimpleNamespace(id=uuid4(), channel='in_person', day_of_week=0, start_time=time(9), end_time=time(13), slot_duration_min=30, is_active=True)
         with self.assertRaises(ValidationError): WorkingHoursService(repo).save(user, WorkingHoursUpdate(end_time='09:15'), uuid4())
         self.assertEqual(repo.get_owned.return_value.end_time, time(13))
 

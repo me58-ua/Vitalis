@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProfessionalTimeBlocks } from '../../hooks/useProfessionalTimeBlocks';
 import { ProfessionalTimeBlocks } from '../../components/ProfessionalTimeBlocks';
-import { ProfessionalWorkingHours } from '../../components/ProfessionalWorkingHours';
+import { ProfessionalWorkingHours, useWorkingHours } from '../../components/ProfessionalWorkingHours';
 import { DateTimeField } from '../../components/DateTimeField';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useProfessionalWeek } from '../../hooks/useProfessionalWeek';
@@ -32,6 +32,7 @@ export function ProfessionalAgendaPage() {
   const selectedButton = useRef<HTMLButtonElement | null>(null);
   const state = useProfessionalWeek(week, lastDay);
   const timeBlocks = useProfessionalTimeBlocks(week, lastDay);
+  const workingHours = useWorkingHours();
   const filtered = state.data?.filter(item => status === 'all' || item.status === status) ?? [];
   const selected = state.data?.find(item => item.id === selectedId);
   const weekendCount = dayCount === 5 ? filtered.filter(item => madridDay(item.start_time) > addDays(week, 4)).length : 0;
@@ -64,10 +65,10 @@ export function ProfessionalAgendaPage() {
       <label>Ir a la semana de<DateTimeField type="date" name="agenda_date" value={week} disabled={busy} onValueChange={value => { if (validCalendarDay(value)) changeWeek(value); }} /></label>
       <label>Días visibles<select name="agenda_days" value={dayCount} disabled={busy} onChange={event => { const next = new URLSearchParams(params); next.set('days', event.target.value === '5' ? '5' : '7'); next.delete('day'); setSelectedId(null); setParams(next); }}><option value={7}>Lunes a domingo</option><option value={5}>Lunes a viernes</option></select></label>
       <label>Estado<select name="agenda_status" value={status} disabled={busy} onChange={event => changeStatus(event.target.value)}><option value="all">Todos los estados</option>{Object.entries(appointmentStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <button type="button" className="button secondary" disabled={busy || state.loading || timeBlocks.loading} onClick={() => { setSelectedId(null); state.retry(); timeBlocks.retry(); }}>Actualizar</button>
+      <button type="button" className="button secondary" disabled={busy || state.loading || timeBlocks.loading || workingHours.loading} onClick={() => { setSelectedId(null); state.retry(); timeBlocks.retry(); workingHours.retry(); }}>Actualizar</button>
     </section>
     {notice && <p className="success-state" role="status">{notice}</p>}
-    <ProfessionalWorkingHours onBusy={setBusy} onChanged={state.retry} />
+    <ProfessionalWorkingHours state={workingHours} onBusy={setBusy} onChanged={state.retry} />
     {timeBlocks.loading && <p role="status">Cargando bloqueos…</p>}
     {timeBlocks.error && <div className="error-state" role="alert"><p>No se pudieron cargar los horarios no disponibles. {timeBlocks.error}</p><button className="button secondary" onClick={timeBlocks.retry}>Reintentar bloqueos</button></div>}
     <ProfessionalTimeBlocks blocks={timeBlocks.data ?? []} ready={Boolean(timeBlocks.data)} onBusy={setBusy} onChanged={() => { timeBlocks.retry(); state.retry(); }} />
@@ -84,7 +85,7 @@ export function ProfessionalAgendaPage() {
         <p className="agenda-count" role="status">{visibleCount} {visibleCount === 1 ? 'cita' : 'citas'} en los días visibles.{weekendCount > 0 && <> Hay {weekendCount} más durante el fin de semana. <button className="text-button" disabled={busy} onClick={() => { const next = new URLSearchParams(params); next.set('days', '7'); setParams(next); }}>Mostrar siete días</button></>}</p>
         {visibleCount === 0 && <p className="agenda-empty">{status === 'all' ? 'No hay citas en los días visibles de esta semana.' : 'No hay citas con este estado en los días visibles.'}</p>}
         <nav className="agenda-mobile-days" aria-label="Seleccionar día">{days.map(day => <button type="button" key={day} disabled={busy} aria-pressed={mobileDay === day} aria-label={dayLabel(day, { weekday: 'long', day: 'numeric', month: 'long' })} onClick={() => { const next = new URLSearchParams(params); next.set('day', day); setParams(next); }}><span>{dayLabel(day, { weekday: 'short' })}</span><strong>{dayLabel(day, { day: 'numeric' })}</strong></button>)}</nav>
-        <ProfessionalWeekCalendar days={days} selectedDay={mobileDay} appointments={filtered} timeBlocks={timeBlocks.data ?? []} selectedId={selectedId} onSelect={(item, button) => { if (!busy) { selectedButton.current = button; setSelectedId(item.id); } }} />
+        <ProfessionalWeekCalendar days={days} selectedDay={mobileDay} appointments={filtered} timeBlocks={timeBlocks.data ?? []} workingHours={workingHours.data ?? []} selectedId={selectedId} onSelect={(item, button) => { if (!busy) { selectedButton.current = button; setSelectedId(item.id); } }} />
       </>}
     </section>
   </main>;
