@@ -13,6 +13,7 @@ from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.notification_repository import NotificationRepository
+from app.services.notification_service import NotificationService
 from app.schemas.prescriptions import PrescriptionMetadata
 from app.models import AuditAction
 from app.services.audit_service import AuditService
@@ -109,10 +110,12 @@ class PrescriptionService:
         values = {**metadata.model_dump(), "notas": notas, "file_url": key,
                   "patient_id": patient_profile.id, "professional_id": professional_profile.id}
         try:
-            self.storage.save(file, key, self.max_file_size)
             result, action = self._publish(appointment.id, values)
             self.audit.record(current_user.id, current_user.role, action, "prescription", result.id,
                               appointment.patient_id)
+            if self.notifications is not None:
+                NotificationService(self.notifications).notify_appointment_follow_up(appointment.patient_id, appointment.id)
+            self.storage.save(file, key, self.max_file_size)
             return result
         except ValueError as error:
             raise PrescriptionValidationError(str(error)) from error
@@ -198,6 +201,7 @@ class PrescriptionService:
                 title="Emisión fuera de plazo autorizada",
                 message="Se concedió el permiso y la receta ya está vinculada a la cita y disponible para el paciente.",
             ))
+            NotificationService(notifications).notify_appointment_follow_up(appointment.patient_id, appointment.id)
         except IntegrityError as error:
             raise PrescriptionConflictError("Could not authorize late prescription") from error
 
@@ -277,4 +281,4 @@ class PrescriptionService:
     @staticmethod
     def _storage_key(appointment_id: UUID, filename: str) -> str:
         suffix = Path(filename).suffix.lower()
-        return f"prescriptions/{appointment_id}{suffix}"
+        return f"prescriptions/{appointment_id}/{uuid4()}{suffix}"

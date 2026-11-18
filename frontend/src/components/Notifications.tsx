@@ -3,6 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { patientAppointmentPath } from '../api/appointmentFollowUp';
 import { errorMessage } from '../api/errors';
 import { dateTimeFormat as dateFormat } from '../utils/dateTime';
 import bell from '../assets/figma/imgContainer17.svg';
@@ -66,6 +67,8 @@ export function Notifications({ userId }: { userId: string }) {
           <time dateTime={item.created_at}>{formatDate(item.created_at)}</time>
           {(item.type === 'professional_registration_pending' || item.type === 'professional_profile_change_pending') &&
             <Link className="text-button" to="/adminPanel/gestionUsuarios?role=professional" onClick={state.toggle}>Revisar solicitud</Link>}
+          {item.type === 'appointment_follow_up' && item.entity_id &&
+            <Link className="text-button" to={patientAppointmentPath(item.entity_id)} onClick={state.toggle}>Ver detalles de la cita</Link>}
           {!item.read_at && <button className="text-button" disabled={state.pendingId !== null}
             onClick={() => { void state.read(item.id); }}>{state.pendingId === item.id ? 'Guardando…' : 'Marcar como leída'}</button>}
         </li>)}

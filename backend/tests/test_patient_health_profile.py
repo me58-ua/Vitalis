@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import patient_health_profile as module
-from app.api.deps import get_current_patient, get_profile_repository, get_audit_repository, get_notification_service
+from app.api.deps import get_appointment_repository, get_current_patient, get_profile_repository, get_audit_repository, get_notification_service
 from app.database import get_db
 from app.models import Allergy
 
@@ -30,6 +30,9 @@ class PatientHealthProfileTests(unittest.TestCase):
         self.app.include_router(module.router)
         self.app.dependency_overrides[get_current_patient] = lambda: self.user
         self.app.dependency_overrides[get_profile_repository] = lambda: self.profiles
+        self.appointments = Mock()
+        self.appointments.patient_follow_ups.return_value = []
+        self.app.dependency_overrides[get_appointment_repository] = lambda: self.appointments
         self.app.dependency_overrides[get_audit_repository] = lambda: Mock()
         self.app.dependency_overrides[get_notification_service] = lambda: Mock()
         self.app.dependency_overrides[get_db] = lambda: Mock()
@@ -42,6 +45,8 @@ class PatientHealthProfileTests(unittest.TestCase):
         self.assertEqual(response.json()['profile']['height_cm'], 178)
         self.assertEqual(response.json()['declarations']['allergies'], 'none')
         self.profiles.list_health_records.assert_called_once_with(self.profile.id)
+        self.appointments.patient_follow_ups.assert_called_once_with(self.user.id)
+        self.assertEqual(response.json()['appointment_follow_ups'], [])
         self.assertNotIn('answers', response.json())
 
     def test_read_requires_patient_session(self):

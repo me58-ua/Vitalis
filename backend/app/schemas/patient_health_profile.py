@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from app.models import FamilyHistoryStatus
+from app.schemas.appointments import PatientAppointmentFollowUp
 
 from app.schemas.profiles import PatientProfileResponse
 from app.schemas.health import (
@@ -16,6 +17,7 @@ class AlcoholCurrent(BaseModel):
 
 
 class PatientHealthProfileResponse(BaseModel):
+    appointment_follow_ups: list[PatientAppointmentFollowUp]
     family_history_status: FamilyHistoryStatus = FamilyHistoryStatus.NOT_COLLECTED
     profile: PatientProfileResponse
     allergies: list[AllergyResponse]

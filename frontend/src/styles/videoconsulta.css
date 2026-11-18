@@ -92,3 +92,5 @@
 .consultation-chat-call button:focus-visible, .consultation-chat-call summary:focus-visible { outline: 2px solid #006c49; outline-offset: 3px; }
 @media(max-width: 900px) { .consultation-grid { grid-template-columns: minmax(0, 1fr); } .consultation-grid > .consultation-chat-call { height: 500px; } }
 @media(max-width: 600px) { .consultation-grid .jitsi-call { height: 65dvh; } .consultation-grid .consultation-prejoin { min-height: 380px; } }
+.appointment-follow-up { display: grid; gap: 1rem; }
+.appointment-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }

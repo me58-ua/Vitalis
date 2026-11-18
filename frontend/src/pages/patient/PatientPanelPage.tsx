@@ -5,6 +5,7 @@ import { PatientDashboardLayout } from '../../layouts/PatientDashboardLayout';
 import { usePatientDashboard } from '../../hooks/usePatientDashboard';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { getNotifications, markRead } from '../../api/notifications';
+import { patientAppointmentPath } from '../../api/appointmentFollowUp';
 import { setPatientAIConsent } from '../../api/patient';
 import { errorMessage } from '../../api/errors';
 import { PatientRiskCards } from '../../components/PatientRiskCards';
@@ -32,7 +33,9 @@ function PatientAlerts({ timezone }: { timezone: string }) {
   }
   return <aside className="patient-alerts" aria-labelledby="patient-alerts-title"><div className="patient-section-heading"><h2 id="patient-alerts-title">Alertas y notificaciones</h2><button className="text-button" onClick={state.retry} disabled={state.loading}>Actualizar</button></div><PatientQueryFeedback {...state} />
     {error && <p className="error-state" role="alert">{error}</p>}
-    {state.data && (!state.data.notifications.length ? <p className="patient-empty">No tienes notificaciones.</p> : <><ul>{state.data.notifications.map(item => <li key={item.id} className={item.read_at ? 'is-read' : ''}><h3>{item.title}</h3><p>{item.message}</p><time dateTime={item.created_at}>{patientDate(item.created_at, timezone)}</time>{!item.read_at && <button className="text-button" disabled={pending !== null} onClick={() => { void read(item.id); }}>{pending === item.id ? 'Guardando…' : 'Marcar como leída'}</button>}</li>)}</ul>{state.data.next_cursor && <p className="field-help">Se muestran las 50 notificaciones más recientes.</p>}</>)}
+    {state.data && (!state.data.notifications.length ? <p className="patient-empty">No tienes notificaciones.</p> : <><ul>{state.data.notifications.map(item => <li key={item.id} className={item.read_at ? 'is-read' : ''}><h3>{item.title}</h3><p>{item.message}</p><time dateTime={item.created_at}>{patientDate(item.created_at, timezone)}</time>
+      {item.type === 'appointment_follow_up' && item.entity_id && <Link className="text-button" to={patientAppointmentPath(item.entity_id)}>Ver detalles de la cita</Link>}
+      {!item.read_at && <button className="text-button" disabled={pending !== null} onClick={() => { void read(item.id); }}>{pending === item.id ? 'Guardando…' : 'Marcar como leída'}</button>}</li>)}</ul>{state.data.next_cursor && <p className="field-help">Se muestran las 50 notificaciones más recientes.</p>}</>)}
   </aside>;
 }
 function PatientConsent({ profile, onSaved }: { profile: PatientProfile; onSaved: () => void }) {

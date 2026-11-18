@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, ProfessionalSchedule, ProfessionalTimeBlock, User
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, Prescription, ProfessionalSchedule, ProfessionalTimeBlock, User
 
 
 class AppointmentRepository:
@@ -143,6 +143,28 @@ class AppointmentRepository:
     def get_note(self, note_id: UUID) -> AppointmentNote | None:
         return self.session.get(AppointmentNote, note_id)
 
+    def get_appointment_note(self, appointment_id: UUID) -> AppointmentNote | None:
+        return self.session.scalar(select(AppointmentNote).where(AppointmentNote.appointment_id == appointment_id))
+
+    def patient_follow_ups(self, patient_id: UUID, appointment_id: UUID | None = None):
+        query = (
+            select(Appointment.id.label("appointment_id"), Appointment.start_time, Appointment.appointment_reason,
+                   User.name.label("professional_name"), AppointmentNote.shared_diagnosis, AppointmentNote.shared_notes,
+                   Prescription.id.is_not(None).label("has_prescription"))
+            .select_from(Appointment)
+            .join(User, User.id == Appointment.professional_id)
+            .outerjoin(AppointmentNote, and_(AppointmentNote.appointment_id == Appointment.id,
+                                           AppointmentNote.professional_id == Appointment.professional_id))
+            .outerjoin(Prescription, Prescription.appointment_id == Appointment.id)
+            .where(Appointment.patient_id == patient_id, Appointment.status == AppointmentStatus.COMPLETED)
+        )
+        if appointment_id is not None:
+            query = query.where(Appointment.id == appointment_id)
+        else:
+            query = query.where(or_(AppointmentNote.shared_diagnosis.is_not(None),
+                                    AppointmentNote.shared_notes.is_not(None), Prescription.id.is_not(None)))
+        return self.session.execute(query.order_by(Appointment.start_time.desc(), Appointment.id.desc())).mappings().all()
+
     def has_shared_appointment(self, patient_id: UUID, professional_id: UUID) -> bool:
         return self.session.scalar(
             select(Appointment.id)
@@ -173,6 +195,7 @@ class AppointmentRepository:
                 .where(
                     Appointment.patient_id == patient_id,
                     Appointment.professional_id == professional_id,
+                    AppointmentNote.professional_id == professional_id,
                 )
                 .order_by(AppointmentNote.created_at.desc())
             )
@@ -192,7 +215,7 @@ class AppointmentRepository:
     ) -> tuple[list[tuple[Appointment, User]], int]:
         filters = [
             Appointment.professional_id == professional_id,
-            Appointment.end_time < now,
+            or_(Appointment.end_time < now, Appointment.status == AppointmentStatus.COMPLETED),
         ]
         if patient_id is not None:
             filters.append(Appointment.patient_id == patient_id)
@@ -211,7 +234,8 @@ class AppointmentRepository:
         query = (
             select(Appointment, User, AppointmentNote)
             .join(User, User.id == Appointment.patient_id)
-            .outerjoin(AppointmentNote, AppointmentNote.appointment_id == Appointment.id)
+            .outerjoin(AppointmentNote, and_(AppointmentNote.appointment_id == Appointment.id,
+                                           AppointmentNote.professional_id == professional_id))
             .where(and_(*filters))
             .order_by(Appointment.start_time.desc())
             .offset(offset)

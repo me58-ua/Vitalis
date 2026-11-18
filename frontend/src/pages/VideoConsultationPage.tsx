@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import { ConsultationStateError, consultationError, findVideoAppointment, getChatRoom, getPublicProfessional, joinVideo, recordVideoAttendance } from '../api/consultations';
 import { jitsiOrigin } from '../api/jitsi';
+import { professionalFollowUpPath } from '../api/appointmentFollowUp';
 import { appointmentDate, appointmentStatuses } from '../components/AppointmentSummary';
 import { ConsultationChat } from '../components/ConsultationChat';
 import { JitsiCall } from '../components/JitsiCall';
@@ -35,6 +36,7 @@ export function VideoConsultationPage() {
 }
 
 function Consultation({ user, appointmentId, date }: { user: User; appointmentId: string; date: string | undefined }) {
+  const navigate = useNavigate();
   const load = useCallback((signal: AbortSignal) => loadContext(appointmentId, user.role, date, signal), [appointmentId, user.role, date]);
   const state = useAdminQuery(load, consultationError);
   const [access, setAccess] = useState<VideoJoin | null>(null);
@@ -70,12 +72,16 @@ function Consultation({ user, appointmentId, date }: { user: User; appointmentId
       await recordVideoAttendance(appointmentId, 'joined', signal);
       const result = await recordVideoAttendance(appointmentId, 'left', signal);
       if (signal.aborted) return;
+      if (professional && result.status === 'completed') {
+        navigate(professionalFollowUpPath(appointmentId), { replace: true });
+        return;
+      }
       setStatusOverride(result.status); setCompletionPending(false); setError('');
       setNotice('Has terminado tu llamada. La cita se ha marcado como finalizada. La otra persona puede permanecer hasta terminar su propia llamada.');
     } catch (reason: unknown) {
       if (!signal.aborted) { setCompletionPending(true); setError(`Has salido, pero no se pudo guardar la finalización de la cita. ${consultationError(reason)}`); }
     } finally { if (!signal.aborted) { lock.current = false; setBusy(false); } }
-  }, [appointmentId]);
+  }, [appointmentId, navigate, professional]);
 
   const onClosed = useCallback((intentional: boolean) => {
     setAccess(null);
@@ -122,6 +128,7 @@ function Consultation({ user, appointmentId, date }: { user: User; appointmentId
           <div className="consultation-prejoin-mark" aria-hidden="true">◉</div><h2>{status === 'completed' ? 'Esta consulta ha finalizado' : 'Prepara tu videoconsulta'}</h2>
           {status === 'confirmed' && !completionPending ? <><p>Puedes entrar desde 10 minutos antes del inicio, sin límite posterior por la hora prevista de fin. Podrás comprobar la cámara y el micrófono antes de unirte.</p><button className="button primary" disabled={busy} onClick={() => { void enter(); }}>{busy ? 'Comprobando acceso…' : 'Entrar a la videollamada'}</button></>
             : <p>{completionPending ? 'Guardando la finalización de tu llamada.' : status === 'completed' ? 'Puedes consultar los mensajes de la cita.' : 'El estado actual de la cita no permite acceder a la videollamada.'}</p>}
+          {professional && status === 'completed' && !completionPending && <Link className="button secondary" to={professionalFollowUpPath(appointmentId)}>Abrir seguimiento de la cita</Link>}
         </section>}
         {access && <p className="field-help">Terminar tu llamada no desconecta a la otra persona. Si ya te has unido, la cita se marcará como finalizada.</p>}
       </div>

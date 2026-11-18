@@ -177,6 +177,34 @@ class ConsultationNoteUpdate(BaseModel):
     diagnosis: str | None = None
 
 
+class AppointmentFollowUpNotes(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid", str_strip_whitespace=True)
+
+    shared_diagnosis: str | None = Field(max_length=2000)
+    shared_notes: str | None = Field(max_length=10000)
+    clinical_notes: str | None
+
+
+class ProfessionalAppointmentFollowUp(AppointmentFollowUpNotes):
+    id: UUID
+    patient_id: UUID
+    patient_name: str
+    start_time: datetime
+    appointment_reason: str | None
+    status: Literal["completed"] = "completed"
+    can_edit_notes: bool
+
+
+class PatientAppointmentFollowUp(BaseModel):
+    appointment_id: UUID
+    start_time: datetime
+    appointment_reason: str | None
+    professional_name: str
+    shared_diagnosis: str | None
+    shared_notes: str | None
+    has_prescription: bool
+
+
 class AppointmentResponse(AdminAppointmentResponse):
     pass
 

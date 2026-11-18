@@ -156,13 +156,14 @@ class PrescriptionServiceTests(unittest.TestCase):
         self.appointment.appointment_reason = "Revisión"
         app = FastAPI()
         app.include_router(router)
+        alerts = []
         def provide(value):
             return lambda: value
         for dependency, value in (
             (deps.get_current_user, self.professional), (deps.get_appointment_repository, self.appointments),
             (deps.get_profile_repository, self.profiles), (deps.get_prescription_repository, self.prescriptions),
             (deps.get_file_storage, self.storage), (deps.get_audit_repository, None),
-            (deps.get_notification_repository, None),
+            (deps.get_notification_repository, SimpleNamespace(create=alerts.append)),
         ):
             app.dependency_overrides[dependency] = provide(value)
         client = TestClient(app)
@@ -177,6 +178,11 @@ class PrescriptionServiceTests(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()["fecha_caducidad"], "2026-10-29")
         self.assertEqual(response.json()["titulo"], "Analítica")
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].recipient_id, self.patient_id)
+        self.assertEqual(alerts[0].type, "appointment_follow_up")
+        self.assertFalse(alerts[0].email_required)
+        self.assertNotIn(data["titulo"], alerts[0].message)
         app.dependency_overrides[deps.get_current_user] = lambda: self.patient
         self.prescriptions.patient_view_rows = [(self.prescriptions.prescription, self.appointment, SimpleNamespace(name="Doctora"))]
         response = client.get(f'/patients/{self.patient_id}/prescriptions')
@@ -308,9 +314,12 @@ class PrescriptionServiceTests(unittest.TestCase):
         self.assertEqual(client.get(patient_path).status_code, 403)
         self.assertEqual(client.post(approve).status_code, 204)
         self.assertEqual(client.post(approve).status_code, 204)
-        self.assertEqual(len(alerts), 2)
-        self.assertEqual(alerts[-1].recipient_id, self.professional.id)
-        self.assertEqual(alerts[-1].type, "late_prescription_approved")
+        self.assertEqual(len(alerts), 3)
+        self.assertEqual(alerts[-2].recipient_id, self.professional.id)
+        self.assertEqual(alerts[-2].type, "late_prescription_approved")
+        self.assertEqual(alerts[-1].recipient_id, self.patient.id)
+        self.assertEqual(alerts[-1].type, "appointment_follow_up")
+        self.assertNotIn(data["titulo"], alerts[-1].message)
         self.assertEqual(self.prescriptions.requests[request_id].approved_by, self.admin.id)
         self.assertEqual([audit.actor_id for audit in audits if audit.entidad == "late_prescription_request"],
                          [self.professional.id, self.admin.id])

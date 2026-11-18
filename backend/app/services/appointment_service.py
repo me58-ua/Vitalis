@@ -19,12 +19,14 @@ from app.repositories.audit_repository import AuditRepository
 from app.schemas.appointments import (
     AdminAppointmentCreate,
     AdminAppointmentUpdate,
+    AppointmentFollowUpNotes,
     ConsultationNoteCreate,
     AppointmentCancelRequest,
     ConsultationNoteUpdate,
     PatientAppointmentCreate,
     ProfessionalAppointmentStatusUpdate,
     ProfessionalAppointmentCreate,
+    ProfessionalAppointmentFollowUp,
 )
 from app.models import AuditAction
 from app.services.audit_service import AuditService
@@ -248,6 +250,44 @@ class AppointmentService:
             raise AppointmentConflictError(
                 "A consultation note already exists for this appointment"
             ) from error
+
+    def appointment_follow_up(self, appointment_id, user: User, data: AppointmentFollowUpNotes | None = None):
+        appointment = (self.appointments.lock_appointment(appointment_id) if data is not None
+                       else self.appointments.get_appointment(appointment_id))
+        if appointment is None or appointment.professional_id != user.id:
+            raise AppointmentNotFoundError("Appointment not found")
+        if appointment.status != AppointmentStatus.COMPLETED:
+            raise AppointmentConflictError("Appointment must be completed")
+        note = self.appointments.get_appointment_note(appointment_id)
+        if note is not None and note.professional_id != user.id:
+            raise AppointmentAccessError("Consultation note does not belong to this professional")
+        patient = self._get_user(appointment.patient_id, UserRole.PATIENT)
+        can_edit = note is None or not self._note_edit_window_expired(note)
+        fields = AppointmentFollowUpNotes.model_fields
+        previous = {field: getattr(note, field, None) for field in fields}
+        if data is not None:
+            values = {key: value or None for key, value in data.model_dump().items()}
+            if values != previous:
+                if not can_edit:
+                    raise AppointmentConflictError("Consultation note edit window has expired")
+                if note is None:
+                    note = self.appointments.create_note(AppointmentNote(
+                        appointment_id=appointment_id, professional_id=user.id, **values,
+                    ))
+                    action = AuditAction.CREATE
+                else:
+                    note = self.appointments.update_note(note, values)
+                    action = AuditAction.UPDATE
+                self.audit.record(user.id, user.role, action, "clinical_note", note.id, appointment.patient_id)
+                if self.notifications is not None and any(
+                    values[field] and values[field] != previous[field] for field in ("shared_diagnosis", "shared_notes")
+                ):
+                    self.notifications.notify_appointment_follow_up(appointment.patient_id, appointment_id)
+                previous = values
+        return ProfessionalAppointmentFollowUp(
+            id=appointment.id, patient_id=patient.id, patient_name=patient.name, start_time=appointment.start_time,
+            appointment_reason=appointment.appointment_reason, can_edit_notes=can_edit, **previous,
+        )
 
     def update_status_as_professional(
         self,

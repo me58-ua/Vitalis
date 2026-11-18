@@ -10,6 +10,8 @@ import { PatientOnboardingPage } from './pages/patient/PatientOnboardingPage';
 import { PatientOnboardingCompletePage } from './pages/patient/PatientOnboardingCompletePage';
 import { PatientHealthProfilePage } from './pages/patient/PatientHealthProfilePage';
 import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage';
+import { PatientAppointmentDetailPage } from './pages/patient/PatientAppointmentDetailPage';
+import { AppointmentFollowUpPage } from './pages/professional/AppointmentFollowUpPage';
 import { PatientPrescriptionsPage } from './pages/patient/PatientPrescriptionsPage';
 import { ProfessionalProfilePage } from './pages/professional/ProfessionalProfilePage';
 import { ProfessionalDashboardPage } from './pages/professional/ProfessionalDashboardPage';
@@ -37,6 +39,7 @@ export function App() {
     <Route path="/login" element={<LoginPage />} />
     <Route element={<RequireRole role="patient" />}>
       <Route path="/patientPanel/misCitas" element={<PatientAppointmentsPage />} />
+      <Route path="/patientPanel/misCitas/:appointmentId" element={<PatientAppointmentDetailPage />} />
       <Route path="/patientPanel/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />
@@ -45,6 +48,7 @@ export function App() {
     <Route path="/professionalDashboard/misPacientes" element={<MyPatientsPage />} />
     <Route path="/professionalDashboard/perfil" element={<ProfessionalProfilePage />} />
     <Route path="/professionalDashboard/agenda" element={<ProfessionalAgendaPage />} />
+    <Route path="/professionalDashboard/citas/:appointmentId/seguimiento" element={<AppointmentFollowUpPage />} />
     <Route path="/professionalDashboard/chats" element={<SpontaneousChatsPage />} />
     <Route path="/professionalDashboard/videoconsulta" element={<VideoConsultationsIndexPage />} />
     <Route path="/professionalDashboard/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />

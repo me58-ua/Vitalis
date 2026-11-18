@@ -3,6 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import (
     get_appointment_repository,
@@ -23,10 +24,12 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.appointments import (
     AppointmentCancelRequest,
+    AppointmentFollowUpNotes,
     ConsultationNoteCreate,
     ConsultationNoteResponse,
     ConsultationNoteUpdate,
     ProfessionalAppointmentCreate,
+    ProfessionalAppointmentFollowUp,
     ProfessionalAppointmentStatusUpdate,
     ProfessionalScheduleResponse,
     ProfessionalScheduleUpdate,
@@ -58,6 +61,36 @@ Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
+
+
+def follow_up_response(service, appointment_id, user, response, data=None):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return service.appointment_follow_up(appointment_id, user, data)
+    except (AppointmentNotFoundError, AppointmentAccessError) as error:
+        raise HTTPException(status_code=404, detail="Consulta no encontrada") from error
+    except AppointmentConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except IntegrityError as error:
+        raise HTTPException(status_code=409, detail="No se pudo guardar el seguimiento") from error
+
+
+@router.get("/professionals/me/appointments/{appointment_id}/follow-up", response_model=ProfessionalAppointmentFollowUp)
+def get_appointment_follow_up(appointment_id: UUID, current_user: CurrentProfessional, response: Response,
+                              appointments: Appointments, users: Users, professionals: Professionals):
+    return follow_up_response(
+        AppointmentService(appointments, users, professionals), appointment_id, current_user, response,
+    )
+
+
+@router.put("/professionals/me/appointments/{appointment_id}/follow-up", response_model=ProfessionalAppointmentFollowUp)
+def save_appointment_follow_up(appointment_id: UUID, data: AppointmentFollowUpNotes, current_user: CurrentProfessional,
+                               response: Response, appointments: Appointments, users: Users, professionals: Professionals,
+                               audits: Audits, notifications: Notifications):
+    return follow_up_response(
+        AppointmentService(appointments, users, professionals, audits=audits, notifications=notifications),
+        appointment_id, current_user, response, data,
+    )
 
 
 @router.get("/professionals/me/dashboard", response_model=ProfessionalDashboardResponse)

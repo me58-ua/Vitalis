@@ -71,8 +71,8 @@ class ProfessionalFollowUpService:
                     patient_username=patient.username,
                     patient_email=patient.email,
                     clinical_notes=note.clinical_notes if note else None,
-                    patient_summary=note.patient_summary if note else None,
-                    diagnosis=note.diagnosis if note else None,
+                    patient_summary=(getattr(note, "shared_notes", None) or note.patient_summary) if note else None,
+                    diagnosis=(getattr(note, "shared_diagnosis", None) or note.diagnosis) if note else None,
                 )
                 for appointment, patient, note in records
             ],

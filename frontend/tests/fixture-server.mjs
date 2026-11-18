@@ -169,6 +169,26 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.timeBlocks = state.timeBlocks.filter(item => item.id !== path.split('/').at(-1)); return send(204, null);
     }
     if (onboardingFixture(path, req.method, raw, state, send)) return;
+    const followUpMatch = /^\/(professionals|patients)\/me\/appointments\/([^/]+)\/follow-up$/.exec(path);
+    if (followUpMatch) {
+      const actor = demoLogin?.user ?? account;
+      const item = state.videoTestAppointment;
+      const professional = followUpMatch[1] === 'professionals';
+      if (!item || item.id !== followUpMatch[2] || item.status !== 'completed' ||
+          actor.role !== (professional ? 'professional' : 'patient')) return send(404, { detail: 'NOT_FOUND' });
+      if (req.method === 'PUT' && professional) {
+        state.followUpNotes = JSON.parse(raw);
+        state.followUpPublic = { appointment_id: item.id, start_time: item.start_time,
+          appointment_reason: item.appointment_reason, professional_name: actor.name,
+          shared_diagnosis: state.followUpNotes.shared_diagnosis, shared_notes: state.followUpNotes.shared_notes,
+          has_prescription: true };
+        state.followUpNotification = { ...notification, id: randomUUID(), type: 'appointment_follow_up',
+          entity: 'appointment', entity_id: item.id, read_at: null, title: 'Novedades sobre tu cita',
+          message: 'Tu profesional ha compartido información sobre tu cita.' };
+      }
+      if (professional) return send(200, { ...item, can_edit_notes: true, ...state.followUpNotes });
+      return send(200, state.followUpPublic);
+    }
     if (healthProfileFixture(path, req.method, raw, state, send)) return;
     if (path === '/patients/me/profile') {
       if (state.patientProfileFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
@@ -474,7 +494,11 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     if (state.failNotifications) return send(503, { detail: 'TEST_UNAVAILABLE' });
     if (path === '/notifications/unread-count') return send(200, { count: state.empty || notification.read_at ? 0 : 1 });
     if (path === '/notifications') return send(200, {
-      notifications: state.empty ? [] : (demoLogin?.user ?? account).role === 'admin' && state.lateAlert ? [state.lateAlert, notification] : [notification],
+      notifications: state.empty ? [] : [
+        ...((demoLogin?.user ?? account).role === 'admin' && state.lateAlert ? [state.lateAlert] : []),
+        ...((demoLogin?.user ?? account).role === 'patient' && state.followUpNotification ? [state.followUpNotification] : []),
+        notification,
+      ],
       next_cursor: null,
     });
     if (req.method === 'POST' && (demoLogin?.user ?? account).role === 'admin' && state.lateAlert &&

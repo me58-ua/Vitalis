@@ -2,7 +2,7 @@ from typing import Annotated
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.schemas.admin_appointments import AdminAppointmentsQuery, AdminAppointmentListResponse, AdminUpcomingAppointmentsResponse
 from app.services.admin_appointment_service import AdminAppointmentQueryService
 
@@ -30,6 +30,7 @@ from app.schemas.appointments import (
     AvailabilityResponse,
     AvailabilitySlot,
     PatientAppointmentCreate,
+    PatientAppointmentFollowUp,
 )
 from app.services.appointment_service import (
     AppointmentAccessError,
@@ -51,6 +52,17 @@ Users = Annotated[UserRepository, Depends(get_user_repository)]
 Professionals = Annotated[ProfessionalRepository, Depends(get_professional_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
+
+
+@patient_router.get("/patients/me/appointments/{appointment_id}/follow-up", response_model=PatientAppointmentFollowUp)
+def patient_appointment_follow_up(
+    appointment_id: UUID, current_patient: CurrentPatient, appointments: Appointments, response: Response,
+):
+    rows = appointments.patient_follow_ups(current_patient.id, appointment_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Consulta no encontrada")
+    response.headers["Cache-Control"] = "no-store"
+    return rows[0]
 
 
 @router.get("/appointments", response_model=AdminAppointmentListResponse)

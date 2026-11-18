@@ -577,6 +577,23 @@ export interface paths {
         patch: operations["update_appointment_admin_appointments__appointment_id__patch"];
         trace?: never;
     };
+    "/patients/me/appointments/{appointment_id}/follow-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Patient Appointment Follow Up */
+        get: operations["patient_appointment_follow_up_patients_me_appointments__appointment_id__follow_up_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/professionals/{professional_id}/availability": {
         parameters: {
             query?: never;
@@ -762,6 +779,24 @@ export interface paths {
         put?: never;
         /** Change Professional Password */
         post: operations["change_professional_password_professionals_me_change_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/professionals/me/appointments/{appointment_id}/follow-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Appointment Follow Up */
+        get: operations["get_appointment_follow_up_professionals_me_appointments__appointment_id__follow_up_get"];
+        /** Save Appointment Follow Up */
+        put: operations["save_appointment_follow_up_professionals_me_appointments__appointment_id__follow_up_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2217,6 +2252,15 @@ export interface components {
             /** Cancellation Reason */
             cancellation_reason?: string | null;
         };
+        /** AppointmentFollowUpNotes */
+        AppointmentFollowUpNotes: {
+            /** Shared Diagnosis */
+            shared_diagnosis: string | null;
+            /** Shared Notes */
+            shared_notes: string | null;
+            /** Clinical Notes */
+            clinical_notes: string | null;
+        };
         /** AppointmentHistoryResponse */
         AppointmentHistoryResponse: {
             /**
@@ -3181,6 +3225,29 @@ export interface components {
             /** Appointment Reason */
             appointment_reason?: string | null;
         };
+        /** PatientAppointmentFollowUp */
+        PatientAppointmentFollowUp: {
+            /**
+             * Appointment Id
+             * Format: uuid
+             */
+            appointment_id: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /** Appointment Reason */
+            appointment_reason: string | null;
+            /** Professional Name */
+            professional_name: string;
+            /** Shared Diagnosis */
+            shared_diagnosis: string | null;
+            /** Shared Notes */
+            shared_notes: string | null;
+            /** Has Prescription */
+            has_prescription: boolean;
+        };
         /** PatientAppointmentPage */
         PatientAppointmentPage: {
             /** Appointments */
@@ -3223,6 +3290,8 @@ export interface components {
         };
         /** PatientHealthProfileResponse */
         PatientHealthProfileResponse: {
+            /** Appointment Follow Ups */
+            appointment_follow_ups: components["schemas"]["PatientAppointmentFollowUp"][];
             /** @default not_collected */
             family_history_status: components["schemas"]["FamilyHistoryStatus"];
             profile: components["schemas"]["PatientProfileResponse"];
@@ -3528,6 +3597,42 @@ export interface components {
             type: components["schemas"]["AppointmentType"];
             /** Appointment Reason */
             appointment_reason?: string | null;
+        };
+        /** ProfessionalAppointmentFollowUp */
+        ProfessionalAppointmentFollowUp: {
+            /** Shared Diagnosis */
+            shared_diagnosis: string | null;
+            /** Shared Notes */
+            shared_notes: string | null;
+            /** Clinical Notes */
+            clinical_notes: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Patient Id
+             * Format: uuid
+             */
+            patient_id: string;
+            /** Patient Name */
+            patient_name: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /** Appointment Reason */
+            appointment_reason: string | null;
+            /**
+             * Status
+             * @default completed
+             * @constant
+             */
+            status: "completed";
+            /** Can Edit Notes */
+            can_edit_notes: boolean;
         };
         /** ProfessionalAppointmentHistoryListResponse */
         ProfessionalAppointmentHistoryListResponse: {
@@ -5768,6 +5873,37 @@ export interface operations {
             };
         };
     };
+    patient_appointment_follow_up_patients_me_appointments__appointment_id__follow_up_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientAppointmentFollowUp"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     professional_availability_professionals__professional_id__availability_get: {
         parameters: {
             query: {
@@ -6211,6 +6347,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_appointment_follow_up_professionals_me_appointments__appointment_id__follow_up_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalAppointmentFollowUp"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_appointment_follow_up_professionals_me_appointments__appointment_id__follow_up_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppointmentFollowUpNotes"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalAppointmentFollowUp"];
+                };
             };
             /** @description Validation Error */
             422: {

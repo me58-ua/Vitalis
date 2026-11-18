@@ -29,6 +29,14 @@ class NotificationService:
         self.repository = repository
         self.max_email_attempts = max_email_attempts
 
+    def notify_appointment_follow_up(self, patient_id: UUID, appointment_id: UUID) -> None:
+        self.repository.create(Notification(
+            recipient_id=patient_id, type="appointment_follow_up", entity="appointment",
+            entity_id=appointment_id, title="Novedades sobre tu cita",
+            message="Tu profesional ha compartido información sobre tu cita. Abre los detalles en el historial de citas para consultarla.",
+            email_required=False, email_status=EmailStatus.NOT_APPLICABLE,
+        ))
+
     def notify_professional_review(self, user, *, profile_change: bool = False) -> None:
         now = datetime.now(timezone.utc)
         notification_type = "professional_profile_change_pending" if profile_change else "professional_registration_pending"

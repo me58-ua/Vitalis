@@ -1,6 +1,7 @@
 """Read-only patient-owned health profile. Changes go through the AI conversation."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
+from app.api.appointments import Appointments
 from app.api.patient_health import CurrentPatient, Profiles, _profile
 from app.schemas.patient_health_profile import PatientHealthProfileResponse
 from app.services.family_history_status import family_history_status
@@ -22,5 +23,7 @@ def snapshot(profile, profiles):
 
 
 @router.get('', response_model=PatientHealthProfileResponse)
-def get_health_profile(user: CurrentPatient, profiles: Profiles):
-    return snapshot(_profile(user, profiles), profiles)
+def get_health_profile(user: CurrentPatient, profiles: Profiles, appointments: Appointments, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return {**snapshot(_profile(user, profiles), profiles),
+            "appointment_follow_ups": appointments.patient_follow_ups(user.id)}

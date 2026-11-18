@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getPatientAppointments } from '../../api/consultations';
+import { patientAppointmentPath } from '../../api/appointmentFollowUp';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../components/AppointmentSummary';
 import '../../styles/videoconsulta.css';
@@ -24,6 +25,7 @@ export function PatientAppointmentsPage() {
             ? <Link className="button primary patient-join-video" to={`/patientPanel/videoconsulta/${encodeURIComponent(item.id)}`}>Unirme a la videoconsulta</Link>
             : <p>Podrás unirte desde 10 minutos antes del inicio.</p>)}
           {item.type === 'video' && item.status === 'completed' && <Link className="button secondary" to={`/patientPanel/videoconsulta/${encodeURIComponent(item.id)}`}>Ver consulta finalizada</Link>}
+          {item.status === 'completed' && <Link className="button secondary" to={patientAppointmentPath(item.id)}>Ver detalles de la cita</Link>}
           {item.type === 'video' && (item.status === 'confirmed' || item.status === 'completed') && <Link className="button secondary" to={`/patientPanel/chats?appointment=${encodeURIComponent(item.id)}`}>Chat de la videoconsulta</Link>}
         </li>;
       })}</ul>}
