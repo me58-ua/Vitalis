@@ -2,16 +2,18 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import BinaryIO
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
 
-from app.models import AppointmentStatus, Prescription, PrescriptionAuthorization, User
+from app.models import AppointmentStatus, Notification, Prescription, User
+from app.models.prescription import LatePrescriptionRequest
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.audit_repository import AuditRepository
-from app.schemas.prescriptions import PrescriptionAuthorizationCreate, PrescriptionMetadata
+from app.repositories.notification_repository import NotificationRepository
+from app.schemas.prescriptions import PrescriptionMetadata
 from app.models import AuditAction
 from app.services.audit_service import AuditService
 from app.services.file_storage import FileStorage
@@ -22,6 +24,10 @@ class PrescriptionNotFoundError(Exception):
 
 
 class PrescriptionAccessError(Exception):
+    pass
+
+
+class PrescriptionWindowExpiredError(PrescriptionAccessError):
     pass
 
 
@@ -49,6 +55,7 @@ class PrescriptionService:
         max_file_size: int = PRESCRIPTION_MAX_SIZE_BYTES,
         now=None,
         audits: AuditRepository | None = None,
+        notifications: NotificationRepository | None = None,
     ):
         self.appointments = appointments
         self.profiles = profiles
@@ -58,6 +65,7 @@ class PrescriptionService:
         self.max_file_size = max_file_size
         self.now = now or (lambda: datetime.now(timezone.utc))
         self.audit = AuditService(audits)
+        self.notifications = notifications
 
     def upload(
         self,
@@ -70,18 +78,23 @@ class PrescriptionService:
         notas: str | None,
         *,
         metadata: PrescriptionMetadata,
-    ) -> Prescription:
+        late_reason: str | None = None,
+    ) -> Prescription | LatePrescriptionRequest:
         self._require_identity(professional_id, current_user.id)
-        appointment = self.appointments.get_appointment(appointment_id)
+        appointment = self.appointments.lock_appointment(appointment_id)
         if appointment is None:
             raise PrescriptionNotFoundError("Appointment not found")
         if appointment.professional_id != professional_id:
             raise PrescriptionAccessError("Appointment does not belong to this professional")
         if appointment.status != AppointmentStatus.COMPLETED:
             raise PrescriptionValidationError("Prescription requires a completed appointment")
-        authorization = self.prescriptions.get_authorization(appointment.id)
-        if not self.can_upload_prescription(appointment) and authorization is None:
-            raise PrescriptionAccessError("ventana de emisión de receta expirada")
+        within_window = self.can_upload_prescription(appointment)
+        if not within_window and late_reason is None:
+            raise PrescriptionWindowExpiredError("ventana de emisión de receta expirada")
+        if late_reason is not None:
+            late_reason = late_reason.strip()
+            if within_window or not late_reason:
+                raise PrescriptionValidationError("Indica un motivo para una emisión fuera de plazo")
         if content_type not in ALLOWED_PRESCRIPTION_CONTENT_TYPES:
             raise PrescriptionValidationError("Prescription must be a PDF, JPEG, or PNG file")
 
@@ -90,34 +103,16 @@ class PrescriptionService:
         if patient_profile is None or professional_profile is None:
             raise PrescriptionValidationError("Prescription profiles are not available")
 
-        existing = self.prescriptions.get_by_appointment(appointment.id)
+        if late_reason is not None:
+            return self._request_late_issue(appointment, current_user, file, content_type, notas, metadata, late_reason)
         key = self._storage_key(appointment.id, filename)
         values = {**metadata.model_dump(), "notas": notas, "file_url": key,
                   "patient_id": patient_profile.id, "professional_id": professional_profile.id}
         try:
             self.storage.save(file, key, self.max_file_size)
-            if existing:
-                result = self.prescriptions.update(
-                    existing,
-                    values,
-                )
-                action = AuditAction.UPDATE
-            else:
-                result = self.prescriptions.create(
-                    Prescription(
-                        appointment_id=appointment.id,
-                        **values,
-                    )
-                )
-                action = AuditAction.CREATE
-            self.audit.record(
-                current_user.id,
-                current_user.role,
-                action,
-                "prescription",
-                result.id,
-                patient_profile.user_id,
-            )
+            result, action = self._publish(appointment.id, values)
+            self.audit.record(current_user.id, current_user.role, action, "prescription", result.id,
+                              appointment.patient_id)
             return result
         except ValueError as error:
             raise PrescriptionValidationError(str(error)) from error
@@ -125,40 +120,85 @@ class PrescriptionService:
             self.prescriptions.rollback()
             raise PrescriptionConflictError("Could not save prescription") from error
 
-    def authorize_late_issue(
-        self,
-        appointment_id: UUID,
-        current_admin: User,
-        data: PrescriptionAuthorizationCreate,
-    ) -> PrescriptionAuthorization:
-        appointment = self.appointments.get_appointment(appointment_id)
+    def _publish(self, appointment_id: UUID, values: dict) -> tuple[Prescription, AuditAction]:
+        existing = self.prescriptions.get_by_appointment(appointment_id)
+        if existing:
+            return self.prescriptions.update(existing, values), AuditAction.UPDATE
+        return self.prescriptions.create(Prescription(appointment_id=appointment_id, **values)), AuditAction.CREATE
+
+    def _request_late_issue(self, appointment, professional, file, content_type, notes, metadata, reason):
+        notifications = self.notifications
+        if notifications is None:
+            raise RuntimeError("Late prescriptions require a notification repository")
+        if self.prescriptions.get_pending_request(appointment.id) is not None:
+            raise PrescriptionConflictError("Ya hay una solicitud pendiente para esta cita")
+        admin_ids = notifications.active_admin_ids()
+        if not admin_ids:
+            raise PrescriptionConflictError("No hay administradores disponibles para revisar la solicitud")
+        request_id = uuid4()
+        extension = {"application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png"}[content_type]
+        key = f"prescriptions/late/{request_id}{extension}"
+        draft = {**metadata.model_dump(mode="json"), "notas": notes, "file_url": key}
+        try:
+            request = self.prescriptions.create_late_request(LatePrescriptionRequest(
+                id=request_id, appointment_id=appointment.id, requested_by=professional.id,
+                reason=reason, draft=draft,
+            ))
+            for admin_id in admin_ids:
+                notifications.create(Notification(
+                    recipient_id=admin_id, type="late_prescription_pending",
+                    entity="late_prescription_request", entity_id=request.id,
+                    title="Urgente · Solicitud de emisión fuera de plazo",
+                    message=f"Profesional: {professional.name}\nMotivo de la demora: {reason}",
+                    scheduled_for=appointment.start_time,
+                ))
+            self.audit.record(professional.id, professional.role, AuditAction.CREATE,
+                              "late_prescription_request", request.id)
+            self.storage.save(file, key, self.max_file_size)
+            return request
+        except ValueError as error:
+            raise PrescriptionValidationError(str(error)) from error
+        except IntegrityError as error:
+            raise PrescriptionConflictError("No se pudo registrar la solicitud o ya hay una pendiente") from error
+
+    def authorize_late_issue(self, request_id: UUID, current_admin: User) -> None:
+        notifications = self.notifications
+        if notifications is None:
+            raise RuntimeError("Late prescriptions require a notification repository")
+        request = self.prescriptions.lock_late_request(request_id)
+        if request is None:
+            raise PrescriptionNotFoundError("Solicitud no encontrada")
+        if request.approved_at is not None:
+            return
+        appointment = self.appointments.get_appointment(request.appointment_id)
         if appointment is None:
             raise PrescriptionNotFoundError("Appointment not found")
-        if appointment.status != AppointmentStatus.COMPLETED:
-            raise PrescriptionValidationError("Prescription requires a completed appointment")
-        existing = self.prescriptions.get_authorization(appointment_id)
-        if existing is not None:
-            return existing
+        if appointment.status != AppointmentStatus.COMPLETED or appointment.professional_id != request.requested_by:
+            raise PrescriptionConflictError("La cita ya no admite esta solicitud")
+        patient = self.profiles.get_patient(appointment.patient_id)
+        professional = self.profiles.get_professional(request.requested_by)
+        draft = request.draft
+        if patient is None or professional is None or not draft or not self.storage.path_for(draft["file_url"]).is_file():
+            raise PrescriptionConflictError("No se pudo vincular la receta a la cita")
+        metadata = PrescriptionMetadata.model_validate(draft)
         try:
-            result = self.prescriptions.create_authorization(
-                PrescriptionAuthorization(
-                    appointment_id=appointment_id,
-                    authorized_by=current_admin.id,
-                    reason=data.reason,
-                )
-            )
-            patient_profile = self.profiles.get_patient(appointment.patient_id)
-            self.audit.record(
-                current_admin.id,
-                current_admin.role,
-                AuditAction.CREATE,
-                "prescription_authorization",
-                result.id,
-                patient_profile.user_id if patient_profile else None,
-            )
-            return result
+            self._publish(appointment.id, {
+                **metadata.model_dump(), "notas": draft["notas"], "file_url": draft["file_url"],
+                "patient_id": patient.id, "professional_id": professional.id,
+            })
+            request.approved_by = current_admin.id
+            request.approved_at = self.now()
+            request.draft = None
+            self.audit.record(current_admin.id, current_admin.role, AuditAction.UPDATE,
+                              "late_prescription_request", request.id)
+            notifications.complete_late_prescription_alerts(request.id, request.approved_at)
+            notifications.create(Notification(
+                recipient_id=request.requested_by, type="late_prescription_approved",
+                entity="late_prescription_request", entity_id=request.id, scheduled_for=appointment.start_time,
+                title="Emisión fuera de plazo autorizada",
+                message="Se concedió el permiso y la receta ya está vinculada a la cita y disponible para el paciente.",
+            ))
         except IntegrityError as error:
-            self.prescriptions.rollback()
             raise PrescriptionConflictError("Could not authorize late prescription") from error
 
     def download_for_patient(self, appointment_id: UUID, current_user: User):

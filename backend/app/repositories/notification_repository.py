@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import EmailStatus, Notification, User, UserRole
@@ -22,6 +22,17 @@ class NotificationRepository:
         self.session.add(notification)
         self.session.flush()
         return notification
+
+    def complete_late_prescription_alerts(self, request_id: UUID, approved_at: datetime) -> None:
+        self.session.execute(update(Notification).where(
+            Notification.type == "late_prescription_pending",
+            Notification.entity == "late_prescription_request",
+            Notification.entity_id == request_id,
+        ).values(
+            type="late_prescription_reviewed",
+            title="Solicitud de emisión fuera de plazo autorizada",
+            read_at=func.coalesce(Notification.read_at, approved_at),
+        ))
 
     def get(self, notification_id: UUID, recipient_id: UUID) -> Notification | None:
         return self.session.scalar(
@@ -47,21 +58,23 @@ class NotificationRepository:
         self, recipient_id: UUID, limit: int, unread_only: bool = False, cursor: UUID | None = None
     ) -> list[Notification]:
         query = select(Notification).where(Notification.recipient_id == recipient_id)
+        priority = case((Notification.type == "late_prescription_pending", 1), else_=0)
         if unread_only:
             query = query.where(Notification.read_at.is_(None))
         if cursor is not None:
-            cursor_notification = self.session.get(Notification, cursor)
+            cursor_notification = self.get(cursor, recipient_id)
             if cursor_notification is not None:
+                cursor_priority = int(cursor_notification.type == "late_prescription_pending")
+                older = (Notification.created_at < cursor_notification.created_at) | (
+                    (Notification.created_at == cursor_notification.created_at)
+                    & (Notification.id < cursor_notification.id)
+                )
                 query = query.where(
-                    (Notification.created_at < cursor_notification.created_at)
-                    | (
-                        (Notification.created_at == cursor_notification.created_at)
-                        & (Notification.id < cursor_notification.id)
-                    )
+                    (priority < cursor_priority) | ((priority == cursor_priority) & older)
                 )
         return list(
             self.session.scalars(
-                query.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(limit)
+                query.order_by(priority.desc(), Notification.created_at.desc(), Notification.id.desc()).limit(limit)
             )
         )
 

@@ -1194,7 +1194,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/appointments/{appointment_id}/prescription-authorization": {
+    "/admin/late-prescription-requests/{request_id}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -1204,7 +1204,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Authorize Late Prescription */
-        post: operations["authorize_late_prescription_admin_appointments__appointment_id__prescription_authorization_post"];
+        post: operations["authorize_late_prescription_admin_late_prescription_requests__request_id__approve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2458,6 +2458,8 @@ export interface components {
             codigo?: string | null;
             /** Notas */
             notas?: string | null;
+            /** Late Reason */
+            late_reason?: string | null;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -3020,6 +3022,19 @@ export interface components {
              */
             prescriptions: components["schemas"]["PrescriptionHistoryResponse"][];
         };
+        /** LatePrescriptionRequestResponse */
+        LatePrescriptionRequestResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+        };
         /** MedicationResponse */
         MedicationResponse: {
             /** Name */
@@ -3405,36 +3420,6 @@ export interface components {
             allergies_summary: string | null;
             /** Chronic Conditions Summary */
             chronic_conditions_summary: string | null;
-        };
-        /** PrescriptionAuthorizationCreate */
-        PrescriptionAuthorizationCreate: {
-            /** Reason */
-            reason?: string | null;
-        };
-        /** PrescriptionAuthorizationResponse */
-        PrescriptionAuthorizationResponse: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Appointment Id
-             * Format: uuid
-             */
-            appointment_id: string;
-            /**
-             * Authorized By
-             * Format: uuid
-             */
-            authorized_by: string;
-            /** Reason */
-            reason: string | null;
-            /**
-             * Authorized At
-             * Format: date-time
-             */
-            authorized_at: string;
         };
         /** PrescriptionHistoryResponse */
         PrescriptionHistoryResponse: {
@@ -7037,6 +7022,15 @@ export interface operations {
                     "application/json": components["schemas"]["PrescriptionResponse"];
                 };
             };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatePrescriptionRequestResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -7048,29 +7042,23 @@ export interface operations {
             };
         };
     };
-    authorize_late_prescription_admin_appointments__appointment_id__prescription_authorization_post: {
+    authorize_late_prescription_admin_late_prescription_requests__request_id__approve_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                appointment_id: string;
+                request_id: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PrescriptionAuthorizationCreate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["PrescriptionAuthorizationResponse"];
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

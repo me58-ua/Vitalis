@@ -54,9 +54,12 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<Prescription | null>(null);
+  const [late, setLate] = useState(false);
+  const [requested, setRequested] = useState(false);
   const [saveRevision, setSaveRevision] = useState(0);
   const [success, setSuccess] = useState('');
   const heading = useRef<HTMLHeadingElement>(null);
+  const reasonField = useRef<HTMLTextAreaElement>(null);
   const upload = useRef<AbortController | null>(null);
   const locked = useRef(false);
   const load = useCallback((signal: AbortSignal) => getAppointmentPrescription(professionalId, appointment.patient_id, appointment.id, signal), [professionalId, appointment.patient_id, appointment.id]);
@@ -67,10 +70,13 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
     heading.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   }, [focusRequest]);
   useEffect(() => () => upload.current?.abort(), []);
+  useEffect(() => {
+    if (late) reasonField.current?.focus();
+  }, [late]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (locked.current || appointment.status !== 'completed') return;
+    if (locked.current || requested || appointment.status !== 'completed') return;
     const form = event.currentTarget;
     const data = new FormData(form), file = data.get('file');
     if (!(file instanceof File) || !file.size) { setError('Selecciona un archivo con contenido.'); return; }
@@ -86,12 +92,32 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
     if (metadata.fecha_caducidad && metadata.fecha_caducidad < metadata.fecha_emision) {
       setError('La fecha de caducidad no puede ser anterior a la fecha de emisión.'); return;
     }
+    const lateReason = String(data.get('late_reason') ?? '').trim();
+    if (late && !lateReason) { setError('Indica el motivo de la demora.'); return; }
     locked.current = true; setBusy(true); onBusy(true); setError(''); setSuccess('');
     const controller = new AbortController(); upload.current = controller;
     try {
-      const result = await attachPrescription(professionalId, appointment.id, file, String(data.get('notes') ?? ''), metadata, controller.signal);
-      if (!controller.signal.aborted) { setSaved(result); setSaveRevision(value => value + 1); setSuccess('Receta guardada y vinculada a esta cita. Ya puedes descargarla.'); onSaved?.(); }
-    } catch (reason: unknown) { if (!controller.signal.aborted) setError(uploadError(reason)); }
+      const result = await attachPrescription(professionalId, appointment.id, file, String(data.get('notes') ?? ''), metadata, controller.signal, lateReason);
+      if (controller.signal.aborted) return;
+      if (result) {
+        setSaved(result); setSaveRevision(value => value + 1);
+        setSuccess('Receta guardada y vinculada a esta cita. Ya puedes descargarla.');
+        onSaved?.();
+      } else {
+        setRequested(true);
+        setSuccess('Solicitud enviada. Recibirás una notificación cuando se autorice y la receta quede vinculada.');
+      }
+    } catch (reason: unknown) {
+      if (controller.signal.aborted) return;
+      if (axios.isAxiosError(reason) && reason.response?.data?.detail === 'PRESCRIPTION_WINDOW_EXPIRED') {
+        setLate(true);
+      } else if (late && axios.isAxiosError(reason) && reason.response?.status === 409) {
+        const detail = reason.response.data?.detail;
+        setError(typeof detail === 'string' ? detail : 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
+      } else {
+        setError(uploadError(reason));
+      }
+    }
     finally { if (!controller.signal.aborted) { locked.current = false; setBusy(false); onBusy(false); } }
   }
 
@@ -103,6 +129,7 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
     {existing.error && <div className="error-state" role="alert"><p>{existing.error}</p><button type="button" onClick={existing.retry}>Reintentar</button></div>}
     {prescription && <div className="prescription-current"><p>Esta cita tiene una receta vinculada.</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={appointment.id} /></div>}
     <p>El archivo queda vinculado a esta cita y disponible para el paciente. Si ya existe una receta, se reemplazará. Fuera del plazo de emisión se necesita autorización administrativa.</p>
+    {requested ? <button className="button secondary" type="button" onClick={onCancel}>Cerrar formulario</button> :
     <form key={`${prescription?.id ?? 'new'}:${saveRevision}`} aria-busy={busy} onSubmit={event => { void submit(event); }}><fieldset disabled={busy || existing.loading || Boolean(existing.error)}>
       <label>Tipo de documento<select name="tipo" required defaultValue={prescription?.tipo ?? 'medicacion'}><option value="medicacion">Receta de medicación</option><option value="prueba">Solicitud de prueba o procedimiento</option><option value="otro">Otro</option></select></label>
       <label>Medicamento(s) o título del documento<input name="titulo" required maxLength={300} defaultValue={prescription?.titulo ?? ''} placeholder="Ej.: Atorvastatina 20 mg y Metformina 850 mg" /></label>
@@ -113,8 +140,13 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
       <label>Código del documento (opcional)<input name="codigo" maxLength={100} defaultValue={prescription?.codigo ?? ''} /></label>
       <label>Archivo de receta (PDF, JPEG o PNG)<input name="file" type="file" accept="application/pdf,image/jpeg,image/png" required /></label>
       <label>Notas opcionales<textarea name="notes" rows={3} defaultValue={prescription?.notas ?? ''} /></label>
+      {late && <>
+        <p role="status">El plazo de emisión ha vencido. Solicita autorización administrativa para vincular la receta a la cita.</p>
+        <label>Motivo de la demora<textarea ref={reasonField} name="late_reason" rows={3} maxLength={1000} required aria-describedby="late-reason-help" /></label>
+        <p id="late-reason-help" className="field-help">Explica la demora sin incluir información clínica ni datos del paciente.</p>
+      </>}
       {error && <p className="error-state" role="alert">{error}</p>}
-      <div className="record-actions"><button className="button primary" type="submit">{busy ? 'Guardando…' : 'Guardar receta vinculada'}</button><button className="button secondary" type="button" onClick={onCancel}>Cerrar formulario</button></div>
-    </fieldset></form>
+      <div className="record-actions"><button className="button primary" type="submit">{busy ? 'Enviando…' : late ? 'Solicitar autorización' : 'Guardar receta vinculada'}</button><button className="button secondary" type="button" onClick={onCancel}>Cerrar formulario</button></div>
+    </fieldset></form>}
   </section>;
 }

@@ -275,9 +275,21 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       }
       if (req.method === 'POST' && path.endsWith('/prescription')) {
         if (state.rejectRecipe) return send(403, { detail: 'ventana de emisión de receta expirada' });
+        const field = name => new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r]*)`).exec(raw)?.[1] || null;
+        if (state.lateRecipe) {
+          const reason = field('late_reason');
+          if (!reason) return send(403, { detail: 'PRESCRIPTION_WINDOW_EXPIRED' });
+          const requestId = '00000000-0000-4000-8000-000000000602';
+          state.lateAlert = {
+            ...notification, id: '00000000-0000-4000-8000-000000000601',
+            entity_id: requestId, read_at: null,
+            type: 'late_prescription_pending', title: 'Urgente · Solicitud de emisión fuera de plazo',
+            scheduled_for: '2026-11-03T09:00:00Z', message: `Profesional: Dra. Ada\nMotivo de la demora: ${reason}`,
+          };
+          return send(202, { id: requestId, requested_at: notification.created_at });
+        }
         state.recipeUploads = (state.recipeUploads || 0) + 1;
         state.recipePath = path; state.recipeBody = raw;
-        const field = name => new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r]*)`).exec(raw)?.[1] || null;
         if (!field('tipo') || !field('titulo') || !field('fecha_emision')) return send(422, { detail: 'METADATA_REQUIRED' });
         const item = { id: notification.id, appointment_id: path.split('/')[4], patient_id: participants.patient.id, professional_id: actor.id, file_url: 'test-only.pdf', notas: null, created_at: '2026-11-03T12:00:00Z',
           tipo: field('tipo'), titulo: field('titulo'), fecha_emision: field('fecha_emision'), fecha_caducidad: field('fecha_caducidad'), codigo: field('codigo') };
@@ -461,7 +473,16 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     if (state.forbidden) return send(403, { detail: 'PATIENT_REQUIRED' });
     if (state.failNotifications) return send(503, { detail: 'TEST_UNAVAILABLE' });
     if (path === '/notifications/unread-count') return send(200, { count: state.empty || notification.read_at ? 0 : 1 });
-    if (path === '/notifications') return send(200, { notifications: state.empty ? [] : [notification], next_cursor: null });
+    if (path === '/notifications') return send(200, {
+      notifications: state.empty ? [] : (demoLogin?.user ?? account).role === 'admin' && state.lateAlert ? [state.lateAlert, notification] : [notification],
+      next_cursor: null,
+    });
+    if (req.method === 'POST' && (demoLogin?.user ?? account).role === 'admin' && state.lateAlert &&
+        path === `/admin/late-prescription-requests/${state.lateAlert.entity_id}/approve`) {
+      state.lateAlert.type = 'late_prescription_reviewed';
+      state.lateAlert.title = 'Solicitud de emisión fuera de plazo autorizada';
+      res.writeHead(204); res.end(); return;
+    }
     if (path === `/notifications/${notification.id}/read` && req.method === 'PATCH') {
       state.reads += 1; notification.read_at = '2026-10-25T10:00:00Z'; return send(200, notification);
     }

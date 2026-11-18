@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
 from app.api.deps import (
@@ -14,6 +14,7 @@ from app.api.deps import (
     get_current_patient,
     get_current_professional,
     get_file_storage,
+    get_notification_repository,
     get_prescription_repository,
     get_profile_repository,
 )
@@ -23,9 +24,9 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.prescription_repository import PrescriptionRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.audit_repository import AuditRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.schemas.prescriptions import (
-    PrescriptionAuthorizationCreate,
-    PrescriptionAuthorizationResponse,
+    LatePrescriptionRequestResponse,
     PatientPrescriptionListResponse,
     PrescriptionResponse,
     PrescriptionListResponse,
@@ -39,6 +40,7 @@ from app.services.prescription_service import (
     PrescriptionNotFoundError,
     PrescriptionService,
     PrescriptionValidationError,
+    PrescriptionWindowExpiredError,
 )
 from app.services.professional_follow_up_service import ProfessionalFollowUpService
 from app.services.appointment_service import AppointmentAccessError
@@ -53,6 +55,7 @@ Prescriptions = Annotated[PrescriptionRepository, Depends(get_prescription_repos
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Storage = Annotated[FileStorage, Depends(get_file_storage)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
+Notifications = Annotated[NotificationRepository, Depends(get_notification_repository)]
 
 
 def _service(
@@ -61,6 +64,7 @@ def _service(
     prescriptions: PrescriptionRepository,
     storage: FileStorage,
     audits: AuditRepository | None = None,
+    notifications: NotificationRepository | None = None,
 ) -> PrescriptionService:
     return PrescriptionService(
         appointments,
@@ -70,6 +74,7 @@ def _service(
         emission_window=timedelta(hours=settings.PRESCRIPTION_EMISSION_WINDOW_HOURS),
         max_file_size=settings.PRESCRIPTION_MAX_SIZE_BYTES,
         audits=audits,
+        notifications=notifications,
     )
 
 
@@ -77,6 +82,7 @@ def _service(
     "/professionals/{professional_id}/appointments/{appointment_id}/prescription",
     response_model=PrescriptionResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={202: {"model": LatePrescriptionRequestResponse}},
 )
 def upload_prescription(
     professional_id: UUID,
@@ -87,6 +93,7 @@ def upload_prescription(
     prescriptions: Prescriptions,
     storage: Storage,
     audits: Audits,
+    notifications: Notifications,
     file: UploadFile = File(...),
     tipo: PrescriptionType = Form(...),
     titulo: str = Form(..., min_length=1, max_length=300),
@@ -94,11 +101,12 @@ def upload_prescription(
     fecha_caducidad: date | None = Form(default=None),
     codigo: str | None = Form(default=None, max_length=100),
     notas: str | None = Form(default=None),
+    late_reason: str | None = Form(default=None, max_length=1000),
 ):
     try:
         metadata = PrescriptionMetadata(tipo=tipo, titulo=titulo, fecha_emision=fecha_emision,
                                         fecha_caducidad=fecha_caducidad, codigo=codigo)
-        return _service(appointments, profiles, prescriptions, storage, audits).upload(
+        result = _service(appointments, profiles, prescriptions, storage, audits, notifications).upload(
             professional_id,
             current_user,
             appointment_id,
@@ -107,9 +115,17 @@ def upload_prescription(
             file.content_type,
             notas,
             metadata=metadata,
+            late_reason=late_reason,
         )
+        if late_reason is not None:
+            return JSONResponse(status_code=202, content=LatePrescriptionRequestResponse.model_validate(
+                result
+            ).model_dump(mode="json"))
+        return result
     except ValidationError as error:
         raise HTTPException(status_code=422, detail=error.errors()[0]["msg"]) from error
+    except PrescriptionWindowExpiredError as error:
+        raise HTTPException(status_code=403, detail="PRESCRIPTION_WINDOW_EXPIRED") from error
     except PrescriptionAccessError as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except PrescriptionNotFoundError as error:
@@ -121,24 +137,24 @@ def upload_prescription(
 
 
 @router.post(
-    "/admin/appointments/{appointment_id}/prescription-authorization",
-    response_model=PrescriptionAuthorizationResponse,
-    status_code=status.HTTP_201_CREATED,
+    "/admin/late-prescription-requests/{request_id}/approve",
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def authorize_late_prescription(
-    appointment_id: UUID,
-    data: PrescriptionAuthorizationCreate,
+    request_id: UUID,
     current_admin: CurrentAdmin,
     appointments: Appointments,
     profiles: Profiles,
     prescriptions: Prescriptions,
     storage: Storage,
     audits: Audits,
+    notifications: Notifications,
 ):
     try:
-        return _service(appointments, profiles, prescriptions, storage, audits).authorize_late_issue(
-            appointment_id, current_admin, data
+        _service(appointments, profiles, prescriptions, storage, audits, notifications).authorize_late_issue(
+            request_id, current_admin
         )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     except PrescriptionNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except PrescriptionValidationError as error:

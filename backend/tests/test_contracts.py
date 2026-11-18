@@ -56,7 +56,7 @@ class ContractTests(unittest.TestCase):
             "/professionals",
             "/professionals/{professional_id}",
             "/professionals/{professional_id}/appointments/{appointment_id}/prescription",
-            "/admin/appointments/{appointment_id}/prescription-authorization",
+            "/admin/late-prescription-requests/{request_id}/approve",
             "/patients/me/appointments/{appointment_id}/prescription",
             "/professionals/{professional_id}/appointments/history",
             "/professionals/{professional_id}/prescriptions",

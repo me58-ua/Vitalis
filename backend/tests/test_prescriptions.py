@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from app.models import AppointmentStatus, Prescription, UserRole
-from app.schemas.prescriptions import PrescriptionAuthorizationCreate, PrescriptionMetadata, PatientPrescriptionResponse
+from app.schemas.prescriptions import PrescriptionMetadata, PatientPrescriptionResponse
 from pydantic import ValidationError
 from app.services.file_storage import LocalFileStorage
 from app.services.prescription_service import (
@@ -26,6 +26,9 @@ class FakeAppointments:
             return self.appointment
         return None
 
+    def lock_appointment(self, appointment_id):
+        return self.get_appointment(appointment_id)
+
 
 class FakeProfiles:
     def __init__(self, patient_profile, professional_profile):
@@ -42,7 +45,7 @@ class FakeProfiles:
 class FakePrescriptions:
     def __init__(self):
         self.prescription = None
-        self.authorization = None
+        self.requests = {}
         self.patient_view_rows = []
 
     def get_by_appointment(self, appointment_id):
@@ -50,10 +53,17 @@ class FakePrescriptions:
             return self.prescription
         return None
 
-    def get_authorization(self, appointment_id):
-        if self.authorization and self.authorization.appointment_id == appointment_id:
-            return self.authorization
-        return None
+    def get_pending_request(self, appointment_id):
+        return next((request for request in self.requests.values()
+                     if request.appointment_id == appointment_id and request.approved_at is None), None)
+
+    def create_late_request(self, request):
+        request.requested_at = datetime.now(timezone.utc)
+        self.requests[request.id] = request
+        return request
+
+    def lock_late_request(self, request_id):
+        return self.requests.get(request_id)
 
     def list_for_patient_view(self, patient_user_id, professional_user_id=None):
         return self.patient_view_rows
@@ -68,10 +78,6 @@ class FakePrescriptions:
         for field, value in values.items():
             setattr(prescription, field, value)
         return prescription
-
-    def create_authorization(self, authorization):
-        self.authorization = authorization
-        return authorization
 
     def rollback(self):
         pass
@@ -156,6 +162,7 @@ class PrescriptionServiceTests(unittest.TestCase):
             (deps.get_current_user, self.professional), (deps.get_appointment_repository, self.appointments),
             (deps.get_profile_repository, self.profiles), (deps.get_prescription_repository, self.prescriptions),
             (deps.get_file_storage, self.storage), (deps.get_audit_repository, None),
+            (deps.get_notification_repository, None),
         ):
             app.dependency_overrides[dependency] = provide(value)
         client = TestClient(app)
@@ -248,25 +255,67 @@ class PrescriptionServiceTests(unittest.TestCase):
         self.assertEqual(replacement.notas, "Replacement")
         self.assertEqual(self.storage.path_for(first.file_url).read_bytes(), b"replacement")
 
-    def test_admin_authorization_allows_late_upload(self):
-        self.appointment.end_time = self.now - timedelta(hours=9)
-        self.service.authorize_late_issue(
-            self.appointment_id,
-            self.admin,
-            PrescriptionAuthorizationCreate(reason="Patient requested correction"),
-        )
+    def test_late_request_is_private_until_admin_approval(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from app.api.prescriptions import router
+        from app.api import deps
 
-        result = self.upload(
-            self.professional_id,
-            self.professional,
-            self.appointment_id,
-            io.BytesIO(b"pdf"),
-            "prescription.pdf",
-            "application/pdf",
-            None,
+        self.appointment.end_time = datetime.now(timezone.utc) - timedelta(hours=9)
+        self.appointment.start_time = self.appointment.end_time - timedelta(minutes=30)
+        self.professional.name = "Dra. Ada"
+        alerts, audits = [], []
+        notifications = SimpleNamespace(
+            create=alerts.append, active_admin_ids=lambda: [self.admin.id],
+            complete_late_prescription_alerts=lambda *_: None,
         )
+        app = FastAPI()
+        app.include_router(router)
+        def provide(value):
+            return lambda: value
 
-        self.assertIsNotNone(result)
+        for dependency, value in (
+            (deps.get_current_user, self.professional), (deps.get_appointment_repository, self.appointments),
+            (deps.get_profile_repository, self.profiles), (deps.get_prescription_repository, self.prescriptions),
+            (deps.get_file_storage, self.storage), (deps.get_audit_repository, SimpleNamespace(create=audits.append)),
+            (deps.get_notification_repository, notifications),
+        ):
+            app.dependency_overrides[dependency] = provide(value)
+        client = TestClient(app)
+        path = f"/professionals/{self.professional_id}/appointments/{self.appointment_id}/prescription"
+        patient_path = f"/patients/me/appointments/{self.appointment_id}/prescription"
+        files = {"file": ("recipe.pdf", b"%PDF private", "application/pdf")}
+        data = {"tipo": "prueba", "titulo": "Private clinical title", "fecha_emision": "2026-09-29"}
+        self.assertEqual(client.post(path, files=files, data=data).json()["detail"], "PRESCRIPTION_WINDOW_EXPIRED")
+        self.assertEqual(client.post(path, files=files, data={**data, "late_reason": "   "}).status_code, 422)
+        data["late_reason"] = "  Service outage  "
+        response = client.post(path, files=files, data=data)
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(set(response.json()), {"id", "requested_at"})
+        request_id = uuid.UUID(response.json()["id"])
+        approve = f"/admin/late-prescription-requests/{request_id}/approve"
+        self.assertEqual(client.post(approve).status_code, 403)
+        self.assertEqual(client.post(path, files=files, data=data).status_code, 409)
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].recipient_id, self.admin.id)
+        self.assertEqual(alerts[0].scheduled_for, self.appointment.start_time)
+        self.assertEqual(alerts[0].message, "Profesional: Dra. Ada\nMotivo de la demora: Service outage")
+
+        app.dependency_overrides[deps.get_current_user] = lambda: self.patient
+        self.assertEqual(client.get(patient_path).status_code, 404)
+        app.dependency_overrides[deps.get_current_user] = lambda: self.admin
+        self.assertEqual(client.get(path).status_code, 403)
+        self.assertEqual(client.get(patient_path).status_code, 403)
+        self.assertEqual(client.post(approve).status_code, 204)
+        self.assertEqual(client.post(approve).status_code, 204)
+        self.assertEqual(len(alerts), 2)
+        self.assertEqual(alerts[-1].recipient_id, self.professional.id)
+        self.assertEqual(alerts[-1].type, "late_prescription_approved")
+        self.assertEqual(self.prescriptions.requests[request_id].approved_by, self.admin.id)
+        self.assertEqual([audit.actor_id for audit in audits if audit.entidad == "late_prescription_request"],
+                         [self.professional.id, self.admin.id])
+        app.dependency_overrides[deps.get_current_user] = lambda: self.patient
+        self.assertEqual(client.get(patient_path).content, b"%PDF private")
 
     def test_only_patient_of_appointment_can_download(self):
         self.upload(

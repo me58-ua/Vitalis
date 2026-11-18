@@ -75,15 +75,8 @@ class PatientPrescriptionListResponse(BaseModel):
     total: int
 
 
-class PrescriptionAuthorizationCreate(BaseModel):
-    reason: str | None = Field(default=None, max_length=1000)
-
-
-class PrescriptionAuthorizationResponse(BaseModel):
+class LatePrescriptionRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    appointment_id: UUID
-    authorized_by: UUID
-    reason: str | None
-    authorized_at: datetime
+    requested_at: datetime

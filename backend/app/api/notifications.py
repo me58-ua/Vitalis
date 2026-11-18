@@ -30,7 +30,7 @@ def list_notifications(
     limit: int = Query(50, ge=1, le=100),
 ):
     notifications = repository.list(current_user.id, limit + 1, unread_only, cursor)
-    next_cursor = notifications[limit].id if len(notifications) > limit else None
+    next_cursor = notifications[limit - 1].id if len(notifications) > limit else None
     return NotificationListResponse(
         notifications=[_response(notification) for notification in notifications[:limit]],
         next_cursor=next_cursor,

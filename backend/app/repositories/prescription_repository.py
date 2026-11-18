@@ -8,10 +8,10 @@ from app.models import (
     Appointment,
     PatientProfile,
     Prescription,
-    PrescriptionAuthorization,
     ProfessionalProfile,
     User,
 )
+from app.models.prescription import LatePrescriptionRequest
 
 
 class PrescriptionRepository:
@@ -23,12 +23,21 @@ class PrescriptionRepository:
             select(Prescription).where(Prescription.appointment_id == appointment_id)
         )
 
-    def get_authorization(self, appointment_id: UUID) -> PrescriptionAuthorization | None:
-        return self.session.scalar(
-            select(PrescriptionAuthorization).where(
-                PrescriptionAuthorization.appointment_id == appointment_id
-            )
-        )
+    def get_pending_request(self, appointment_id: UUID) -> LatePrescriptionRequest | None:
+        return self.session.scalar(select(LatePrescriptionRequest).where(
+            LatePrescriptionRequest.appointment_id == appointment_id,
+            LatePrescriptionRequest.approved_at.is_(None),
+        ))
+
+    def lock_late_request(self, request_id: UUID) -> LatePrescriptionRequest | None:
+        return self.session.scalar(select(LatePrescriptionRequest).where(
+            LatePrescriptionRequest.id == request_id,
+        ).with_for_update())
+
+    def create_late_request(self, request: LatePrescriptionRequest) -> LatePrescriptionRequest:
+        self.session.add(request)
+        self.session.flush()
+        return request
 
     def list_for_patient_and_professional(
         self, patient_profile_id: UUID, professional_profile_id: UUID
@@ -113,13 +122,6 @@ class PrescriptionRepository:
             setattr(prescription, field, value)
         self.session.flush()
         return prescription
-
-    def create_authorization(
-        self, authorization: PrescriptionAuthorization
-    ) -> PrescriptionAuthorization:
-        self.session.add(authorization)
-        self.session.flush()
-        return authorization
 
     def rollback(self) -> None:
         self.session.rollback()

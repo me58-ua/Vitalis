@@ -65,14 +65,16 @@ export type PrescriptionMetadata = {
   fecha_caducidad: string | null; codigo: string | null;
 };
 
-export async function attachPrescription(professionalId: string, appointmentId: string, file: File, notes: string, metadata: PrescriptionMetadata, signal: AbortSignal) {
+export async function attachPrescription(professionalId: string, appointmentId: string, file: File, notes: string, metadata: PrescriptionMetadata, signal: AbortSignal, lateReason?: string): Promise<Prescription | null> {
   const form = new FormData();
   form.append('file', file);
   if (notes.trim()) form.append('notas', notes.trim());
   for (const [key, value] of Object.entries(metadata)) {
     if (value) form.append(key, value);
   }
-  return (await api.post<Prescription>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, form, { signal })).data;
+  if (lateReason) form.append('late_reason', lateReason);
+  const response = await api.post<Prescription>(`/professionals/${encodeURIComponent(professionalId)}/appointments/${encodeURIComponent(appointmentId)}/prescription`, form, { signal });
+  return response.status === 202 ? null : response.data;
 }
 
 export async function getAppointmentPrescription(professionalId: string, patientId: string, appointmentId: string, signal: AbortSignal) {
