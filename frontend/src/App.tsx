@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { PatientDashboardLayout } from './layouts/PatientDashboardLayout';
 import { AuthProvider } from './auth/AuthProvider';
 import { PublicLayout } from './layouts/PublicLayout';
@@ -10,6 +10,8 @@ import { PatientOnboardingPage } from './pages/patient/PatientOnboardingPage';
 import { PatientOnboardingCompletePage } from './pages/patient/PatientOnboardingCompletePage';
 import { PatientHealthProfilePage } from './pages/patient/PatientHealthProfilePage';
 import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage';
+import { DoctorSelectionPage, doctorSelectionPath } from './pages/patient/DoctorSelectionPage';
+import { PatientBookingPage } from './pages/patient/PatientBookingPage';
 import { PatientAppointmentDetailPage } from './pages/patient/PatientAppointmentDetailPage';
 import { AppointmentFollowUpPage } from './pages/professional/AppointmentFollowUpPage';
 import { PatientPrescriptionsPage } from './pages/patient/PatientPrescriptionsPage';
@@ -33,8 +35,18 @@ function PatientMessagesPage() {
   return <PatientDashboardLayout onProfile={() => navigate('/patientPanel')}><SpontaneousChatsPage /></PatientDashboardLayout>;
 }
 
+function PatientBookingLayout() {
+  const navigate = useNavigate();
+  return <PatientDashboardLayout onProfile={() => navigate('/patientPanel')}><Outlet /></PatientDashboardLayout>;
+}
+
 export function App() {
-  return <BrowserRouter><AuthProvider><Routes><Route element={<PublicLayout />}>
+  return <BrowserRouter><AuthProvider><Routes>
+  <Route element={<RequireRole role="patient" />}><Route element={<PatientBookingLayout />}>
+    <Route path={doctorSelectionPath} element={<DoctorSelectionPage />} />
+    <Route path={`${doctorSelectionPath}/:professionalId/reservar`} element={<PatientBookingPage />} />
+  </Route></Route>
+  <Route element={<PublicLayout />}>
     <Route path="/" element={<HomePage />} />
     <Route path="/login" element={<LoginPage />} />
     <Route element={<RequireRole role="patient" />}>

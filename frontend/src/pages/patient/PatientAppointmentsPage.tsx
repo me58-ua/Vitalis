@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { getPatientAppointments } from '../../api/consultations';
 import { patientAppointmentPath } from '../../api/appointmentFollowUp';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../components/AppointmentSummary';
 import '../../styles/videoconsulta.css';
+import { doctorSelectionPath } from './DoctorSelectionPage';
 
 export function PatientAppointmentsPage() {
+  const location = useLocation();
   const [page, setPage] = useState(1);
   const [now, setNow] = useState(Date.now);
   const load = useCallback((signal: AbortSignal) => getPatientAppointments(page, signal), [page]);
   const state = useAdminQuery(load);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(timer); }, []);
   return <main id="contenido" className="consultation-main consultation-patient">
-    <header className="consultation-heading"><h1>Mis citas</h1><Link className="button secondary" to="/patientPanel">Volver al panel</Link></header>
+    <header className="consultation-heading"><h1>Mis citas</h1><div className="booking-entry-actions"><Link className="button primary" to={doctorSelectionPath}>Reservar cita</Link><Link className="button secondary" to="/patientPanel">Volver al panel</Link></div></header>
+    {location.state?.appointmentBooked === true && <p role="status">Cita registrada.</p>}
     {state.loading && <p role="status">Cargando tus citas…</p>}
     {state.error && <div className="error-state" role="alert"><p>{state.error}</p><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}
     {state.data && <>

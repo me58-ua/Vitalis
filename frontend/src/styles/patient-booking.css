@@ -1,0 +1,60 @@
+.patient-booking {
+  --booking-green: #003527;
+  --booking-tint: #edf2ff;
+  width: min(100%, 1060px);
+  margin-inline: auto;
+  padding: clamp(18px, 4vw, 54px);
+  color: #152235;
+  overflow-wrap: anywhere;
+}
+
+.patient-booking h1 { font-size: clamp(1.65rem, 3vw, 2.25rem); }
+.patient-booking h2 { font-size: 1.18rem; }
+.patient-booking h1, .patient-booking h2, .patient-booking p { margin: 0 0 .55rem; }
+.patient-booking p { color: #47554f; }
+.booking-panel { padding: clamp(16px, 2.2vw, 24px); border: 1px solid #e7ecf5; border-radius: 14px; background: #fff; min-width: 0; }
+.booking-heading, .booking-pagination, .booking-entry-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.booking-heading, .booking-pagination { justify-content: space-between; }
+.booking-search { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto; align-items: end; gap: 12px; margin: 24px 0; }
+.patient-booking label { display: grid; gap: 5px; font-weight: 600; }
+.patient-booking input[type="search"], .patient-booking textarea { min-width: 0; width: 100%; padding: 10px; border: 1px solid #c9d4e4; border-radius: 8px; background: #f6f8fd; font: inherit; }
+.patient-booking textarea { resize: vertical; }
+.patient-booking .booking-checkbox { display: flex; align-items: center; gap: 6px; min-height: 42px; }
+.booking-doctors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 0; list-style: none; }
+.booking-doctors > li { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; border-inline-start: 3px solid #08774f; }
+.booking-doctors .button { margin-top: auto; }
+.booking-doctor-title { display: flex; align-items: flex-start; gap: 12px; }
+.booking-initials { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 12px; background: #caf9e6; color: var(--booking-green); font-weight: 700; }
+.booking-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.booking-tags li, .booking-summary div { padding: 6px 10px; border-radius: 8px; background: var(--booking-tint); }
+.booking-breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.booking-form { display: grid; gap: 16px; margin-top: 16px; }
+.booking-modalities { display: flex; flex-wrap: wrap; min-width: 0; gap: 8px; border: 0; margin: 0; padding: 0; }
+.booking-modalities legend { font-weight: 600; padding: 0 0 6px; }
+.booking-modalities label { display: flex; align-items: center; padding: 8px; border-radius: 8px; background: var(--booking-tint); }
+.booking-modalities input { accent-color: var(--booking-green); }
+.booking-calendar-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+.booking-month { text-transform: capitalize; }
+.booking-month-controls { display: flex; gap: 4px; }
+.booking-month-controls .button { min-width: 40px; padding-inline: 8px; }
+.booking-calendar, .booking-slots { display: grid; gap: 4px; margin-block: 12px; }
+.booking-calendar { grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
+.booking-calendar > span { font-size: .83rem; }
+.booking-slots { grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); }
+.booking-calendar button, .booking-slots button { min-height: 42px; padding: 3px; font: inherit; border: 1px solid #e5eafa; border-radius: 8px; background: #f5f7fd; color: inherit; }
+.booking-calendar button[aria-pressed="true"], .booking-slots button[aria-pressed="true"] { background: var(--booking-green); color: #fff; }
+.booking-calendar button:disabled { opacity: .55; }
+.booking-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.booking-summary dt { font-size: .85rem; }
+.booking-summary dd { font-weight: 650; margin: 4px 0 0; }
+.booking-form button[type="submit"] { margin-top: 12px; }
+
+@media (max-width: 1050px) {
+  .booking-search, .booking-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .booking-calendar-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .booking-search, .booking-doctors { grid-template-columns: 1fr; }
+  .booking-calendar button { min-height: 40px; }
+}
