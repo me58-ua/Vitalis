@@ -1,6 +1,11 @@
 import { api } from './client';
 import type { WorkingHours, WorkingHoursCreate, WorkingHoursUpdate } from '../types/api';
 import type { WorkingHoursBatch } from '../types/api';
+import type { PatientRiskSummary } from '../types/api';
+
+export async function getSharedPatientRisks(profileId: string, signal: AbortSignal) {
+  return (await api.get<PatientRiskSummary>(`/professionals/patients/${encodeURIComponent(profileId)}/risk-summary`, { signal })).data;
+}
 
 export async function saveWorkingHoursBatch(payload: WorkingHoursBatch, signal: AbortSignal) {
   return (await api.post<WorkingHours[]>('/professionals/me/working-hours/batch', payload, { signal })).data;

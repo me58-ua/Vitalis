@@ -53,15 +53,7 @@ function SearchDialog({ user, onClose }: { user: User; onClose: () => void }) {
     downloadLock.current = true; setDownloading(document.id); setDownloadError('');
     const abort = new AbortController(); downloadAbort.current = abort;
     try {
-      const blob = await downloadDocument(document, user.role, user.id, abort.signal);
-      if (abort.signal.aborted) return;
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      const extension = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' }[blob.type] ?? 'bin';
-      link.download = `documento-${document.id}.${extension}`;
-      window.document.body.append(link); link.click(); link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadDocument(document, user.role, user.id, abort.signal);
     } catch (error: unknown) { if (!abort.signal.aborted) setDownloadError(errorMessage(error)); }
     finally { if (!abort.signal.aborted) { downloadLock.current = false; setDownloading(null); } }
   }

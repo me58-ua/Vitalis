@@ -135,10 +135,8 @@ class HealthDocumentService:
         return path
 
     def _require_professional_access(self, profile, professional_id: UUID) -> None:
-        if not profile.share_health_data:
+        if self.appointments.health_sharing_scope(profile, professional_id) != "full":
             raise HealthDocumentAccessError("The patient has not shared health data")
-        if not self.appointments.has_shared_appointment(profile.user_id, professional_id):
-            raise HealthDocumentAccessError("No shared appointment with this patient")
 
     @staticmethod
     def _validate_content_type(content_type: str | None) -> None:

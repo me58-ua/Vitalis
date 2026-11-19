@@ -261,7 +261,15 @@ try {
   assert.equal(await evaluate(`document.querySelector('.booking-form button[type="submit"]').disabled`), true);
   await click('.booking-calendar button:nth-of-type(2)');
   await until(`document.querySelector('.booking-calendar-layout').textContent.includes('No hay horarios disponibles')`);
-  await click('.patient-sidebar a[href="/patientPanel"]');
+  await click('.booking-calendar button:first-of-type');
+  await until(`document.querySelector('.booking-slots button') !== null`);
+  await click('.booking-slots button');
+  assert.equal(await evaluate(`document.querySelector('[name="health_sharing"]:checked').value`), 'none');
+  await click('[name="health_sharing"][value="basic"]');
+  await click('.booking-form button[type="submit"]');
+  await until(`location.pathname === '/patientPanel/misCitas' && document.querySelector('.consultation-main [role="status"]')?.textContent.includes('Cita registrada')`);
+  assert.equal(fixture.state.patientBooking.health_sharing, 'basic');
+  await click('.booking-entry-actions a[href="/patientPanel"]');
   await until(`location.pathname === '/patientPanel' && document.querySelector('.patient-dashboard-main') !== null`);
   results.push({ check: 'patient booking requests the selected modality, clears the previous slot, and handles a closed day' });
   await checkPatientDashboard({ fixture, evaluate, click, until, command, screenshot, checkGeometry, results, reloadUntil });

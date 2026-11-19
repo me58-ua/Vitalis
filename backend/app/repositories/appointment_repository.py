@@ -7,6 +7,20 @@ from sqlalchemy.orm import Session, aliased
 from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, Prescription, ProfessionalSchedule, ProfessionalTimeBlock, User
 
 
+def latest_health_sharing(patient_id, professional_id):
+    return (
+        select(Appointment.health_sharing)
+        .where(
+            Appointment.patient_id == patient_id,
+            Appointment.professional_id == professional_id,
+            Appointment.health_sharing.is_not(None),
+        )
+        .order_by(Appointment.created_at.desc(), Appointment.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+
+
 class AppointmentRepository:
     def __init__(self, session: Session):
         self.session = session
@@ -174,6 +188,11 @@ class AppointmentRepository:
             )
             .limit(1)
         ) is not None
+
+    def health_sharing_scope(self, profile, professional_id: UUID) -> str:
+        if not profile.share_health_data:
+            return "none"
+        return self.session.scalar(select(latest_health_sharing(profile.user_id, professional_id))) or "none"
 
     def list_patient_history(self, patient_id: UUID, professional_id: UUID) -> list[Appointment]:
         return list(

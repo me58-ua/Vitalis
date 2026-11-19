@@ -3,7 +3,8 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Appointment, HealthDocument, PatientProfile
+from app.models import HealthDocument, PatientProfile
+from app.repositories.appointment_repository import latest_health_sharing
 
 
 class HealthDocumentRepository:
@@ -38,12 +39,9 @@ class HealthDocumentRepository:
         )
 
     def search_for_professional(self, professional_id, query, document_type, offset, limit):
-        shared_appointment = select(Appointment.id).where(
-            Appointment.patient_id == PatientProfile.user_id,
-            Appointment.professional_id == professional_id,
-        ).exists()
         return self._search(
-            PatientProfile.share_health_data.is_(True) & shared_appointment,
+            PatientProfile.share_health_data.is_(True)
+            & (latest_health_sharing(PatientProfile.user_id, professional_id) == "full"),
             query, document_type, offset, limit,
         )
 

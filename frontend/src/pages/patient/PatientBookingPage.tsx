@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { bookPatientAppointment, bookingError, getBookingAvailability, getBookingProfessional, type BookingProfessional, type BookingSlot } from '../../api/patientBooking';
 import { appointmentTypes } from '../../components/AppointmentSummary';
+import { getPatientProfile } from '../../api/patient';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { addDays, clock, dayLabel, madridDay, mondayOf } from '../../utils/agenda';
 import { doctorSelectionPath } from './DoctorSelectionPage';
@@ -30,6 +31,8 @@ function BookingForm({ professional, initialType }: { professional: BookingProfe
   const [slot, setSlot] = useState<BookingSlot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [sharing, setSharing] = useState<'none' | 'basic' | 'full'>('none');
+  const profile = useAdminQuery(getPatientProfile);
   const submitting = useRef(false);
   const navigate = useNavigate();
   const canBook = professional.is_accepting_new_patients && (type === 'in_person' || professional.telehealth_enabled);
@@ -67,6 +70,7 @@ function BookingForm({ professional, initialType }: { professional: BookingProfe
       await bookPatientAppointment({
         professional_id: professional.id, type: selected.type, start_time: selected.start_time,
         end_time: selected.end_time, appointment_reason: reason || null,
+        health_sharing: sharing,
       });
       navigate('/patientPanel/misCitas', { replace: true, state: { appointmentBooked: true } });
     } catch (failure) {
@@ -128,6 +132,14 @@ function BookingForm({ professional, initialType }: { professional: BookingProfe
         <div><dt>Modalidad</dt><dd>{appointmentTypes[type]}</dd></div>
       </dl>
       <label>Motivo de consulta (opcional)<textarea name="reason" rows={3} disabled={busy || !canBook} /></label>
+      <fieldset className="booking-modalities" disabled={busy || !canBook}>
+        <legend>Datos de salud que compartirás con este profesional</legend>
+        <label><input type="radio" name="health_sharing" value="none" checked={sharing === 'none'} onChange={() => setSharing('none')} /> No compartir mi perfil de salud</label>
+        <label><input type="radio" name="health_sharing" value="basic" checked={sharing === 'basic'} onChange={() => setSharing('basic')} /> Datos básicos (género, edad, altura, peso y hábitos)</label>
+        <label><input type="radio" name="health_sharing" value="full" checked={sharing === 'full'} onChange={() => setSharing('full')} /> Perfil completo (incluye medicación, antecedentes familiares, documentos y evaluaciones disponibles)</label>
+      </fieldset>
+      {profile.data && !profile.data.share_health_data && <p>Tu consentimiento general está desactivado. La opción quedará guardada y se aplicará cuando lo actives.</p>}
+      <p>Puedes gestionar el consentimiento general en <Link to="/patientPanel/perfilSalud">Mi perfil de salud</Link>. Tu elección sustituye la anterior para este profesional.</p>
       {error && <p className="error-state" role="alert">{error}</p>}
       <button className="button primary" type="submit" disabled={busy || !canBook || !selected}>{busy ? 'Reservando…' : 'Confirmar cita'}</button>
     </section>

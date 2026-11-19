@@ -26,11 +26,11 @@ export function MyPatientsPage() {
           <button className="button secondary" type="button" onClick={() => { setSearch(''); setSize(20); setQuery({ search: '', page: 1, size: 20 }); }}>Limpiar</button>
         </form>
       </details>
-      <section className="patients-total" aria-label="Resumen"><h2>Pacientes asignados</h2>{summary.loading ? <p role="status">Cargando…</p> : summary.error ? <><p role="alert">No se pudo cargar el resumen.</p><button onClick={summary.retry}>Reintentar</button></> : <p>{summary.data?.assigned_patients}</p>}</section>
+      <section className="patients-total" aria-label="Resumen"><h2>Pacientes vinculados</h2>{summary.loading ? <p role="status">Cargando…</p> : summary.error ? <><p role="alert">No se pudo cargar el resumen.</p><button onClick={summary.retry}>Reintentar</button></> : <p>{summary.data?.assigned_patients}</p>}</section>
     </aside><section aria-label="Listado de pacientes" aria-busy={patients.loading}>
       {patients.loading && <p role="status">Cargando pacientes…</p>}
       {patients.error && <div role="alert" className="error-state"><p>{patients.error}</p><button onClick={patients.retry}>Reintentar</button></div>}
-      {patients.data && <>{patients.data.patients.length === 0 ? <p className="patients-empty">{query.search ? 'No hay pacientes que coincidan con la búsqueda.' : 'Todavía no tienes pacientes asignados.'}</p> : <>
+      {patients.data && <>{patients.data.patients.length === 0 ? <p className="patients-empty">{query.search ? 'No hay pacientes que coincidan con la búsqueda.' : 'Todavía no tienes pacientes vinculados.'}</p> : <>
         <div className="patients-columns" aria-hidden="true"><span>Nombre y usuario</span><span>Contacto</span><span>Acciones</span></div>
         <ul className="patients-list">{patients.data.patients.map(patient => <li key={patient.id}>
           <div className="patients-identity"><span className="patients-avatar" aria-hidden="true">{patient.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0)).join('').toLocaleUpperCase('es')}</span><div><strong>{patient.name}</strong><small>@{patient.username}</small></div></div>

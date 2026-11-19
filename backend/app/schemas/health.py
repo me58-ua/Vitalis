@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
@@ -128,6 +129,11 @@ class FamilyHistoryResponse(FamilyHistoryCreate):
 class HealthSnapshot(BaseModel):
     family_history_status: FamilyHistoryStatus = FamilyHistoryStatus.NOT_COLLECTED
     consent_shared: bool
+    sharing_scope: Literal["none", "basic", "full"] = "none"
+    age: int | None = None
+    gender: str | None = None
+    profile_id: UUID | None = None
+    blood_type: str | None = None
     message_code: str | None = None
     height_cm: float | None = None
     weight_kg: float | None = None

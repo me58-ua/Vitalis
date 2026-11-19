@@ -7,7 +7,7 @@ export async function checkPatientHealthProfile({ fixture, evaluate, click, fill
   assert.equal(await evaluate(`document.querySelectorAll('.health-section button, .health-section input, .health-section select').length`), 0);
   assert.equal(await evaluate(`document.querySelector('#health-biometrics').textContent.includes('178')`), true);
   assert.equal(await evaluate(`document.querySelector('#health-biometrics').textContent.includes('Grupo sanguíneo')`), false);
-  assert.equal(await evaluate(`document.querySelector('.health-profile-main').textContent.includes('Presión Arterial') || document.querySelector('.health-profile-main').textContent.includes('Descargar Expediente') || document.querySelector('.health-profile-main').textContent.includes('Compartir')`), false);
+  assert.equal(await evaluate(`document.querySelector('.health-profile-main').textContent.includes('Presión Arterial') || document.querySelector('.health-profile-main').textContent.includes('Descargar Expediente')`), false);
   await until(`Array.from(document.images).every(img => img.complete && img.naturalWidth > 0)`);
   results.push({ check: 'saved profile is read-only: no per-section edit/add controls, existing measurements and unknown values rendered correctly', assets: await checkGeometry() });
   await screenshot('patient-health-profile-desktop');
@@ -17,6 +17,13 @@ export async function checkPatientHealthProfile({ fixture, evaluate, click, fill
   fixture.state.omitAppointmentFollowUps = false;
   await reloadUntil(`document.querySelector('#health-appointment-follow-ups .health-empty')?.textContent.includes('Aún no hay')`);
   results.push({ check: 'profile still renders when the API omits appointment follow-ups' });
+  await click('.health-consent:last-of-type button');
+  await until(`document.querySelector('.health-consent:last-of-type button')?.textContent.includes('Revocar consentimiento')`);
+  assert.equal(fixture.state.shareHealthData, true);
+  await click('.health-consent:last-of-type button');
+  await until(`document.querySelector('.health-consent:last-of-type button')?.textContent.includes('Activar consentimiento')`);
+  assert.equal(fixture.state.shareHealthData, false);
+  results.push({ check: 'patient can activate and revoke global profile sharing from the health profile' });
   const clinical = () => JSON.stringify({ profile: fixture.state.healthProfile.profile, allergies: fixture.state.healthProfile.allergies, medications: fixture.state.healthProfile.medications, conditions: fixture.state.healthProfile.chronic_conditions, family: fixture.state.healthProfile.family_history_entries, habits: fixture.state.healthProfile.habit_logs, alcohol: fixture.state.healthProfile.alcohol_logs });
   const before = clinical();
   const saves = fixture.state.onboardingSaves;

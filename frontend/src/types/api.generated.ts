@@ -3007,6 +3007,20 @@ export interface components {
             family_history_status: components["schemas"]["FamilyHistoryStatus"];
             /** Consent Shared */
             consent_shared: boolean;
+            /**
+             * Sharing Scope
+             * @default none
+             * @enum {string}
+             */
+            sharing_scope: "none" | "basic" | "full";
+            /** Age */
+            age?: number | null;
+            /** Gender */
+            gender?: string | null;
+            /** Profile Id */
+            profile_id?: string | null;
+            /** Blood Type */
+            blood_type?: string | null;
             /** Message Code */
             message_code?: string | null;
             /** Height Cm */
@@ -3222,6 +3236,12 @@ export interface components {
              */
             end_time: string;
             type: components["schemas"]["AppointmentType"];
+            /**
+             * Health Sharing
+             * @default none
+             * @enum {string}
+             */
+            health_sharing: "none" | "basic" | "full";
             /** Appointment Reason */
             appointment_reason?: string | null;
         };

@@ -23,6 +23,11 @@ class ProfessionalRiskAccessTests(unittest.TestCase):
             lambda patient_id, professional_id:
             patient_id == self.profile.user_id and professional_id == self.professional.id
         )
+        self.appointments.health_sharing_scope.side_effect = (
+            lambda profile, professional_id: "full"
+            if profile.share_health_data and self.appointments.has_shared_appointment(profile.user_id, professional_id)
+            else "none"
+        )
         self.snapshots = Mock()
         self.snapshots.list_history.return_value = ([], None)
         self.risk = Mock()
@@ -47,18 +52,14 @@ class ProfessionalRiskAccessTests(unittest.TestCase):
     def test_summary_checks_user_id_and_queries_risk_by_profile_id(self):
         self.assertEqual(len(self.summary()["results"]), 1)
         self.profiles.session.get.assert_called_once_with(PatientProfile, self.profile.id)
-        self.appointments.has_shared_appointment.assert_called_once_with(
-            self.profile.user_id, self.professional.id
-        )
+        self.appointments.health_sharing_scope.assert_called_once_with(self.profile, self.professional.id)
         self.risk.evaluate.assert_called_once_with(self.profile.id)
         self.snapshots.list_history.assert_called_once_with(self.profile.id, "bmi", limit=100)
 
     def test_history_checks_user_id_and_queries_snapshots_by_profile_id(self):
         self.assertEqual(self.history()["snapshots"], [])
         self.profiles.session.get.assert_called_once_with(PatientProfile, self.profile.id)
-        self.appointments.has_shared_appointment.assert_called_once_with(
-            self.profile.user_id, self.professional.id
-        )
+        self.appointments.health_sharing_scope.assert_called_once_with(self.profile, self.professional.id)
         self.snapshots.list_history.assert_any_call(
             self.profile.id, "bmi", None, None, None, 50
         )
@@ -75,6 +76,16 @@ class ProfessionalRiskAccessTests(unittest.TestCase):
 
     def test_professional_without_health_sharing_is_rejected(self):
         self.profile.share_health_data = False
+        with self.assertRaises(RiskSummaryAccessError):
+            self.summary()
+        with self.assertRaises(RiskHistoryAccessError):
+            self.history()
+        self.risk.evaluate.assert_not_called()
+        self.snapshots.list_history.assert_not_called()
+
+    def test_basic_sharing_does_not_grant_risk_access(self):
+        self.appointments.health_sharing_scope.side_effect = None
+        self.appointments.health_sharing_scope.return_value = "basic"
         with self.assertRaises(RiskSummaryAccessError):
             self.summary()
         with self.assertRaises(RiskHistoryAccessError):

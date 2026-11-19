@@ -13,6 +13,7 @@ export function healthProfileFixture(path, method, raw, state, send) {
     declarations: { chronic_conditions: 'none', sleep: 'unknown' }, onboarding_stage: 'completed',
   };
   data.onboarding_stage = state.onboarding?.stage ?? data.onboarding_stage;
+  data.profile.share_health_data = Boolean(state.shareHealthData);
   send(200, { ...data, appointment_follow_ups: state.omitAppointmentFollowUps ? undefined : state.followUpPublic ? [state.followUpPublic] : [] });
   return true;
 }

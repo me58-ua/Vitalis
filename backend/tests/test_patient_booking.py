@@ -99,12 +99,14 @@ class PatientBookingTests(unittest.TestCase):
             start_time=start,
             end_time=start + timedelta(minutes=30),
             type=AppointmentType.VIDEO,
+            health_sharing="basic",
         )
         appointment = self.service.create_for_patient(
             SimpleNamespace(id=self.patient_id, role=UserRole.PATIENT), data
         )
         self.assertEqual(appointment.patient_id, self.patient_id)
         self.assertEqual(appointment.status, AppointmentStatus.CONFIRMED)
+        self.assertEqual(appointment.health_sharing, "basic")
         self.assertEqual(len(self.appointments.created), 1)
 
     def test_each_modality_uses_only_its_own_schedule(self):

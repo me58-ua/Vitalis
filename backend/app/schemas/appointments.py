@@ -241,6 +241,7 @@ class PatientAppointmentCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     type: AppointmentType
+    health_sharing: Literal["none", "basic", "full"] = "none"
     appointment_reason: str | None = Field(default=None, validation_alias=AliasChoices("appointment_reason", "reason"))
 
     @model_validator(mode="after")

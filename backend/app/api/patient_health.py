@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.api.deps import (
     get_appointment_repository,
@@ -102,6 +102,7 @@ def list_my_family_history(current_user: CurrentPatient, profiles: Profiles, ent
 @router.get("/professionals/patients/{patient_id}/health-snapshot", response_model=HealthSnapshot)
 def patient_health_snapshot(
     patient_id: UUID,
+    response: Response,
     current_user: CurrentProfessional,
     profiles: Profiles,
     appointments: Appointments,
@@ -109,6 +110,7 @@ def patient_health_snapshot(
     audits: Audits,
     documents: HealthDocuments,
 ):
+    response.headers["Cache-Control"] = "no-store"
     if not appointments.has_shared_appointment(patient_id, current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NO_SHARED_APPOINTMENT")
     return PatientHealthService(

@@ -56,10 +56,8 @@ class HabitService:
         profile = self.profiles.get_patient(patient_id)
         if profile is None:
             raise HabitValidationError("Patient profile not found")
-        if not profile.share_health_data:
+        if self.appointments.health_sharing_scope(profile, professional_id) not in ("basic", "full"):
             raise HabitAccessError("The patient has not shared health data")
-        if not self.appointments.has_shared_appointment(patient_id, professional_id):
-            raise HabitAccessError("No shared appointment with this patient")
         return self._list(profile.id, habit_type, search, start_date, end_date, page, page_size)
 
     def _list(self, patient_id, habit_type, search, start_date, end_date, page, page_size):

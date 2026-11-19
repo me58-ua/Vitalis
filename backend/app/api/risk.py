@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.api.deps import (
     DbSession, get_appointment_repository, get_audit_repository,
@@ -66,6 +66,7 @@ def patient_risk_history(
 @router.get("/professionals/patients/{patient_id}/risk-history", response_model=RiskHistoryResponse)
 def professional_risk_history(
     patient_id: UUID,
+    response: Response,
     current_user: CurrentProfessional,
     db: DbSession,
     profiles: Profiles,
@@ -77,6 +78,7 @@ def professional_risk_history(
     cursor: str | None = None,
     limit: int = Query(default=50, ge=1, le=100),
 ):
+    response.headers["Cache-Control"] = "no-store"
     return _history(patient_id, current_user, db, profiles, appointments, audits, model, from_date, to_date, cursor, limit)
 
 
@@ -106,6 +108,7 @@ def patient_risk_summary(
 @router.get("/professionals/patients/{patient_id}/risk-summary", response_model=RiskSummaryResponse)
 def professional_risk_summary(
     patient_id: UUID,
+    response: Response,
     current_user: CurrentProfessional,
     db: DbSession,
     profiles: Profiles,
@@ -113,4 +116,5 @@ def professional_risk_summary(
     audits: Audits,
     notifications: Notifications,
 ):
+    response.headers["Cache-Control"] = "no-store"
     return _summary(patient_id, current_user, db, profiles, appointments, audits, notifications)

@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.api.deps import (
     get_appointment_repository,
@@ -82,12 +82,14 @@ def list_my_alcohol_logs(
 def list_patient_habits(
     professional_id: UUID,
     patient_id: UUID,
+    response: Response,
     current_user: CurrentProfessional,
     profiles: Profiles,
     appointments: Appointments,
     db: DbSession,
     params: tuple = Depends(_query_params),
 ):
+    response.headers["Cache-Control"] = "no-store"
     if professional_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PROFESSIONAL_IDENTITY_MISMATCH")
     try:

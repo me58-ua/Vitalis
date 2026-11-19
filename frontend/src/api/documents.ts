@@ -12,10 +12,19 @@ export async function searchDocuments(q: string, tipo: DocumentType | '', page: 
   return data;
 }
 
-export async function downloadDocument(document: DocumentItem, role: 'patient' | 'professional', userId: string, signal: AbortSignal) {
+export async function downloadDocument(document: Pick<DocumentItem, 'id' | 'patient_user_id'>, role: 'patient' | 'professional', userId: string, signal: AbortSignal) {
   const path = role === 'patient'
     ? `/patients/me/health/documents/${encodeURIComponent(document.id)}`
     : `/professionals/${encodeURIComponent(userId)}/patients/${encodeURIComponent(document.patient_user_id)}/health/documents/${encodeURIComponent(document.id)}`;
   const { data } = await api.get<Blob>(path, { responseType: 'blob', signal });
-  return data;
+  if (signal.aborted) return;
+  const url = URL.createObjectURL(data);
+  const link = window.document.createElement('a');
+  const extension = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' }[data.type] ?? 'bin';
+  link.href = url;
+  link.download = `documento-${document.id}.${extension}`;
+  window.document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

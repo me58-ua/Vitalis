@@ -33,8 +33,8 @@ class FakeAppointments:
     def __init__(self, shared=True):
         self.shared = shared
 
-    def has_shared_appointment(self, patient_id, professional_id):
-        return self.shared
+    def health_sharing_scope(self, profile, professional_id):
+        return "full" if self.shared and profile.share_health_data else "none"
 
 
 class HabitServiceTests(unittest.TestCase):

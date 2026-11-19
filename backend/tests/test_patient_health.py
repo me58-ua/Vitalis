@@ -28,11 +28,18 @@ class FakeProfiles:
     def get_patient(self, user_id):
         return self.profile
 
+    def get_patient_user(self, user_id):
+        return None
+
+    def list_habit_logs(self, profile_id):
+        return [{"habit_type": "ejercicio"}]
+
     def get_professional(self, user_id):
         return getattr(self, "professional_profile", None)
 
 
 class FakeHistoryAppointments:
+    choice = "full"
     def __init__(self, appointments, notes):
         self.appointments = appointments
         self.notes = notes
@@ -41,6 +48,9 @@ class FakeHistoryAppointments:
     def has_shared_appointment(self, patient_id, professional_id):
         self.calls.append(("shared", patient_id, professional_id))
         return True
+
+    def health_sharing_scope(self, profile, professional_id):
+        return self.choice if profile.share_health_data else "none"
 
     def list_patient_history(self, patient_id, professional_id):
         self.calls.append(("appointments", patient_id, professional_id))
@@ -243,6 +253,27 @@ class PatientHealthTests(unittest.TestCase):
         self.assertEqual(result["prescriptions"], ["prescription"])
         self.assertNotIn("allergies", result)
         self.assertNotIn("health_documents", result)
+
+    def test_basic_snapshot_only_includes_basic_data_and_appointment_history(self):
+        profile = SimpleNamespace(
+            id=uuid.uuid4(), user_id=uuid.uuid4(), share_health_data=True, height_cm=170, weight_kg=70,
+        )
+        repository = FakeProfiles(profile)
+        repository.professional_profile = SimpleNamespace(id=uuid.uuid4(), user_id=uuid.uuid4())
+        appointments = FakeHistoryAppointments(["appointment"], ["note"])
+        appointments.choice = "basic"
+        documents = Mock()
+        service = PatientHealthService(
+            repository, appointments, FakeHistoryPrescriptions([]), health_documents=documents,
+        )
+        result = service.snapshot(profile, repository.professional_profile.user_id)
+        self.assertEqual(result["sharing_scope"], "basic")
+        self.assertEqual(result["height_cm"], 170)
+        self.assertEqual(result["habit_logs"], [{"habit_type": "ejercicio"}])
+        self.assertEqual(result["clinical_notes"], ["note"])
+        for field in ("allergies", "medications", "family_history_entries", "health_documents", "profile_id"):
+            self.assertNotIn(field, result)
+        documents.list_for_patient.assert_not_called()
 
     def test_professional_without_shared_appointment_cannot_access_history(self):
         patient_user_id = uuid.uuid4()

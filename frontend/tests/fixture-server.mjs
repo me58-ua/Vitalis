@@ -247,6 +247,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
           other_name: actor.role === 'patient' ? participants.professional.name : participants.patient.name, photo_url: null }));
       return send(200, { chats: rows, total: rows.length, page: 1, page_size: 20 });
     }
+    if (path === '/patients/me/consentimiento' && req.method === 'PATCH') {
+      state.shareHealthData = JSON.parse(raw).share_health_data;
+      return send(200, { share_health_data: state.shareHealthData });
+    }
+    if (path === '/patients/me/appointments' && req.method === 'POST') {
+      state.patientBooking = JSON.parse(raw);
+      return send(201, state.patientBooking);
+    }
     if (path === '/patients/me/appointments' && req.method === 'GET') {
       if ((demoLogin?.user ?? account).role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
       if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });

@@ -39,7 +39,7 @@ class RiskHistoryService:
         if not is_owner:
             if current_user.role != UserRole.PROFESSIONAL or self.appointments is None:
                 raise RiskHistoryAccessError("Not authorized to access risk history")
-            if not profile.share_health_data or not self.appointments.has_shared_appointment(profile.user_id, current_user.id):
+            if self.appointments.health_sharing_scope(profile, current_user.id) != "full":
                 raise RiskHistoryAccessError("Not authorized to access risk history")
             self.audit.record(
                 current_user.id, UserRole.PROFESSIONAL, AuditAction.READ,

@@ -60,7 +60,7 @@ class ProfessionalListingTests(unittest.TestCase):
         self.repository = FakeProfessionalRepository()
 
     def test_patient_list_is_paginated_and_contains_requested_safe_fields(self):
-        self.repository.patient_records = [(self.patient, self.patient_profile)]
+        self.repository.patient_records = [(self.patient, self.patient_profile, "full")]
         response = list_my_patients(
             self.professional,
             self.repository,
@@ -85,7 +85,7 @@ class ProfessionalListingTests(unittest.TestCase):
 
     def test_patient_summaries_respect_health_sharing_consent(self):
         self.patient_profile.share_health_data = False
-        self.repository.patient_records = [(self.patient, self.patient_profile)]
+        self.repository.patient_records = [(self.patient, self.patient_profile, "none")]
         response = list_my_patients(self.professional, self.repository, search=None, page=1, page_size=20)
         self.assertIsNone(response.patients[0].allergies_summary)
         self.assertIsNone(response.patients[0].chronic_conditions_summary)
@@ -93,7 +93,7 @@ class ProfessionalListingTests(unittest.TestCase):
     def test_patient_without_health_records_returns_null_summaries(self):
         self.patient_profile.allergies = []
         self.patient_profile.chronic_conditions = []
-        self.repository.patient_records = [(self.patient, self.patient_profile)]
+        self.repository.patient_records = [(self.patient, self.patient_profile, "full")]
         response = list_my_patients(self.professional, self.repository, search=None, page=1, page_size=20)
         self.assertIsNone(response.patients[0].allergies_summary)
         self.assertIsNone(response.patients[0].chronic_conditions_summary)

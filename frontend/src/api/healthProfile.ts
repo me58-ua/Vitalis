@@ -9,3 +9,7 @@ type HealthProfile = Omit<HealthProfileResponse, 'appointment_follow_ups'> & {
 export async function getHealthProfile(signal: AbortSignal) {
   return (await api.get<HealthProfile>('/patients/me/health-profile', { signal })).data;
 }
+
+export async function updateHealthSharingConsent(enabled: boolean, signal: AbortSignal) {
+  await api.patch('/patients/me/consentimiento', { share_health_data: enabled }, { signal });
+}

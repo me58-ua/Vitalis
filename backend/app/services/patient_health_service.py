@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.ai.onboarding.legacy_service import LegacyOnboardingMixin
 # Servicio de salud del paciente: historial autorizado y onboarding estructurado.
 
@@ -61,19 +63,35 @@ class PatientHealthService(LegacyOnboardingMixin):
         if professional_profile is None:
             raise PatientHistoryAccessError("Professional profile not found")
 
-        if profile.share_health_data:
-            records = self.profiles.list_health_records(profile.id)
+        scope = self.appointments.health_sharing_scope(profile, professional_id)
+        if scope != "none":
+            patient = self.profiles.get_patient_user(profile.user_id)
+            birth_date = getattr(profile, "birth_date", None) or getattr(patient, "birth_date", None)
+            today = date.today()
+            age = None
+            if birth_date is not None:
+                before_birthday = (today.month, today.day) < (birth_date.month, birth_date.day)
+                age = today.year - birth_date.year - before_birthday
             result = {
                 "consent_shared": True,
+                "sharing_scope": scope,
+                "age": age,
+                "gender": getattr(patient, "gender", None),
                 "height_cm": getattr(profile, "height_cm", None),
                 "weight_kg": getattr(profile, "weight_kg", None),
-                "sex_at_birth": getattr(profile, "sex_at_birth", None),
-                **records,
+                "sex_at_birth": getattr(profile, "sex_at_birth", None) if scope == "full" else None,
                 "alcohol_logs": self.profiles.list_alcohol_logs(profile.id)
                 if hasattr(self.profiles, "list_alcohol_logs") else [],
-                "family_history_entries": records.get("family_history_entries", []),
-                "family_history_status": family_history_status(profile, records.get('family_history_entries', [])),
             }
+            if scope == "basic":
+                result["habit_logs"] = self.profiles.list_habit_logs(profile.id)
+        else:
+            result = {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
+        if scope == "full":
+            records = self.profiles.list_health_records(profile.id)
+            result.update(records)
+            result.update(profile_id=profile.id, blood_type=getattr(profile, "blood_type", None))
+            result["family_history_status"] = family_history_status(profile, records.get("family_history_entries", []))
             if self.health_documents is not None:
                 result["health_documents"] = self.health_documents.list_for_patient(profile.id)
             self.audit.record(
@@ -84,8 +102,6 @@ class PatientHealthService(LegacyOnboardingMixin):
                 professional_id, UserRole.PROFESSIONAL, AuditAction.READ,
                 "family_history_entry", profile.id, profile.user_id,
             )
-        else:
-            result = {"consent_shared": False, "message_code": "HEALTH_DATA_NOT_SHARED"}
         result.update(
             appointments=self.appointments.list_patient_history(profile.user_id, professional_id),
             clinical_notes=self.appointments.list_patient_notes(profile.user_id, professional_id),

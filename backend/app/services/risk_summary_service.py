@@ -58,7 +58,7 @@ class RiskSummaryService:
                 profile.user_id, current_user.id
             ):
                 raise RiskSummaryAccessError("No shared appointment with this patient")
-            if not profile.share_health_data:
+            if self.appointments.health_sharing_scope(profile, current_user.id) != "full":
                 raise RiskSummaryAccessError("The patient has not shared health data")
             self.audit.record(
                 current_user.id, UserRole.PROFESSIONAL, AuditAction.READ,

@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.api.deps import (
@@ -46,6 +46,7 @@ def _service(documents, profiles, appointments, storage):
 
 @router.get("/health/documents/search", response_model=HealthDocumentSearchResponse)
 def search_health_documents(
+    response: Response,
     current_user: Annotated[User, Depends(get_current_user)],
     documents: Documents,
     profiles: Profiles,
@@ -57,6 +58,7 @@ def search_health_documents(
     page_size: int = Query(default=20, ge=1, le=100),
 ):
     """Search document descriptions/types; never file contents or storage paths."""
+    response.headers["Cache-Control"] = "no-store"
     try:
         return _service(documents, profiles, appointments, storage).search(
             current_user, q, tipo, page, page_size
@@ -107,7 +109,8 @@ def download_my_health_document(document_id: UUID, current_user: CurrentPatient,
 
 
 @router.get("/professionals/{professional_id}/patients/{patient_id}/health/documents", response_model=HealthDocumentListResponse)
-def list_patient_health_documents(professional_id: UUID, patient_id: UUID, current_user: CurrentProfessional, documents: Documents, profiles: Profiles, appointments: Appointments, storage: Storage):
+def list_patient_health_documents(professional_id: UUID, patient_id: UUID, current_user: CurrentProfessional, documents: Documents, profiles: Profiles, appointments: Appointments, storage: Storage, response: Response):
+    response.headers["Cache-Control"] = "no-store"
     if professional_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PROFESSIONAL_IDENTITY_MISMATCH")
     try:
@@ -127,7 +130,7 @@ def download_patient_health_document(professional_id: UUID, patient_id: UUID, do
         document, path = _service(documents, profiles, appointments, storage).download_for_professional(
             document_id, patient_id, current_user.id
         )
-        return FileResponse(path, filename=Path(document.file_url).name)
+        return FileResponse(path, filename=Path(document.file_url).name, headers={"Cache-Control": "no-store"})
     except HealthDocumentAccessError as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
     except HealthDocumentNotFoundError as error:

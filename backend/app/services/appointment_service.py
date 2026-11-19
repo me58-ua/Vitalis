@@ -141,6 +141,7 @@ class AppointmentService:
                 end_time=data.end_time,
                 type=data.type,
                 appointment_reason=data.appointment_reason,
+                health_sharing=data.health_sharing,
             )
         )
 

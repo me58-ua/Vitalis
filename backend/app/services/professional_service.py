@@ -35,16 +35,16 @@ class ProfessionalService:
                     id=user.id,
                     name=user.name,
                     username=user.username,
-                    gender=user.gender,
+                    gender=user.gender if scope in ("basic", "full") else None,
                     email=user.email,
                     tel=user.tel,
-                    blood_type=profile.blood_type,
+                    blood_type=profile.blood_type if scope == "full" else None,
                     allergies_summary=(", ".join(item.name for item in profile.allergies) or None)
-                    if profile.share_health_data else None,
+                    if scope == "full" else None,
                     chronic_conditions_summary=(", ".join(item.condition_name for item in profile.chronic_conditions) or None)
-                    if profile.share_health_data else None,
+                    if scope == "full" else None,
                 )
-                for user, profile in records
+                for user, profile, scope in records
             ],
             total=total,
             page=page,

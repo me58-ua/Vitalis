@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { getPatientHistory, getPatientPrescriptions, getPatientSnapshot } from '../api/professional';
+import { getPatientHistory, getPatientPrescriptions, getPatientSnapshot, getSharedPatientRisks } from '../api/professional';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
@@ -8,7 +8,10 @@ import { Modal } from './Modal';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from './AppointmentSummary';
 import { PatientPages } from './PatientPages';
 import { PrescriptionAttachment, PrescriptionDownloadButton } from './PrescriptionAttachment';
-import type { ProfessionalHistoryPage, ProfessionalPatientPage } from '../types/api';
+import type { PatientHealthSnapshot, ProfessionalHistoryPage, ProfessionalPatientPage } from '../types/api';
+import { riskNames, riskValue } from './PatientRiskCards';
+import { familyConditionNames } from '../utils/familyHistory';
+import { downloadDocument } from '../api/documents';
 
 function recordError(error: unknown) {
   if (axios.isAxiosError<{ detail?: unknown }>(error)) {
@@ -21,6 +24,85 @@ function recordError(error: unknown) {
 }
 function Feedback({ loading, error, retry }: { loading: boolean; error: string; retry: () => void }) {
   return <>{loading && <p role="status">Cargando…</p>}{error && <div className="error-state" role="alert"><p>{error}</p><button type="button" onClick={retry}>Reintentar</button></div>}</>;
+}
+
+function SharedRisks({ profileId }: { profileId: string }) {
+  const load = useCallback((signal: AbortSignal) => getSharedPatientRisks(profileId, signal), [profileId]);
+  const state = useAdminQuery(load, professionalError);
+  return <div><h4>Evaluaciones de riesgo</h4><Feedback {...state} />
+    {state.data && (state.data.results.length ? <ul>{state.data.results.map(item => <li key={item.model}>
+      <strong>{riskNames[item.model] ?? item.model}</strong> · {riskValue(item.model, item.metric_value)}<p>{item.explanation}</p>
+    </li>)}</ul> : <p>No hay evaluaciones disponibles.</p>)}
+  </div>;
+}
+
+const habitNames: Record<string, string> = { tabaco: 'Tabaco', ejercicio: 'Actividad física', sueno: 'Sueño', dieta: 'Fruta y verdura' };
+
+function SharedDocuments({ documents, patientId, professionalId }: {
+  documents: NonNullable<PatientHealthSnapshot['health_documents']>;
+  patientId: string;
+  professionalId: string;
+}) {
+  const request = useRef<AbortController | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => () => request.current?.abort(), []);
+  async function download(id: string) {
+    if (request.current) return;
+    const abort = new AbortController();
+    request.current = abort;
+    setBusy(true);
+    setError('');
+    try {
+      await downloadDocument({ id, patient_user_id: patientId }, 'professional', professionalId, abort.signal);
+    } catch (failure: unknown) {
+      if (!abort.signal.aborted) setError(professionalError(failure));
+    } finally {
+      request.current = null;
+      if (!abort.signal.aborted) setBusy(false);
+    }
+  }
+  return <><h4>Documentos de salud</h4>
+    {error && <p role="alert">{error}</p>}
+    {documents.length ? <ul>{documents.map(item => <li key={item.id}>
+      {item.descripcion ?? item.tipo} · <button type="button" className="text-button" disabled={busy} onClick={() => { void download(item.id); }}>Descargar</button>
+    </li>)}</ul> : <p>Sin documentos.</p>}
+  </>;
+}
+
+function SharedHealthData({ data, patientId, professionalId }: { data: PatientHealthSnapshot; patientId: string; professionalId: string }) {
+  if (!data.consent_shared || !data.sharing_scope || data.sharing_scope === 'none') return <p>El paciente no comparte sus datos de salud.</p>;
+  const full = data.sharing_scope === 'full';
+  return <>
+    <p>{full ? 'Perfil completo' : 'Datos básicos'}</p>
+    <dl className="record-health">
+      <dt>Edad</dt><dd>{data.age == null ? 'Sin registrar' : `${data.age} años`}</dd>
+      <dt>Género</dt><dd>{data.gender ?? 'Sin registrar'}</dd>
+      <dt>Altura</dt><dd>{data.height_cm == null ? 'Sin registrar' : `${data.height_cm} cm`}</dd>
+      <dt>Peso</dt><dd>{data.weight_kg == null ? 'Sin registrar' : `${data.weight_kg} kg`}</dd>
+      {full && <>
+        <dt>Sexo al nacer</dt><dd>{data.sex_at_birth ?? 'Sin registrar'}</dd>
+        <dt>Grupo sanguíneo</dt><dd>{data.blood_type ?? 'Sin registrar'}</dd>
+        <dt>Alergias</dt><dd>{data.allergies?.map(item => `${item.name} (${item.severity})`).join(', ') || 'Sin registros'}</dd>
+        <dt>Condiciones crónicas</dt><dd>{data.chronic_conditions?.map(item => item.condition_name).join(', ') || 'Sin registros'}</dd>
+        <dt>Medicación</dt><dd>{data.medications?.map(item => `${item.name}: ${item.dosage}, ${item.frequency}`).join('; ') || 'Sin registros'}</dd>
+        <dt>Antecedentes familiares</dt><dd>{data.family_history_entries?.map(item => [
+          item.relative_detail || item.relationship, familyConditionNames[item.condition_category] ?? item.condition_category, item.detail,
+          item.age_at_diagnosis == null ? null : `diagnóstico a los ${item.age_at_diagnosis} años`, item.notes,
+        ].filter(Boolean).join(' · ')).join('; ') || 'Sin registros'}</dd>
+      </>}
+    </dl>
+    <h4>Hábitos registrados</h4>
+    {data.habit_logs?.length ? <ul>{data.habit_logs.map(item => <li key={item.id}>
+      {habitNames[item.habit_type] ?? item.habit_type} · {item.value == null ? 'Sin valor' : `${item.value} ${item.unit ?? ''}`} · {item.date.split('-').reverse().join('/')}
+    </li>)}</ul> : <p>Sin registros.</p>}
+    <h4>Consumo de alcohol</h4>
+    {data.alcohol_logs?.length ? <ul>{data.alcohol_logs.map(item => <li key={item.id}>
+      {item.date.split('-').reverse().join('/')} · {['Nunca', 'Mensualmente o menos', 'De 2 a 4 veces al mes', 'De 2 a 3 veces a la semana', '4 o más veces a la semana'][item.frequency ?? -1] ?? 'Frecuencia sin registrar'}
+    </li>)}</ul> : <p>Sin registros.</p>}
+    {full && <SharedDocuments documents={data.health_documents ?? []} patientId={patientId} professionalId={professionalId} />}
+    {full && data.profile_id && <SharedRisks profileId={data.profile_id} />}
+  </>;
 }
 
 export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatientPage['patients'][number]; onClose: () => void }) {
@@ -54,7 +136,7 @@ export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatie
       </section>
       {appointment && <PrescriptionAttachment focusRequest={prescriptionFocus} key={appointment.id} professionalId={professionalId} appointment={appointment} onBusy={setBusy} onSaved={() => { recipes.retry(); health.retry(); }} onCancel={() => { setAppointment(null); selectionButton.current?.focus(); }} />}
       <section><h3>Recetas de este profesional</h3><Feedback {...recipes} />{recipes.data && <>{recipes.data.prescriptions.length === 0 && <p>No hay recetas para este paciente.</p>}<ul className="record-list">{recipes.data.prescriptions.map(item => <li key={item.id}><strong>Receta adjuntada el {appointmentDate(item.created_at)}</strong><p>{item.notas || 'Sin notas adicionales'}</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={item.appointment_id} /></li>)}</ul><PatientPages page={recipes.data.page} size={recipes.data.page_size} total={recipes.data.total} onPage={setRecipePage} /></>}</section>
-      <section><h3>Resumen de salud compartido</h3><Feedback {...health} />{health.data && (!health.data.consent_shared ? <p>El paciente no comparte sus datos de salud.</p> : <dl className="record-health"><dt>Altura</dt><dd>{health.data.height_cm == null ? 'No indicada' : `${health.data.height_cm} cm`}</dd><dt>Peso</dt><dd>{health.data.weight_kg == null ? 'No indicado' : `${health.data.weight_kg} kg`}</dd><dt>Alergias registradas</dt><dd>{health.data.allergies.length ? health.data.allergies.map(item => item.name).join(', ') : 'Sin registros'}</dd><dt>Medicamentos registrados</dt><dd>{health.data.medications.length ? health.data.medications.map(item => `${item.name}: ${item.dosage}, ${item.frequency}`).join('; ') : 'Sin registros'}</dd></dl>)}</section>
+      <section><h3>Resumen de salud compartido</h3><Feedback {...health} />{health.data && <SharedHealthData data={health.data} patientId={patient.id} professionalId={professionalId} />}</section>
     </div>
   </Modal>;
 }

@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
+    Appointment,
     PatientProfile,
     ProfessionalApprovalStatus,
     ProfessionalPatient,
@@ -12,6 +13,7 @@ from app.models import (
     UserRole,
 )
 from app.models.professional_schedule import ProfessionalSchedule
+from app.repositories.appointment_repository import latest_health_sharing
 
 
 class ProfessionalRepository:
@@ -24,12 +26,16 @@ class ProfessionalRepository:
         search: str | None,
         offset: int,
         limit: int,
-    ) -> tuple[list[tuple[User, PatientProfile]], int]:
-        filters = [
+    ) -> tuple[list[tuple[User, PatientProfile, str | None]], int]:
+        assigned = select(ProfessionalPatient.patient_id).where(
             ProfessionalPatient.professional_id == professional_id,
-            User.id == ProfessionalPatient.patient_id,
-            User.role == UserRole.PATIENT,
-        ]
+            ProfessionalPatient.patient_id == User.id,
+        ).exists()
+        has_appointment = select(Appointment.id).where(
+            Appointment.professional_id == professional_id,
+            Appointment.patient_id == User.id,
+        ).exists()
+        filters = [User.role == UserRole.PATIENT, or_(assigned, has_appointment)]
         if search:
             search_pattern = f"%{search}%"
             filters.append(
@@ -39,9 +45,12 @@ class ProfessionalRepository:
                     User.username.ilike(search_pattern),
                 )
             )
+        scope = case(
+            (PatientProfile.share_health_data.is_(True), latest_health_sharing(User.id, professional_id)),
+            else_="none",
+        )
         query = (
-            select(User, PatientProfile)
-            .join(ProfessionalPatient, ProfessionalPatient.patient_id == User.id)
+            select(User, PatientProfile, scope)
             .join(PatientProfile, PatientProfile.user_id == User.id)
             .options(selectinload(PatientProfile.allergies), selectinload(PatientProfile.chronic_conditions))
             .where(*filters)
@@ -52,7 +61,7 @@ class ProfessionalRepository:
         count_query = (
             select(func.count())
             .select_from(User)
-            .join(ProfessionalPatient, ProfessionalPatient.patient_id == User.id)
+            .join(PatientProfile, PatientProfile.user_id == User.id)
             .where(*filters)
         )
         return list(self.session.execute(query).all()), self.session.scalar(count_query) or 0

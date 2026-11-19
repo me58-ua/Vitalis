@@ -27,6 +27,7 @@ class Appointment(Base):
     __tablename__ = "appointments"
     __table_args__ = (
         CheckConstraint("end_time > start_time", name="valid_time_range"),
+        CheckConstraint("health_sharing IN ('none', 'basic', 'full')", name="valid_appointment_health_sharing"),
         ExcludeConstraint(
             ("professional_id", "="),
             (literal_column("tstzrange(start_time, end_time)"), "&&"),
@@ -70,6 +71,7 @@ class Appointment(Base):
         server_default="video",
     )
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    health_sharing: Mapped[str | None] = mapped_column(String(5), nullable=True)
     # Keep the existing database column and its data; expose an unambiguous name.
     appointment_reason = synonym("reason")
     status_history = relationship(

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PatientDashboardLayout } from '../../layouts/PatientDashboardLayout';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
-import { getHealthProfile } from '../../api/healthProfile';
+import { getHealthProfile, updateHealthSharingConsent } from '../../api/healthProfile';
+import { errorMessage } from '../../api/errors';
 import { patientAppointmentPath } from '../../api/appointmentFollowUp';
 import { AppointmentPrescriptionDownload, SharedAppointmentNotes } from './PatientAppointmentDetailPage';
 import { restartOnboarding, onboardingError } from '../../api/onboarding';
@@ -29,8 +30,32 @@ export function PatientHealthProfilePage() {
   const state = useAdminQuery(getHealthProfile);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
+  const [sharingBusy, setSharingBusy] = useState(false);
+  const [sharingError, setSharingError] = useState('');
+  const [sharingNotice, setSharingNotice] = useState('');
+  const sharingRequest = useRef<AbortController | null>(null);
   const flight = useRef<AbortController | null>(null);
-  useEffect(() => () => flight.current?.abort(), []);
+  useEffect(() => () => { flight.current?.abort(); sharingRequest.current?.abort(); }, []);
+  async function changeSharingConsent(enabled: boolean) {
+    if (sharingRequest.current) return;
+    const abort = new AbortController();
+    sharingRequest.current = abort;
+    setSharingBusy(true);
+    setSharingError('');
+    setSharingNotice('');
+    try {
+      await updateHealthSharingConsent(enabled, abort.signal);
+      if (!abort.signal.aborted) {
+        state.retry();
+        setSharingNotice(enabled ? 'Consentimiento general activado.' : 'Consentimiento general revocado.');
+      }
+    } catch (failure: unknown) {
+      if (!abort.signal.aborted) setSharingError(errorMessage(failure));
+    } finally {
+      sharingRequest.current = null;
+      if (!abort.signal.aborted) setSharingBusy(false);
+    }
+  }
   async function openAssistant() {
     if (flight.current) return;
     const abort = new AbortController(); flight.current = abort; setStarting(true); setStartError('');
@@ -88,6 +113,16 @@ export function PatientHealthProfilePage() {
         </article>)}
       </Section>
       <section className="health-consent"><span className="health-section-icon"><img src={privacyIcon} alt="" /></span><div><h2>Tu consentimiento</h2><p>Procesamiento mediante IA: <strong>{profile.ai_processing_consent ? 'aceptado' : 'no aceptado'}</strong>.</p>{profile.ai_processing_consent_at && <p>Última decisión registrada: {patientDate(profile.ai_processing_consent_at, profile.timezone)}.</p>}</div></section>
+      <section className="health-consent"><span className="health-section-icon"><img src={privacyIcon} alt="" /></span><div>
+        <h2>Compartir mi perfil con profesionales</h2>
+        <p>Consentimiento general <strong>{profile.share_health_data ? 'activo' : 'desactivado'}</strong>.</p>
+        <p>Al revocarlo, se retira el acceso al perfil para todos los profesionales. Al volver a activarlo, se aplican tus elecciones de reserva guardadas. Los diagnósticos y las notas de las citas siguen en el historial.</p>
+        {sharingError && <p role="alert">{sharingError}</p>}
+        <button className="button secondary" disabled={sharingBusy} onClick={() => { void changeSharingConsent(!profile.share_health_data); }}>
+          {sharingBusy ? 'Guardando…' : profile.share_health_data ? 'Revocar consentimiento general' : 'Activar consentimiento general'}
+        </button>
+      </div></section>
     </>}
+    {sharingNotice && <p role="status">{sharingNotice}</p>}
   </main></PatientDashboardLayout>;
 }

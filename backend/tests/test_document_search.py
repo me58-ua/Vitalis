@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models import HealthDocument, HealthDocumentType, UserRole
 from app.repositories.health_document_repository import HealthDocumentRepository
+from app.repositories.appointment_repository import AppointmentRepository
 from app.services.health_document_service import (
     HealthDocumentAccessError, HealthDocumentService, HealthDocumentValidationError,
 )
@@ -21,7 +22,10 @@ class DocumentSearchTests(unittest.TestCase):
         self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
         with self.engine.begin() as connection:
             connection.exec_driver_sql("CREATE TABLE patient_profiles (id CHAR(32) PRIMARY KEY, user_id CHAR(32), share_health_data BOOLEAN)")
-            connection.exec_driver_sql("CREATE TABLE appointments (id CHAR(32) PRIMARY KEY, patient_id CHAR(32), professional_id CHAR(32))")
+            connection.exec_driver_sql(
+                "CREATE TABLE appointments (id CHAR(32) PRIMARY KEY, patient_id CHAR(32), "
+                "professional_id CHAR(32), health_sharing VARCHAR(5), created_at DATETIME)"
+            )
         HealthDocument.__table__.create(self.engine)
         self.db = Session(self.engine)
         self.addCleanup(self.engine.dispose)
@@ -47,9 +51,10 @@ class DocumentSearchTests(unittest.TestCase):
         self.db.flush()
         return document
 
-    def appointment(self, patient):
+    def appointment(self, patient, scope, created_at, professional=None):
         self.db.connection().exec_driver_sql(
-            "INSERT INTO appointments VALUES (?, ?, ?)", (uuid4().hex, patient.id.hex, self.professional.id.hex)
+            "INSERT INTO appointments VALUES (?, ?, ?, ?, ?)",
+            (uuid4().hex, patient.id.hex, (professional or self.professional).id.hex, scope, created_at),
         )
 
     def test_patient_search_is_case_insensitive_and_never_leaks_other_documents(self):
@@ -65,13 +70,25 @@ class DocumentSearchTests(unittest.TestCase):
         self.document(self.patient, "Informe")
         self.document(self.other, "Informe")
         self.assertEqual(self.service.search(self.professional, "Informe").total, 0)
-        self.appointment(self.patient)
-        self.appointment(self.patient)  # Multiple appointments cannot duplicate results.
+        self.appointment(self.patient, None, "2026-01-01")
+        self.assertEqual(self.service.search(self.professional, "Informe").total, 0)
+        self.appointment(self.patient, "full", "2026-01-02")
+        self.appointment(self.patient, None, "2026-01-03")
         self.assertEqual(self.service.search(self.professional, "Informe").total, 1)
+        self.appointment(self.patient, "basic", "2026-01-04")
+        other_professional = SimpleNamespace(id=uuid4(), role=UserRole.PROFESSIONAL)
+        self.appointment(self.patient, "full", "2026-01-05", other_professional)
+        self.assertEqual(self.service.search(self.professional, "Informe").total, 0)
+        self.assertEqual(self.service.search(other_professional, "Informe").total, 1)
+        profile = SimpleNamespace(user_id=self.patient.id, share_health_data=True)
+        appointments = AppointmentRepository(self.db)
+        self.assertEqual(appointments.health_sharing_scope(profile, self.professional.id), "basic")
+        self.appointment(self.patient, "none", "2026-01-06")
+        self.assertEqual(appointments.health_sharing_scope(profile, self.professional.id), "none")
         self.db.connection().exec_driver_sql(
             "UPDATE patient_profiles SET share_health_data = 0 WHERE user_id = ?", (self.patient.id.hex,)
         )
-        self.assertEqual(self.service.search(self.professional, "Informe").total, 0)
+        self.assertEqual(self.service.search(other_professional, "Informe").total, 0)
 
     def test_literal_wildcards_type_filter_pagination_and_null_description(self):
         self.document(self.patient, "Informe 100%")

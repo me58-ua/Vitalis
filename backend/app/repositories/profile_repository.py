@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     AlcoholLog, Allergy, ChronicCondition, FamilyHistoryEntry, HabitLog, Medication,
-    PatientProfile, ProfessionalProfile,
+    PatientProfile, ProfessionalProfile, User,
 )
 
 
@@ -15,6 +15,9 @@ class ProfileRepository:
 
     def get_patient(self, user_id: UUID) -> PatientProfile | None:
         return self.session.scalar(select(PatientProfile).where(PatientProfile.user_id == user_id))
+
+    def get_patient_user(self, user_id: UUID) -> User | None:
+        return self.session.get(User, user_id)
 
     def get_professional(self, user_id: UUID) -> ProfessionalProfile | None:
         return self.session.scalar(
@@ -41,7 +44,7 @@ class ProfileRepository:
             "allergies": list(self.session.scalars(select(Allergy).where(Allergy.patient_id == profile_id).order_by(Allergy.id))),
             "chronic_conditions": list(self.session.scalars(select(ChronicCondition).where(ChronicCondition.patient_id == profile_id).order_by(ChronicCondition.id))),
             "medications": list(self.session.scalars(select(Medication).where(Medication.patient_id == profile_id).order_by(Medication.id))),
-            "habit_logs": list(self.session.scalars(select(HabitLog).where(HabitLog.patient_id == profile_id).order_by(HabitLog.date, HabitLog.id))),
+            "habit_logs": self.list_habit_logs(profile_id),
             "family_history_entries": list(
                 self.session.scalars(
                     select(FamilyHistoryEntry)
@@ -50,6 +53,11 @@ class ProfileRepository:
                 )
             ),
         }
+
+    def list_habit_logs(self, profile_id):
+        return list(self.session.scalars(
+            select(HabitLog).where(HabitLog.patient_id == profile_id).order_by(HabitLog.date, HabitLog.id)
+        ))
 
     def get_health_record(self, model, profile_id, record_id):
         return self.session.scalar(select(model).where(model.patient_id == profile_id, model.id == record_id))
