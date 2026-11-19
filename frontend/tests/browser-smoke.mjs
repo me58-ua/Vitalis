@@ -268,7 +268,10 @@ try {
   await checkPatientPrescriptions({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
   await checkPatientOnboarding({ fixture, evaluate, click, fill, until, command, screenshot, checkGeometry, results, reloadUntil });
   if (process.env.VITALIS_PATIENT_ONLY !== '1') {
+  assert.equal(await evaluate(`document.querySelector('.patient-sidebar nav a[href="/"]')`), null);
   await click('.patient-brand');
+  await until(`location.pathname === '/patientPanel' && document.querySelector('.patient-dashboard-main') !== null`);
+  await command('Page.navigate', { url: testOrigin });
   await until(`document.querySelector('.signed-in-state') !== null`);
   results.push({ check: 'authenticated header geometry and local icons', assets: await checkGeometry() });
   await click('.notifications > button');
