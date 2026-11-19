@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { bookPatientAppointment, bookingError, getBookingAvailability, getBookingProfessional, type BookingProfessional, type BookingSlot } from '../../api/patientBooking';
 import { appointmentTypes } from '../../components/AppointmentSummary';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
@@ -8,6 +8,8 @@ import { doctorSelectionPath } from './DoctorSelectionPage';
 
 export function PatientBookingPage() {
   const { professionalId = '' } = useParams();
+  const [params] = useSearchParams();
+  const modality = params.get('modalidad');
   const load = useCallback((signal: AbortSignal) => getBookingProfessional(professionalId, signal), [professionalId]);
   const state = useAdminQuery(load);
 
@@ -16,15 +18,15 @@ export function PatientBookingPage() {
     <h1>Reserva tu cita</h1>
     {state.loading && <p role="status">Cargando profesional…</p>}
     {state.error && <div className="error-state" role="alert"><p>{state.error}</p><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}
-    {state.data && <BookingForm key={state.data.id} professional={state.data} />}
+    {state.data && <BookingForm key={`${state.data.id}/${modality}`} professional={state.data} initialType={modality === 'video' && state.data.telehealth_enabled ? 'video' : 'in_person'} />}
   </main>;
 }
 
-function BookingForm({ professional }: { professional: BookingProfessional }) {
+function BookingForm({ professional, initialType }: { professional: BookingProfessional; initialType: BookingSlot['type'] }) {
   const today = madridDay();
   const [day, setDay] = useState(today);
   const [month, setMonth] = useState(today.slice(0, 7) + '-01');
-  const [type, setType] = useState<BookingSlot['type']>('in_person');
+  const [type, setType] = useState(initialType);
   const [slot, setSlot] = useState<BookingSlot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

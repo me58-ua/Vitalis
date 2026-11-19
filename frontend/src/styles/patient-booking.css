@@ -17,9 +17,8 @@
 .booking-heading, .booking-pagination { justify-content: space-between; }
 .booking-search { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto; align-items: end; gap: 12px; margin: 24px 0; }
 .patient-booking label { display: grid; gap: 5px; font-weight: 600; }
-.patient-booking input[type="search"], .patient-booking textarea { min-width: 0; width: 100%; padding: 10px; border: 1px solid #c9d4e4; border-radius: 8px; background: #f6f8fd; font: inherit; }
+.patient-booking input[type="search"], .patient-booking select, .patient-booking textarea { min-width: 0; width: 100%; padding: 10px; border: 1px solid #c9d4e4; border-radius: 8px; background: #f6f8fd; font: inherit; }
 .patient-booking textarea { resize: vertical; }
-.patient-booking .booking-checkbox { display: flex; align-items: center; gap: 6px; min-height: 42px; }
 .booking-doctors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 0; list-style: none; }
 .booking-doctors > li { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; border-inline-start: 3px solid #08774f; }
 .booking-doctors .button { margin-top: auto; }

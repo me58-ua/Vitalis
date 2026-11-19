@@ -7,7 +7,8 @@ import '../../styles/patient-booking.css';
 export const doctorSelectionPath = '/patientPanel/equipoMedico';
 
 export function DoctorSelectionPage() {
-  const [query, setQuery] = useState<DirectoryQuery>({ page: 1, page_size: 12, is_accepting_new_patients: true });
+  const [query, setQuery] = useState<DirectoryQuery>({ page: 1, page_size: 12 });
+  const modality = query.appointment_type ?? '';
   const load = useCallback((signal: AbortSignal) => getBookingProfessionals(query, signal), [query]);
   const state = useAdminQuery(load);
   const result = state.data;
@@ -20,7 +21,6 @@ export function DoctorSelectionPage() {
       page: 1,
       name: String(fields.get('name') ?? '').trim() || undefined,
       specialty: String(fields.get('specialty') ?? '').trim() || undefined,
-      telehealth_enabled: fields.get('video') ? true : undefined,
     }));
   }
 
@@ -32,7 +32,18 @@ export function DoctorSelectionPage() {
     <form className="booking-panel booking-search" onSubmit={search} aria-label="Buscar profesionales">
       <label>Profesional<input name="name" type="search" maxLength={100} placeholder="Nombre del profesional" /></label>
       <label>Especialidad<input name="specialty" type="search" maxLength={150} placeholder="Nombre de la especialidad" /></label>
-      <label className="booking-checkbox"><input type="checkbox" name="video" /> Ofrece videoconsulta</label>
+      <label>Modalidad<select name="modality" value={modality} onChange={event => {
+        const value = event.currentTarget.value;
+        setQuery(previous => ({
+          ...previous,
+          page: 1,
+          appointment_type: value === 'in_person' || value === 'video' ? value : undefined,
+        }));
+      }}>
+        <option value="">Todas las modalidades</option>
+        <option value="in_person">Presencial</option>
+        <option value="video">Videoconsulta</option>
+      </select></label>
       <button className="button primary" type="submit">Buscar</button>
     </form>
     {state.loading && <p role="status">Buscando profesionales…</p>}
@@ -50,7 +61,9 @@ export function DoctorSelectionPage() {
             {professional.telehealth_enabled && <li>Videoconsulta</li>}
             {professional.languages?.map(language => <li key={language}>{language}</li>)}
           </ul>
-          <Link className="button primary" to={`${doctorSelectionPath}/${encodeURIComponent(professional.id)}/reservar`} aria-label={`Reservar cita con ${professional.name}`}>Reservar cita</Link>
+          {professional.is_accepting_new_patients
+            ? <Link className="button primary" to={`${doctorSelectionPath}/${encodeURIComponent(professional.id)}/reservar${modality ? `?modalidad=${modality}` : ''}`} aria-label={`Reservar cita con ${professional.name}`}>Reservar cita</Link>
+            : <p>No acepta nuevos pacientes.</p>}
         </li>)}
       </ul>
       {result.total > result.page_size && <nav className="booking-pagination" aria-label="Páginas de profesionales">

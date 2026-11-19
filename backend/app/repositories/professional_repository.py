@@ -11,6 +11,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.models.professional_schedule import ProfessionalSchedule
 
 
 class ProfessionalRepository:
@@ -64,6 +65,7 @@ class ProfessionalRepository:
         telehealth_enabled: bool | None,
         offset: int,
         limit: int,
+        appointment_type: str | None = None,
     ) -> tuple[list[tuple[User, ProfessionalProfile]], int]:
         filters = [User.role == UserRole.PROFESSIONAL, User.is_active.is_(True)]
         if name:
@@ -76,6 +78,18 @@ class ProfessionalRepository:
             )
         if telehealth_enabled is not None:
             filters.append(ProfessionalProfile.telehealth_enabled.is_(telehealth_enabled))
+        if appointment_type is not None:
+            filters.append(
+                select(ProfessionalSchedule.id)
+                .where(
+                    ProfessionalSchedule.professional_id == User.id,
+                    ProfessionalSchedule.channel == appointment_type,
+                    ProfessionalSchedule.is_active.is_(True),
+                )
+                .exists()
+            )
+        if appointment_type == "video":
+            filters.append(ProfessionalProfile.telehealth_enabled.is_(True))
         query = (
             select(User, ProfessionalProfile)
             .join(ProfessionalProfile, ProfessionalProfile.user_id == User.id)

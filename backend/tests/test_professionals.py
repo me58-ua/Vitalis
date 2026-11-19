@@ -108,6 +108,7 @@ class ProfessionalListingTests(unittest.TestCase):
             telehealth_enabled=True,
             page=3,
             page_size=10,
+            appointment_type="video",
         )
 
         self.assertEqual(response.total, 1)
@@ -118,6 +119,7 @@ class ProfessionalListingTests(unittest.TestCase):
         self.assertEqual(filters["specialty"], "Cardio")
         self.assertTrue(filters["is_accepting_new_patients"])
         self.assertTrue(filters["telehealth_enabled"])
+        self.assertEqual(filters["appointment_type"], "video")
         self.assertEqual(filters["offset"], 20)
         self.assertEqual(filters["limit"], 10)
 

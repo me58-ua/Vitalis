@@ -229,8 +229,24 @@ try {
   results.push({ check: 'patient login redirects to patientPanel' });
   await click('.patient-sidebar a[href="/patientPanel/misCitas"]');
   await until(`document.querySelector('.booking-entry-actions a[href="/patientPanel/equipoMedico"]') !== null`);
-  await click('.booking-entry-actions a[href="/patientPanel/equipoMedico"]');
-  await until(`document.querySelector('.booking-doctors li a') !== null`);
+  await click('.booking-entry-actions a[href="/patientPanel"]');
+  await until(`document.querySelector('.patient-sidebar a[href="/patientPanel/equipoMedico"]') !== null`);
+
+  {
+    fixture.state.testBookingDirectory = true;
+    const bookingLink = '.patient-sidebar a[href="/patientPanel/equipoMedico"]';
+    assert.equal(await evaluate(`document.querySelector(${JSON.stringify(bookingLink)}).nextElementSibling.textContent`), 'Mis citas');
+    await click(bookingLink);
+    await until(`document.querySelectorAll('.booking-doctors > li').length === 2`);
+    await evaluate(`(() => {
+      const select = document.querySelector('.booking-search select');
+      select.value = 'in_person';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await until(`document.querySelectorAll('.booking-doctors > li').length === 1`);
+    assert.equal(await evaluate(`new URL(document.querySelector('.booking-doctors li a').href).searchParams.get('modalidad')`), 'in_person');
+    fixture.state.testBookingDirectory = false;
+  }
   await click('.booking-doctors li a');
   await until(`document.querySelector('.booking-month-controls button:last-child:not([disabled])') !== null`);
   await click('.booking-month-controls button:last-child');

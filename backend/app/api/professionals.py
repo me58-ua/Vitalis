@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -164,6 +164,7 @@ def list_professionals(
     telehealth_enabled: bool | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    appointment_type: Literal["in_person", "video"] | None = None,
 ) -> ProfessionalListResponse:
     return ProfessionalService(professionals).list_professionals(
         name,
@@ -172,6 +173,7 @@ def list_professionals(
         telehealth_enabled,
         page,
         page_size,
+        appointment_type,
     )
 
 

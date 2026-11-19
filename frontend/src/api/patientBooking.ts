@@ -5,7 +5,7 @@ import type { components, paths } from '../types/api.generated';
 
 type Schemas = components['schemas'];
 export type BookingProfessional = Schemas['ProfessionalPublicResponse'];
-export type DirectoryQuery = paths['/professionals']['get']['parameters']['query'];
+export type DirectoryQuery = NonNullable<paths['/professionals']['get']['parameters']['query']>;
 type AvailabilityQuery = paths['/professionals/{professional_id}/availability']['get']['parameters']['query'];
 export type BookingSlot = Schemas['AvailabilitySlot'];
 

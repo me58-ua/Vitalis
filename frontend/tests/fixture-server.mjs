@@ -76,7 +76,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       return send(200, { access_token: state.access, refresh_token: 'test-refresh-rotated', token_type: 'bearer' });
     }
     const publicProfessional = () => ({ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
-    if (path === '/professionals') return send(200, { professionals: [publicProfessional()], total: 1, page: 1, page_size: 10 });
+    if (path === '/professionals') {
+      const modality = new URL(req.url, 'http://fixture.invalid').searchParams.get('appointment_type');
+      const professionals = [publicProfessional()];
+      if (state.testBookingDirectory && modality !== 'in_person') {
+        professionals.push({ ...publicProfessional(), id: '00000000-0000-4000-8000-000000000203', name: 'Profesional solo por vídeo' });
+      }
+      return send(200, { professionals, total: professionals.length, page: 1, page_size: 10 });
+    }
     if (/^\/professionals\/[0-9a-f-]{36}$/.test(path)) return send(200, publicProfessional());
     const demoLogin = state.independentSessions ? demoSessions.find(item => req.headers.authorization === `Bearer ${item.access}` && !item.revoked) : null;
     if (state.independentSessions ? !demoLogin : req.headers.authorization !== `Bearer ${state.access}`) return send(401, { detail: 'INVALID_CREDENTIALS' });

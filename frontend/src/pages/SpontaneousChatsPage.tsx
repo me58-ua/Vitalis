@@ -53,7 +53,7 @@ export function SpontaneousChatsPage() {
   }, [page, revision]);
   if (!user) return null;
   const refresh = () => setRevision(value => value + 1);
-  return <main id="contenido" className="spontaneous-main"><header className="spontaneous-heading"><h1>Mensajes</h1><p>Consultas por chat y conversaciones guardadas de tus videoconsultas.</p></header>
+  return <main id="contenido" className="spontaneous-main"><header className="spontaneous-heading"><h1>{user.role === 'patient' ? 'Chat médico' : 'Chat'}</h1><p>Consultas por chat y conversaciones guardadas de tus videoconsultas.</p></header>
     <nav className="messages-tabs" aria-label="Tipo de conversación"><button className="button secondary" aria-pressed={!videoMode} onClick={() => setParams({})}>Sin cita</button><button className="button secondary" aria-pressed={videoMode} onClick={() => setParams({ section: 'video' })}>Videoconsultas · historial</button></nav>
     {videoMode ? <AppointmentInbox /> : <>
     <header className="spontaneous-heading"><h2>Consultas rápidas sin cita</h2>{user.role === 'patient' && <button className="button primary" aria-expanded={newChat} onClick={() => setNewChat(value => !value)}>Nueva consulta por chat</button>}</header>

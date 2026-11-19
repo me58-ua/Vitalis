@@ -59,6 +59,7 @@ class ProfessionalService:
         telehealth_enabled: bool | None,
         page: int,
         page_size: int,
+        appointment_type: str | None = None,
     ) -> ProfessionalListResponse:
         records, total = self.professionals.list_professionals(
             name=name,
@@ -67,6 +68,7 @@ class ProfessionalService:
             telehealth_enabled=telehealth_enabled,
             offset=(page - 1) * page_size,
             limit=page_size,
+            appointment_type=appointment_type,
         )
         return ProfessionalListResponse(
             professionals=[self._public_response(user, profile) for user, profile in records],

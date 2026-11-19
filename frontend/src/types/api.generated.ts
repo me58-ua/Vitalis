@@ -6562,6 +6562,7 @@ export interface operations {
                 telehealth_enabled?: boolean | null;
                 page?: number;
                 page_size?: number;
+                appointment_type?: ("in_person" | "video") | null;
             };
             header?: never;
             path?: never;
