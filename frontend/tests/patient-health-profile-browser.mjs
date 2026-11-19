@@ -11,6 +11,12 @@ export async function checkPatientHealthProfile({ fixture, evaluate, click, fill
   await until(`Array.from(document.images).every(img => img.complete && img.naturalWidth > 0)`);
   results.push({ check: 'saved profile is read-only: no per-section edit/add controls, existing measurements and unknown values rendered correctly', assets: await checkGeometry() });
   await screenshot('patient-health-profile-desktop');
+  fixture.state.omitAppointmentFollowUps = true;
+  await reloadUntil(`document.querySelector('#health-appointment-follow-ups .health-empty')?.textContent.includes('no está disponible')`);
+  assert.equal(await evaluate(`document.querySelector('#health-allergies h3')?.textContent.includes('Polen')`), true);
+  fixture.state.omitAppointmentFollowUps = false;
+  await reloadUntil(`document.querySelector('#health-appointment-follow-ups .health-empty')?.textContent.includes('Aún no hay')`);
+  results.push({ check: 'profile still renders when the API omits appointment follow-ups' });
   const clinical = () => JSON.stringify({ profile: fixture.state.healthProfile.profile, allergies: fixture.state.healthProfile.allergies, medications: fixture.state.healthProfile.medications, conditions: fixture.state.healthProfile.chronic_conditions, family: fixture.state.healthProfile.family_history_entries, habits: fixture.state.healthProfile.habit_logs, alcohol: fixture.state.healthProfile.alcohol_logs });
   const before = clinical();
   const saves = fixture.state.onboardingSaves;

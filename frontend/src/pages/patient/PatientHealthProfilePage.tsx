@@ -78,8 +78,9 @@ export function PatientHealthProfilePage() {
         <section className="health-analysis-note"><h2>Tu perfil y tus análisis</h2><p>Las evaluaciones se muestran cuando hay información suficiente y has dado tu consentimiento. No sustituyen una valoración profesional.</p><Link to="/patientPanel#evaluaciones">Consultar análisis →</Link></section>
       </div></div>
       <Section id="health-appointment-follow-ups" title="Información compartida en tus citas" subtitle="Diagnósticos, notas clínicas y recetas de tus citas finalizadas" icon={historyIcon}>
-        {data.appointment_follow_ups.length === 0 && <p className="health-empty">Aún no hay información compartida sobre tus citas.</p>}
-        {data.appointment_follow_ups.map(item => <article className="health-record" key={item.appointment_id}>
+        {data.appointment_follow_ups == null && <p className="health-empty">La información compartida de tus citas no está disponible.</p>}
+        {data.appointment_follow_ups?.length === 0 && <p className="health-empty">Aún no hay información compartida sobre tus citas.</p>}
+        {data.appointment_follow_ups?.map(item => <article className="health-record" key={item.appointment_id}>
           <h3>{item.professional_name}</h3><p>{patientDate(item.start_time, profile.timezone)}</p>
           <SharedAppointmentNotes appointment={item} />
           {item.has_prescription && <AppointmentPrescriptionDownload appointmentId={item.appointment_id} />}
