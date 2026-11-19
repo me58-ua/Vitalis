@@ -50,9 +50,9 @@ export function ProfessionalHealthSharing({ enabled }: { enabled: boolean }) {
         {item.scope === 'full' && <p>También incluye sexo al nacer, grupo sanguíneo, alergias, condiciones crónicas, medicamentos, antecedentes familiares, documentos de salud y evaluaciones de riesgo disponibles.</p>}
         {confirming === item.professional_id ? <>
           <p>¿Revocar el acceso al perfil para {item.professional_name}? Los diagnósticos y las notas de las citas siguen disponibles en el historial.</p>
-          <button type="button" className="button secondary" disabled={saving} onClick={() => { void revoke(item.professional_id, item.professional_name); }}>Confirmar revocación</button>
+          <button type="button" className="button danger" disabled={saving} onClick={() => { void revoke(item.professional_id, item.professional_name); }}>Confirmar revocación</button>
           <button type="button" className="text-button" disabled={saving} onClick={() => setConfirming(null)}>Cancelar</button>
-        </> : <button type="button" className="button secondary" aria-label={`Revocar acceso de ${item.professional_name}`} disabled={saving} onClick={() => { setConfirming(item.professional_id); setError(''); setNotice(''); }}>Revocar acceso</button>}
+        </> : <button type="button" className="button danger" aria-label={`Revocar acceso de ${item.professional_name}`} disabled={saving} onClick={() => { setConfirming(item.professional_id); setError(''); setNotice(''); }}>Revocar acceso</button>}
       </li>)}</ul>
     </>}
   </details>;

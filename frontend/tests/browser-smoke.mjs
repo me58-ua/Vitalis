@@ -509,7 +509,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('.agenda-time-blocks .success-state')?.textContent.includes('Horario bloqueado')`), true);
   assert.equal(fixture.state.timeBlocks.length, 1);
   await screenshot('professional-time-blocks');
-  await click('.agenda-block-list .text-button');
+  await click('.agenda-block-list .danger');
   await click('.agenda-block-list .button');
   await until(`document.querySelector('.agenda-unavailable') === null && document.querySelector('.agenda-block-list li') === null`);
   await until(`document.querySelector('.agenda-time-blocks .success-state')?.textContent.includes('Bloqueo eliminado')`);
@@ -1020,7 +1020,7 @@ try {
   await click('.users-table tbody tr .user-delete');
   await until(`document.querySelector('.user-confirmation') !== null`);
   fixture.state.userFailure = { status: 409, detail: 'User cannot be deleted because related records exist' };
-  await click('.user-confirmation .user-danger');
+  await click('.user-confirmation .danger');
   await until(`document.querySelector('.user-confirmation [role="alert"]')?.textContent.includes('registros relacionados')`);
   await click('.user-confirmation .secondary');
   await click('.user-account-actions .secondary');
@@ -1091,7 +1091,7 @@ try {
   await until(`document.querySelector('.user-identifier')?.title === ${JSON.stringify(createdPatientId)}`);
   await click('.users-table tbody tr .user-delete');
   await until(`document.querySelector('.user-confirmation') !== null`);
-  await click('.user-confirmation .user-danger');
+  await click('.user-confirmation .danger');
   await until(`document.querySelector('dialog') === null && document.querySelector('.success-state')?.textContent.includes('eliminada')`);
   assert.equal(await evaluate(`Array.from(document.querySelectorAll('.user-identifier')).some(node => node.title === ${JSON.stringify(createdPatientId)})`), false);
   results.push({ check: 'user-management error/retry, mobile forms and confirmed deletion' });

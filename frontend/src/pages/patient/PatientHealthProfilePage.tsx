@@ -119,7 +119,7 @@ export function PatientHealthProfilePage() {
         <p>Consentimiento general <strong>{profile.share_health_data ? 'activo' : 'desactivado'}</strong>.</p>
         <p>Al revocarlo, se retira el acceso al perfil para todos los profesionales. Al volver a activarlo, se aplican tus elecciones de reserva guardadas. Los diagnósticos y las notas de las citas siguen en el historial.</p>
         {sharingError && <p role="alert">{sharingError}</p>}
-        <button className="button secondary" disabled={sharingBusy} onClick={() => { void changeSharingConsent(!profile.share_health_data); }}>
+        <button className={`button ${profile.share_health_data ? 'danger' : 'secondary'}`} disabled={sharingBusy} onClick={() => { void changeSharingConsent(!profile.share_health_data); }}>
           {sharingBusy ? 'Guardando…' : profile.share_health_data ? 'Revocar consentimiento general' : 'Activar consentimiento general'}
         </button>
         <ProfessionalHealthSharing enabled={profile.share_health_data} />
