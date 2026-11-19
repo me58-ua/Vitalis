@@ -8,6 +8,7 @@ import { patientAppointmentPath } from '../../api/appointmentFollowUp';
 import { AppointmentPrescriptionDownload, SharedAppointmentNotes } from './PatientAppointmentDetailPage';
 import { restartOnboarding, onboardingError } from '../../api/onboarding';
 import { PatientQueryFeedback, patientDate } from '../../components/PatientDashboardDialogs';
+import { ProfessionalHealthSharing } from '../../components/ProfessionalHealthSharing';
 import { familyConditionNames } from '../../utils/familyHistory';
 import allergiesIcon from '../../assets/figma/health-profile/allergies.svg';
 import medicationIcon from '../../assets/figma/health-profile/medication.svg';
@@ -121,6 +122,7 @@ export function PatientHealthProfilePage() {
         <button className="button secondary" disabled={sharingBusy} onClick={() => { void changeSharingConsent(!profile.share_health_data); }}>
           {sharingBusy ? 'Guardando…' : profile.share_health_data ? 'Revocar consentimiento general' : 'Activar consentimiento general'}
         </button>
+        <ProfessionalHealthSharing enabled={profile.share_health_data} />
       </div></section>
     </>}
     {sharingNotice && <p role="status">{sharingNotice}</p>}

@@ -1109,6 +1109,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/patients/me/health-profile/sharing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Health Sharing */
+        get: operations["list_health_sharing_patients_me_health_profile_sharing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/patients/me/health-profile/sharing/{professional_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Health Sharing */
+        delete: operations["revoke_health_sharing_patients_me_health_profile_sharing__professional_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/chat": {
         parameters: {
             query?: never;
@@ -3821,6 +3855,21 @@ export interface components {
             upcoming_appointments: components["schemas"]["ProfessionalAppointmentSummary"][];
             /** Upcoming Total */
             upcoming_total: number;
+        };
+        /** ProfessionalHealthSharing */
+        ProfessionalHealthSharing: {
+            /**
+             * Professional Id
+             * Format: uuid
+             */
+            professional_id: string;
+            /** Professional Name */
+            professional_name: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "basic" | "full";
         };
         /** ProfessionalListResponse */
         ProfessionalListResponse: {
@@ -7012,6 +7061,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PatientHealthProfileResponse"];
+                };
+            };
+        };
+    };
+    list_health_sharing_patients_me_health_profile_sharing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfessionalHealthSharing"][];
+                };
+            };
+        };
+    };
+    revoke_health_sharing_patients_me_health_profile_sharing__professional_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

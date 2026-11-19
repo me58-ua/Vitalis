@@ -21,10 +21,11 @@ class DocumentSearchTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
         with self.engine.begin() as connection:
+            connection.exec_driver_sql("CREATE TABLE users (id CHAR(32) PRIMARY KEY, name TEXT)")
             connection.exec_driver_sql("CREATE TABLE patient_profiles (id CHAR(32) PRIMARY KEY, user_id CHAR(32), share_health_data BOOLEAN)")
             connection.exec_driver_sql(
                 "CREATE TABLE appointments (id CHAR(32) PRIMARY KEY, patient_id CHAR(32), "
-                "professional_id CHAR(32), health_sharing VARCHAR(5), created_at DATETIME)"
+                "professional_id CHAR(32), health_sharing VARCHAR(5), created_at DATETIME, updated_at DATETIME)"
             )
         HealthDocument.__table__.create(self.engine)
         self.db = Session(self.engine)
@@ -53,7 +54,7 @@ class DocumentSearchTests(unittest.TestCase):
 
     def appointment(self, patient, scope, created_at, professional=None):
         self.db.connection().exec_driver_sql(
-            "INSERT INTO appointments VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO appointments (id, patient_id, professional_id, health_sharing, created_at) VALUES (?, ?, ?, ?, ?)",
             (uuid4().hex, patient.id.hex, (professional or self.professional).id.hex, scope, created_at),
         )
 
@@ -102,6 +103,25 @@ class DocumentSearchTests(unittest.TestCase):
         self.assertNotEqual(result.documents[0].id, next_page.documents[0].id)
         self.assertEqual(self.service.search(self.patient, "analitica").total, 1)
         self.assertEqual(self.service.search(self.patient, "informe", HealthDocumentType.LABORATORY).total, 0)
+
+    def test_revocation_removes_only_selected_professionals_access(self):
+        another = SimpleNamespace(id=uuid4(), role=UserRole.PROFESSIONAL)
+        for professional, name in ((self.professional, "Profesional A"), (another, "Profesional B")):
+            self.db.connection().exec_driver_sql("INSERT INTO users VALUES (?, ?)", (professional.id.hex, name))
+        self.appointment(self.patient, "basic", "2026-01-01")
+        self.appointment(self.patient, "full", "2026-01-02")
+        self.appointment(self.patient, "basic", "2026-01-02", another)
+        self.appointment(self.other, "full", "2026-01-02")
+        self.document(self.patient, "Informe")
+        self.document(self.other, "Informe")
+        repository = AppointmentRepository(self.db)
+        self.assertEqual([row["scope"] for row in repository.list_health_sharing(self.patient.id)], ["full", "basic"])
+        self.assertTrue(repository.revoke_health_sharing(self.patient.id, self.professional.id))
+        self.assertFalse(repository.revoke_health_sharing(self.patient.id, self.professional.id))
+        self.assertTrue(repository.has_shared_appointment(self.patient.id, self.professional.id))
+        self.assertEqual([row["professional_id"] for row in repository.list_health_sharing(self.patient.id)], [another.id])
+        self.assertEqual([row["scope"] for row in repository.list_health_sharing(self.other.id)], ["full"])
+        self.assertEqual(self.service.search(self.professional, "Informe").documents[0].patient_user_id, self.other.id)
 
     def test_invalid_query_and_unauthorized_role(self):
         for query in ("   ", "x" * 101):

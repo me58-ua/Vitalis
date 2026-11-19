@@ -1,3 +1,6 @@
+from typing import Literal
+from uuid import UUID
+
 from pydantic import BaseModel
 from app.models import FamilyHistoryStatus
 from app.schemas.appointments import PatientAppointmentFollowUp
@@ -14,6 +17,12 @@ class AlcoholCurrent(BaseModel):
     frequency: int | None = None
     quantity: int | None = None
     binge: int | None = None
+
+
+class ProfessionalHealthSharing(BaseModel):
+    professional_id: UUID
+    professional_name: str
+    scope: Literal["basic", "full"]
 
 
 class PatientHealthProfileResponse(BaseModel):

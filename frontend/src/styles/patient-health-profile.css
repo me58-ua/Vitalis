@@ -71,3 +71,7 @@
 .health-complete-card > .text-button { display: inline-block; margin-top: 20px; font-size: 13px; color: #006c49; }
 @media (max-width: 1150px) { .health-profile-main { padding: 24px; } .health-profile-grid { grid-template-columns: minmax(0, 1fr); } .health-consent { flex-wrap: wrap; } }
 @media (max-width: 600px) { .health-profile-main { padding: 20px 16px; } .health-profile-heading { flex-direction: column; align-items: flex-start; } .health-profile-heading h1 { font-size: 28px; } .health-integrity { flex-direction: column; align-items: flex-start; padding: 20px; } .health-section { padding: 20px; } .health-section h2 { font-size: 20px; } .health-consent { padding: 20px; } .health-consent > div { flex-basis: calc(100% - 52px); } .health-complete-main { padding: 24px 16px; } .health-complete-card { padding: 28px 20px; margin: 0 auto; } }
+.health-sharing-professionals { margin-top: 16px; }
+.health-sharing-professionals summary { cursor: pointer; font-weight: 600; }
+.health-sharing-list { display: grid; gap: 12px; padding: 0; list-style: none; }
+.health-sharing-list .text-button { margin-inline-start: 8px; }

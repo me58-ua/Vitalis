@@ -1,6 +1,19 @@
 // Synthetic saved health records used only by the browser tests.
 export function healthProfileFixture(path, method, raw, state, send) {
   if (!path.startsWith('/patients/me/health-profile')) return false;
+  if (path.includes('/health-profile/sharing')) {
+    state.sharingPermissions ??= [
+      { professional_id: '00000000-0000-4000-8000-000000000202', professional_name: 'Profesional A', scope: 'full' },
+      { professional_id: '00000000-0000-4000-8000-000000000203', professional_name: 'Profesional B', scope: 'basic' },
+    ];
+    if (method === 'DELETE') {
+      state.sharingPermissions = state.sharingPermissions.filter(item => item.professional_id !== path.split('/').at(-1));
+      send(204, null);
+    } else {
+      send(200, state.sharingPermissions);
+    }
+    return true;
+  }
   if (method !== 'GET') { send(404, { detail: 'PROFILE_IS_READ_ONLY' }); return true; }
   if (state.healthProfileFail) { send(503, { detail: 'TEST_UNAVAILABLE' }); return true; }
   const data = state.healthProfile ??= {

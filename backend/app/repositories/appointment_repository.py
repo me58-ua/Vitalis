@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
 from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, Prescription, ProfessionalSchedule, ProfessionalTimeBlock, User
@@ -193,6 +193,30 @@ class AppointmentRepository:
         if not profile.share_health_data:
             return "none"
         return self.session.scalar(select(latest_health_sharing(profile.user_id, professional_id))) or "none"
+
+    def list_health_sharing(self, patient_id: UUID):
+        scope = latest_health_sharing(patient_id, User.id)
+        return self.session.execute(
+            select(User.id.label("professional_id"), User.name.label("professional_name"), scope.label("scope"))
+            .where(scope.in_(("basic", "full")))
+            .order_by(User.name, User.id)
+        ).mappings().all()
+
+    def revoke_health_sharing(self, patient_id: UUID, professional_id: UUID) -> bool:
+        # The booking trigger locks the same professional before inserting an appointment.
+        self.session.scalar(select(User.id).where(User.id == professional_id).with_for_update())
+        if self.session.scalar(select(latest_health_sharing(patient_id, professional_id))) not in ("basic", "full"):
+            return False
+        self.session.execute(
+            update(Appointment)
+            .where(
+                Appointment.patient_id == patient_id,
+                Appointment.professional_id == professional_id,
+                Appointment.health_sharing.in_(("basic", "full")),
+            )
+            .values(health_sharing="none")
+        )
+        return True
 
     def list_patient_history(self, patient_id: UUID, professional_id: UUID) -> list[Appointment]:
         return list(

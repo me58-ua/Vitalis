@@ -24,6 +24,14 @@ export async function checkPatientHealthProfile({ fixture, evaluate, click, fill
   await until(`document.querySelector('.health-consent:last-of-type button')?.textContent.includes('Activar consentimiento')`);
   assert.equal(fixture.state.shareHealthData, false);
   results.push({ check: 'patient can activate and revoke global profile sharing from the health profile' });
+  await click('.health-sharing-professionals summary');
+  await until(`document.querySelectorAll('.health-sharing-list li').length === 2`);
+  assert.equal(await evaluate(`document.querySelector('.health-sharing-list li').textContent.includes('Acceso suspendido')`), true);
+  await click('.health-sharing-list button[aria-label="Revocar acceso de Profesional A"]');
+  await click('.health-sharing-list li:first-child button.button');
+  await until(`document.querySelectorAll('.health-sharing-list li').length === 1`);
+  assert.equal(fixture.state.sharingPermissions[0].professional_name, 'Profesional B');
+  results.push({ check: 'patient can review and revoke a single professional permission while global access is suspended' });
   const clinical = () => JSON.stringify({ profile: fixture.state.healthProfile.profile, allergies: fixture.state.healthProfile.allergies, medications: fixture.state.healthProfile.medications, conditions: fixture.state.healthProfile.chronic_conditions, family: fixture.state.healthProfile.family_history_entries, habits: fixture.state.healthProfile.habit_logs, alcohol: fixture.state.healthProfile.alcohol_logs });
   const before = clinical();
   const saves = fixture.state.onboardingSaves;
