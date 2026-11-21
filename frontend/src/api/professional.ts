@@ -118,6 +118,9 @@ export async function cancelProfessionalAppointment(id: string, appointmentId: s
   const payload: ProfessionalAppointmentCancel = { cancellation_reason: cancellationReason };
   await api.post(`/professionals/${encodeURIComponent(id)}/appointments/${encodeURIComponent(appointmentId)}/cancel`, payload, { signal });
 }
+export async function completeProfessionalAppointment(id: string, appointmentId: string, signal: AbortSignal) {
+  await api.patch(`/professionals/${encodeURIComponent(id)}/appointments/${encodeURIComponent(appointmentId)}/status`, { status: 'completed' }, { signal });
+}
 export async function getProfessionalHistory(id: string, page: number, signal: AbortSignal) {
   return (await api.get<ProfessionalHistoryPage>(`/professionals/${encodeURIComponent(id)}/appointments/history`, { params: { page, page_size: 20 }, signal })).data;
 }

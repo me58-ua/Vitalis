@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { professionalFollowUpPath } from '../api/appointmentFollowUp';
 import { getPatientHistory, getPatientPrescriptions, getPatientSnapshot, getSharedPatientRisks } from '../api/professional';
 import { professionalError } from '../api/professionalErrors';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import { Modal } from './Modal';
+import { CompleteInPersonAppointment } from './CompleteInPersonAppointment';
 import { appointmentDate, appointmentStatuses, appointmentTypes } from './AppointmentSummary';
 import { PatientPages } from './PatientPages';
 import { PrescriptionAttachment, PrescriptionDownloadButton } from './PrescriptionAttachment';
@@ -122,13 +125,15 @@ export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatie
   const health = useAdminQuery(healthLoad, recordError);
   return <Modal title={`Expediente de ${patient.name}`} onClose={onClose} busy={busy}>
     <div className="patient-record"><p>@{patient.username} · {patient.email} · {patient.tel || 'Teléfono no indicado'}</p>
-      <section><h3>Citas e historial con este profesional</h3><p>Selecciona una cita finalizada para vincular su receta. Las citas más recientes aparecen primero. El servidor comprueba el plazo de emisión y los permisos.</p>
+      <section><h3>Citas e historial con este profesional</h3><p>Una vez iniciada una cita presencial, puedes finalizarla y abrir su seguimiento. Desde el seguimiento puedes guardar el diagnóstico, las notas y la receta.</p>
         <Feedback {...history} />
-        {history.data && <>{history.data.appointments.length === 0 && <p>No hay citas pasadas con este paciente. No puedes adjuntar una receta sin una cita finalizada.</p>}
+        {history.data && <>{history.data.appointments.length === 0 && <p>No hay citas iniciadas ni finalizadas con este paciente.</p>}
           <ul className="record-list">{[...history.data.appointments].sort((a, b) => Date.parse(b.start_time) - Date.parse(a.start_time)).map(item => <li key={item.id}>
             <strong>{appointmentDate(item.start_time)}</strong><span>{appointmentTypes[item.type]} · {appointmentStatuses[item.status]}</span>
             <span>Motivo: {item.appointment_reason || 'No indicado'}</span>
             {item.diagnosis && <p>Diagnóstico: {item.diagnosis}</p>}{item.clinical_notes && <p>Notas: {item.clinical_notes}</p>}{item.patient_summary && <p>Resumen: {item.patient_summary}</p>}
+            {item.type === 'in_person' && item.status === 'confirmed' && <CompleteInPersonAppointment appointmentId={item.id} professionalId={professionalId} busy={busy} onBusy={setBusy} />}
+            {item.status === 'completed' && <Link className="button secondary" to={professionalFollowUpPath(item.id)}>Seguimiento de la cita</Link>}
             {item.status === 'completed' && <button className="button secondary" disabled={busy} aria-pressed={appointment?.id === item.id} onClick={event => { selectionButton.current = event.currentTarget; setAppointment(item); setPrescriptionFocus(value => value + 1); }}>Vincular receta a esta cita</button>}
           </li>)}</ul>
           <PatientPages page={history.data.page} size={history.data.page_size} total={history.data.total} onPage={setPage} />

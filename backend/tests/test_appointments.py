@@ -36,6 +36,9 @@ class FakeAppointmentRepository:
     def get_appointment(self, appointment_id):
         return self.appointment if self.appointment and self.appointment.id == appointment_id else None
 
+    def lock_appointment(self, appointment_id):
+        return self.get_appointment(appointment_id)
+
     def update_appointment(self, appointment, values):
         for field, value in values.items():
             setattr(appointment, field, value)
@@ -318,6 +321,25 @@ class AppointmentServiceTests(unittest.TestCase):
         self.assertEqual(result.status, AppointmentStatus.COMPLETED)
         self.assertEqual(self.repository.history[-1].old_status, AppointmentStatus.CONFIRMED)
         self.assertEqual(self.repository.history[-1].changed_by, self.professional_id)
+
+    def test_in_person_completion_requires_a_started_confirmed_visit(self):
+        self.appointment.type = AppointmentType.IN_PERSON
+        now = datetime.now(timezone.utc)
+        for status, start in (
+            (AppointmentStatus.CONFIRMED, now + timedelta(hours=1)),
+            (AppointmentStatus.CANCELLED, now - timedelta(hours=1)),
+            (AppointmentStatus.NO_SHOW, now - timedelta(hours=1)),
+        ):
+            with self.subTest(status=status):
+                self.appointment.status = status
+                self.appointment.start_time = start
+                with self.assertRaises(AppointmentConflictError):
+                    self.service.update_status_as_professional(
+                        self.professional_id, self.professional, self.appointment_id,
+                        ProfessionalAppointmentStatusUpdate(status=AppointmentStatus.COMPLETED),
+                    )
+                self.assertEqual(self.appointment.status, status)
+        self.assertEqual(self.repository.history, [])
 
     def test_consultation_note_update_does_not_change_appointment_id(self):
         result = self.service.update_consultation_note(

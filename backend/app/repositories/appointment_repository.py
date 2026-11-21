@@ -256,12 +256,15 @@ class AppointmentRepository:
         offset: int,
         limit: int,
     ) -> tuple[list[tuple[Appointment, User]], int]:
-        filters = [
-            Appointment.professional_id == professional_id,
-            or_(Appointment.end_time < now, Appointment.status == AppointmentStatus.COMPLETED),
-        ]
+        visible = [Appointment.end_time < now, Appointment.status == AppointmentStatus.COMPLETED]
+        filters = [Appointment.professional_id == professional_id]
         if patient_id is not None:
             filters.append(Appointment.patient_id == patient_id)
+            # The patient record can close an in-person visit once it starts.
+            visible.append(and_(Appointment.type == AppointmentType.IN_PERSON,
+                                Appointment.status == AppointmentStatus.CONFIRMED,
+                                Appointment.start_time <= now))
+        filters.append(or_(*visible))
         if patient_search:
             pattern = f"%{patient_search}%"
             filters.append(

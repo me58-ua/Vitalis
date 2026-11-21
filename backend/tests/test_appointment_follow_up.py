@@ -14,8 +14,12 @@ from sqlalchemy.schema import CreateTable
 from app.api import appointments, professionals
 from app.api.deps import get_current_user
 from app.database import get_db
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AuditLog, Notification, Prescription, User, UserRole
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, AppointmentType, AuditLog, Notification, Prescription, User, UserRole
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.professional_repository import ProfessionalRepository
+from app.repositories.user_repository import UserRepository
+from app.schemas.appointments import ProfessionalAppointmentStatusUpdate
+from app.services.appointment_service import AppointmentService
 
 
 class AppointmentFollowUpTests(unittest.TestCase):
@@ -24,7 +28,7 @@ class AppointmentFollowUpTests(unittest.TestCase):
         self.addCleanup(self.engine.dispose)
         metadata = MetaData()
         with self.engine.begin() as connection:
-            for model in (User, Appointment, AppointmentNote, AuditLog, Notification, Prescription):
+            for model in (User, Appointment, AppointmentNote, AppointmentStatusHistory, AuditLog, Notification, Prescription):
                 table = model.__table__.to_metadata(metadata)
                 for constraint in list(table.constraints):
                     if isinstance(constraint, ExcludeConstraint):
@@ -60,6 +64,41 @@ class AppointmentFollowUpTests(unittest.TestCase):
         self.http = TestClient(app)
         self.editor = f"/professionals/me/appointments/{self.appointment_id}/follow-up"
         self.detail = f"/patients/me/appointments/{self.appointment_id}/follow-up"
+
+    def test_started_in_person_visit_can_be_completed_from_patient_history(self):
+        with Session(self.engine) as db:
+            appointment = db.get(Appointment, self.appointment_id)
+            appointment.type = AppointmentType.IN_PERSON
+            appointment.status = AppointmentStatus.CONFIRMED
+            db.commit()
+            repo = AppointmentRepository(db)
+            now = datetime.now(timezone.utc)
+            for patient_id, expected in ((None, 0), (self.patient_id, 1)):
+                _, total = repo.list_past_for_professional(
+                    self.professional_id, now, patient_id, None, None, None, None, 0, 10,
+                )
+                self.assertEqual(total, expected)
+
+        self.assertEqual(self.http.get(self.editor).status_code, 409)
+        with Session(self.engine) as db:
+            service = AppointmentService(AppointmentRepository(db), UserRepository(db), ProfessionalRepository(db))
+            for _ in range(2):
+                completed = service.update_status_as_professional(
+                    self.professional_id, self.user, self.appointment_id,
+                    ProfessionalAppointmentStatusUpdate(status=AppointmentStatus.COMPLETED),
+                )
+                self.assertEqual(completed.status, AppointmentStatus.COMPLETED)
+            db.commit()
+            self.assertEqual(len(list(db.scalars(select(AppointmentStatusHistory)))), 1)
+        response = self.http.put(self.editor, json={
+            "shared_diagnosis": "Diagnosis", "shared_notes": None, "clinical_notes": "Private notes",
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.user = SimpleNamespace(id=self.patient_id, role=UserRole.PATIENT)
+        response = self.http.get(self.detail)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["shared_diagnosis"], "Diagnosis")
+        self.assertNotIn("Private notes", response.text)
 
     def test_private_notes_and_legacy_fields_stay_out_of_patient_views(self):
         notes = {"clinical_notes": "Author only", "shared_diagnosis": None, "shared_notes": None}

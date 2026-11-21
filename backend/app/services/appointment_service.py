@@ -9,6 +9,7 @@ from app.models import (
     AppointmentNote,
     AppointmentStatus,
     AppointmentStatusHistory,
+    AppointmentType,
     User,
     UserRole,
 )
@@ -298,11 +299,22 @@ class AppointmentService:
         data: ProfessionalAppointmentStatusUpdate,
     ) -> Appointment:
         self._require_path_identity(professional_id, current_user.id)
-        appointment = self._get_appointment(appointment_id)
+        appointment = self.appointments.lock_appointment(appointment_id)
+        if appointment is None:
+            raise AppointmentNotFoundError("Appointment not found")
         self._require_appointment_owner(appointment, professional_id)
         old_status = appointment.status
         if data.status == old_status:
             return appointment
+
+        if appointment.type == AppointmentType.IN_PERSON and data.status == AppointmentStatus.COMPLETED:
+            if old_status != AppointmentStatus.CONFIRMED:
+                raise AppointmentConflictError("Only confirmed in-person appointments can be completed")
+            start = appointment.start_time
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if start > datetime.now(timezone.utc):
+                raise AppointmentConflictError("The in-person appointment has not started")
 
         try:
             updated = self.appointments.update_appointment(
