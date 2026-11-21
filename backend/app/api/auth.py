@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from app.api.deps import get_current_user, get_user_repository, get_notification_service, oauth2_scheme
+from app.core.rate_limit import password_reset_confirmation_limiter
 from app.services.notification_service import NotificationService
 from app.models import User
 from app.repositories.user_repository import UserRepository
@@ -98,21 +99,33 @@ def forgot_password(
 	reset = PasswordResetService(users).request_reset(data.email, client_host)
 	if reset is not None:
 		user, token = reset
-		background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
+		email, name = user.email, user.name
+		users.session.commit()
+		background_tasks.add_task(send_password_reset_email, email, name, token)
 	return {"message_code": "PASSWORD_RESET_REQUEST_ACCEPTED"}
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
 def reset_password(
 	data: ResetPasswordRequest,
+	request: Request,
 	users: Annotated[UserRepository, Depends(get_user_repository)],
 	background_tasks: BackgroundTasks,
 ) -> None:
+	client_host = request.client.host if request.client else "unknown"
+	if not password_reset_confirmation_limiter.allow(client_host):
+		raise HTTPException(
+			status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+			detail="PASSWORD_RESET_RATE_LIMITED",
+			headers={"Retry-After": str(password_reset_confirmation_limiter.window_seconds)},
+		)
 	try:
 		user = PasswordResetService(users).reset_password(data.token, data.password)
 	except InvalidPasswordResetToken as error:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
-	background_tasks.add_task(send_password_changed_email, user.email, user.name)
+	email, name = user.email, user.name
+	users.session.commit()
+	background_tasks.add_task(send_password_changed_email, email, name)
 
 
 @router.get("/me", response_model=UserResponse)

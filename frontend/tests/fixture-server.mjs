@@ -42,6 +42,14 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
     for await (const part of req) raw += part;
     const send = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); };
     const path = new URL(req.url, 'http://fixture.invalid').pathname;
+    if (path === '/auth/forgot-password') {
+      state.requestedPasswordReset = JSON.parse(raw);
+      return send(202, { message_code: 'PASSWORD_RESET_REQUEST_ACCEPTED' });
+    }
+    if (path === '/auth/reset-password') {
+      state.submittedPasswordReset = JSON.parse(raw);
+      return state.limitPasswordReset ? send(429, { detail: 'PASSWORD_RESET_RATE_LIMITED' }) : send(204);
+    }
     if (path === '/auth/login') {
       state.logins += 1;
       const form = new URLSearchParams(raw);

@@ -2,8 +2,9 @@ import unittest
 import uuid
 from datetime import datetime
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 
 from app.api.deps import get_current_patient, get_current_professional
 from app.api.profiles import (
@@ -12,6 +13,7 @@ from app.api.profiles import (
     update_ai_consent,
     update_patient_profile,
 )
+from app.core.rate_limit import InMemoryRateLimiter
 from app.core.security import hash_password, verify_password
 from app.models import UserRole
 from app.schemas.profiles import (
@@ -27,9 +29,13 @@ from app.services.profile_service import InvalidCurrentPasswordError, ProfileSer
 class FakeSession:
     def __init__(self):
         self.flush_count = 0
+        self.commit_count = 0
 
     def flush(self):
         self.flush_count += 1
+
+    def commit(self):
+        self.commit_count += 1
 
 
 class FakeUserRepository:
@@ -72,6 +78,7 @@ class ProfileTests(unittest.TestCase):
             password_hash=hash_password("OldPassword123!"),
             session_version=0,
             name="Patient",
+            email="patient@example.test",
             tel="+34111111111",
             birth_date=None,
             gender=None,
@@ -170,8 +177,25 @@ class ProfileTests(unittest.TestCase):
                 ),
                 self.user,
                 self.users,
+                BackgroundTasks(),
             )
         self.assertEqual(error.exception.status_code, 400)
+
+    def test_patient_password_change_schedules_confirmation_and_limits_attempts(self):
+        tasks = BackgroundTasks()
+        data = ChangePasswordRequest(current_password="OldPassword123!", new_password="NewPassword123!")
+        with (
+            patch("app.api.profiles.patient_password_change_limiter", InMemoryRateLimiter(1, 900)),
+            patch("app.api.profiles.send_password_changed_email") as send_email,
+        ):
+            change_patient_password(data, self.user, self.users, tasks)
+            with self.assertRaises(HTTPException) as error:
+                change_patient_password(data, self.user, self.users, tasks)
+        self.assertEqual(error.exception.status_code, 429)
+        self.assertEqual(self.users.session.commit_count, 1)
+        self.assertEqual(len(tasks.tasks), 1)
+        self.assertIs(tasks.tasks[0].func, send_email)
+        self.assertEqual(tasks.tasks[0].args, (self.user.email, self.user.name))
 
     def test_role_dependencies_reject_wrong_roles(self):
         professional = SimpleNamespace(role=UserRole.PROFESSIONAL)

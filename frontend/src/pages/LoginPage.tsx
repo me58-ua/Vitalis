@@ -61,7 +61,7 @@ export function LoginPage() {
           </fieldset>
           {error && <p ref={errorRef} tabIndex={-1} className="error-state" role="alert">{error}</p>}
         </form>
-        <p className="login-recovery-note">La recuperación de contraseña todavía no está disponible en esta aplicación.</p>
+        <p className="login-recovery-note"><Link to="/forgot-password">¿Has olvidado tu contraseña?</Link></p>
         <div className="login-registration"><p><img src={registerIcon} alt="" />¿Aún no tienes cuenta?</p><Link to="/register">Crear cuenta →</Link></div>
       </div>
     </Modal></>;

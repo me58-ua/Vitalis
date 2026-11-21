@@ -34,9 +34,9 @@ class PasswordResetService:
         return raw_token
 
     def request_reset(self, email: str, client_host: str) -> tuple[User, str] | None:
-        allowed_by_ip = password_reset_rate_limiter.allow(f"ip:{client_host}")
-        allowed_by_email = password_reset_rate_limiter.allow(f"email:{email}")
-        if not allowed_by_ip or not allowed_by_email:
+        if not password_reset_rate_limiter.allow(f"ip:{client_host}"):
+            return None
+        if not password_reset_rate_limiter.allow(f"email:{email}"):
             return None
 
         user = self.users.get_by_email(email)

@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthProvider';
 import { PublicLayout } from './layouts/PublicLayout';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { PasswordRecoveryPage } from './pages/PasswordRecoveryPage';
 import { RequireRole } from './auth/RequireRole';
 import { PatientPanelPage } from './pages/patient/PatientPanelPage';
 import { PatientOnboardingPage } from './pages/patient/PatientOnboardingPage';
@@ -49,6 +50,8 @@ export function App() {
   <Route element={<PublicLayout />}>
     <Route path="/" element={<HomePage />} />
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/forgot-password" element={<PasswordRecoveryPage key="request" mode="request" />} />
+    <Route path="/reset-password" element={<PasswordRecoveryPage key="reset" mode="reset" />} />
     <Route element={<RequireRole role="patient" />}>
       <Route path="/patientPanel/misCitas" element={<PatientAppointmentsPage />} />
       <Route path="/patientPanel/misCitas/:appointmentId" element={<PatientAppointmentDetailPage />} />

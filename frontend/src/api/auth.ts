@@ -18,3 +18,11 @@ export async function currentUser(signal?: AbortSignal) {
 export async function endSession() {
   await api.post('/auth/logout');
 }
+
+export async function requestPasswordReset(email: string) {
+  await publicApi.post('/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token: string, password: string) {
+  await publicApi.post('/auth/reset-password', { token, password });
+}

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.api.deps import (
     get_current_patient,
@@ -10,6 +10,7 @@ from app.api.deps import (
     get_notification_service,
 )
 from app.models import AuditAction, User
+from app.core.rate_limit import patient_password_change_limiter
 from app.api.deps import get_audit_repository
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.profile_repository import ProfileRepository
@@ -26,6 +27,7 @@ from app.schemas.profiles import (
 )
 from app.schemas.health import AIConsentUpdate
 from app.services.audit_service import AuditService
+from app.services.email_service import send_password_changed_email
 from app.services.notification_service import NotificationService
 from app.services.profile_service import (
     InvalidCurrentPasswordError,
@@ -94,7 +96,15 @@ def update_patient(data: BasicUserUpdate, current_user: CurrentPatient, users: U
 
 
 @router.post("/patients/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
-def change_patient_password(data: ChangePasswordRequest, current_user: CurrentPatient, users: Users) -> None:
+def change_patient_password(
+    data: ChangePasswordRequest, current_user: CurrentPatient, users: Users, background_tasks: BackgroundTasks,
+) -> None:
+    if not patient_password_change_limiter.allow(str(current_user.id)):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="PASSWORD_CHANGE_RATE_LIMITED",
+            headers={"Retry-After": str(patient_password_change_limiter.window_seconds)},
+        )
     try:
         ProfileService(users, None).change_password(current_user, data)
     except InvalidCurrentPasswordError as error:
@@ -102,6 +112,9 @@ def change_patient_password(data: ChangePasswordRequest, current_user: CurrentPa
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="INVALID_CURRENT_PASSWORD",
         ) from error
+    email, name = current_user.email, current_user.name
+    users.session.commit()
+    background_tasks.add_task(send_password_changed_email, email, name)
 
 
 @router.get("/professionals/me/profile", response_model=ProfessionalProfileResponse)

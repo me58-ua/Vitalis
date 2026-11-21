@@ -81,12 +81,12 @@ def send_password_reset_email(email: str, name: str, token: str) -> None:
         reset_url=reset_url,
         expires_in_minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES,
     )
-    _send_email(email, "Restablece tu contrasena de Vitalis", html_content)
+    _send_email(email, "Restablece tu contraseña de Vitalis", html_content)
 
 
 def send_password_changed_email(email: str, name: str) -> None:
     html_content = _render_template("password_changed.html", name=name)
-    _send_email(email, "Contrasena actualizada en Vitalis", html_content)
+    _send_email(email, "Contraseña actualizada en Vitalis", html_content)
 
 
 def send_product_notification_email(email: str, title: str, message: str, link: str | None = None) -> bool:
