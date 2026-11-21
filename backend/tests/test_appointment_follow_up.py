@@ -1,6 +1,7 @@
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import patch
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -14,12 +15,17 @@ from sqlalchemy.schema import CreateTable
 from app.api import appointments, professionals
 from app.api.deps import get_current_user
 from app.database import get_db
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, AppointmentType, AuditLog, Notification, Prescription, User, UserRole
+from app.models import (
+    Appointment, AppointmentNote, AppointmentStatus, AppointmentStatusHistory, AppointmentType,
+    AuditLog, EmailStatus, Notification, Prescription, ProfessionalProfile, User, UserRole,
+)
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.appointments import ProfessionalAppointmentStatusUpdate
 from app.services.appointment_service import AppointmentService
+from app.services.notification_dispatcher import NotificationDispatcher
 
 
 class AppointmentFollowUpTests(unittest.TestCase):
@@ -28,7 +34,8 @@ class AppointmentFollowUpTests(unittest.TestCase):
         self.addCleanup(self.engine.dispose)
         metadata = MetaData()
         with self.engine.begin() as connection:
-            for model in (User, Appointment, AppointmentNote, AppointmentStatusHistory, AuditLog, Notification, Prescription):
+            for model in (User, ProfessionalProfile, Appointment, AppointmentNote, AppointmentStatusHistory,
+                          AuditLog, Notification, Prescription):
                 table = model.__table__.to_metadata(metadata)
                 for constraint in list(table.constraints):
                     if isinstance(constraint, ExcludeConstraint):
@@ -128,8 +135,10 @@ class AppointmentFollowUpTests(unittest.TestCase):
             self.assertEqual(len(notices), 1)
             self.assertEqual(notices[0].recipient_id, self.patient_id)
             self.assertEqual(notices[0].entity_id, self.appointment_id)
-            self.assertFalse(notices[0].email_required)
+            self.assertTrue(notices[0].email_required)
+            self.assertEqual(notices[0].email_status, EmailStatus.PENDING)
             self.assertNotIn("Shared diagnosis", notices[0].message)
+            self.assertNotIn("Shared instructions", notices[0].message)
             rows = AppointmentRepository(db).patient_follow_ups(self.patient_id)
             self.assertEqual(len(rows), 1)
             self.assertNotIn("clinical_notes", rows[0])
@@ -137,3 +146,25 @@ class AppointmentFollowUpTests(unittest.TestCase):
                 self.professional_id, datetime.now(timezone.utc), None, None, None, None, None, 0, 10,
             )
             self.assertEqual(history[0][2].clinical_notes, "Author only")
+
+    @patch("app.services.notification_dispatcher.send_product_notification_email", return_value=True)
+    def test_optional_shared_notes_queue_one_generic_email_to_the_patient(self, send):
+        notes = {"shared_diagnosis": None, "shared_notes": "Sensitive instructions", "clinical_notes": None}
+        for _ in range(2):
+            self.assertEqual(self.http.put(self.editor, json=notes).status_code, 200)
+        self.assertEqual(self.http.put(self.editor, json={**notes, "shared_notes": None}).status_code, 200)
+
+        with Session(self.engine) as db:
+            dispatcher = NotificationDispatcher(NotificationRepository(db), UserRepository(db))
+            self.assertEqual(dispatcher.run_once(), 1)
+            self.assertEqual(dispatcher.run_once(), 0)
+            notice = db.scalars(select(Notification)).one()
+            self.assertEqual(notice.email_status, EmailStatus.SENT)
+            self.assertIsNone(notice.read_at)
+
+        send.assert_called_once()
+        email, title, message, link = send.call_args.args
+        self.assertEqual(email, "Patient@example.test")
+        self.assertIn("notas", message)
+        self.assertNotIn("Sensitive instructions", f"{title} {message}")
+        self.assertTrue(link.endswith(f"/patientPanel/misCitas/{self.appointment_id}"))

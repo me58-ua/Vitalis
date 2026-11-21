@@ -45,11 +45,14 @@ class NotificationDispatcher:
                 processed += 1
                 continue
             try:
+                path = f"/notifications/{notification.id}"
+                if notification.type == "appointment_follow_up" and notification.entity_id:
+                    path = f"/patientPanel/misCitas/{notification.entity_id}"
                 sent = send_product_notification_email(
                     user.email,
                     notification.title,
                     notification.message,
-                    f"{settings.FRONTEND_URL.rstrip('/')}/notifications/{notification.id}",
+                    f"{settings.FRONTEND_URL.rstrip('/')}{path}",
                 )
             except (OSError, SMTPException):
                 sent = False

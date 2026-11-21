@@ -29,12 +29,17 @@ class NotificationService:
         self.repository = repository
         self.max_email_attempts = max_email_attempts
 
-    def notify_appointment_follow_up(self, patient_id: UUID, appointment_id: UUID) -> None:
+    def notify_appointment_follow_up(self, patient_id: UUID, appointment_id: UUID, *, clinical_update: bool = False) -> None:
+        message = "Tu profesional ha compartido información sobre tu cita. Abre los detalles en el historial de citas para consultarla."
+        if clinical_update:
+            message = "Tu profesional ha compartido notas o un diagnóstico sobre una de tus citas. Entra en Vitalis y abre los detalles de la cita para consultarlos."
         self.repository.create(Notification(
             recipient_id=patient_id, type="appointment_follow_up", entity="appointment",
             entity_id=appointment_id, title="Novedades sobre tu cita",
-            message="Tu profesional ha compartido información sobre tu cita. Abre los detalles en el historial de citas para consultarla.",
-            email_required=False, email_status=EmailStatus.NOT_APPLICABLE,
+            message=message,
+            scheduled_for=datetime.now(timezone.utc) if clinical_update else None,
+            email_required=clinical_update,
+            email_status=EmailStatus.PENDING if clinical_update else EmailStatus.NOT_APPLICABLE,
         ))
 
     def notify_professional_review(self, user, *, profile_change: bool = False) -> None:

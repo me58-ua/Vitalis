@@ -284,7 +284,9 @@ class AppointmentService:
                 if self.notifications is not None and any(
                     values[field] and values[field] != previous[field] for field in ("shared_diagnosis", "shared_notes")
                 ):
-                    self.notifications.notify_appointment_follow_up(appointment.patient_id, appointment_id)
+                    self.notifications.notify_appointment_follow_up(
+                        appointment.patient_id, appointment_id, clinical_update=True,
+                    )
                 previous = values
         return ProfessionalAppointmentFollowUp(
             id=appointment.id, patient_id=patient.id, patient_name=patient.name, start_time=appointment.start_time,
