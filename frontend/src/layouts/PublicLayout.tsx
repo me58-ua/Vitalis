@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Notifications } from '../components/Notifications';
 import { DocumentSearch } from '../components/DocumentSearch';
-import logo from '../../assets/vitalis logo.png';
+import logo from '../assets/vitalis-logo.png';
 import accountIcon from '../assets/figma/imgContainer18.svg';
 
 export function PublicLayout() {

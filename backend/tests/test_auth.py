@@ -2,10 +2,11 @@ import unittest
 import uuid
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import IntegrityError
 
 from app.api.auth import login, me, register
 from app.core.security import (
@@ -181,6 +182,26 @@ class AuthTests(unittest.TestCase):
         duplicate = self.data.model_copy(update={"email": "other@example.com"})
         with self.assertRaises(UsernameAlreadyRegisteredError):
             self.service.register_patient(duplicate)
+
+    def test_registration_reports_the_database_identifier_conflict(self):
+        for constraint, code in {
+            "ix_users_dni": "DUPLICATE_DNI",
+            "users_email_key": "DUPLICATE_EMAIL",
+            "ix_users_username": "DUPLICATE_USERNAME",
+            "uq_professional_profiles_license_number": "DUPLICATE_LICENSE_NUMBER",
+        }.items():
+            with self.subTest(constraint=constraint):
+                original = Exception()
+                original.diag = SimpleNamespace(constraint_name=constraint)
+                failure = IntegrityError(None, None, original)
+                with patch.object(self.repository, "create", side_effect=failure), patch.object(
+                    self.repository, "rollback", create=True
+                ) as rollback:
+                    with self.assertRaises(HTTPException) as caught:
+                        register(self.data, self.repository)
+                    self.assertEqual(caught.exception.status_code, 409)
+                    self.assertEqual(caught.exception.detail, code)
+                    rollback.assert_called_once()
 
     def test_login_returns_user_and_token_contains_subject_and_role(self):
         user = self.service.register_patient(self.data)

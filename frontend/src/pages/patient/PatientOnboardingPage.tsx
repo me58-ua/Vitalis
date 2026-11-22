@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { PatientDashboardLayout } from '../../layouts/PatientDashboardLayout';
 import { answerOnboarding, confirmOnboarding, getOnboarding, giveOnboardingConsent, skipOnboardingQuestion, onboardingError, type OnboardingReview, type OnboardingState } from '../../api/onboarding';
-import logo from '../../assets/figma/patient/VitaLisLogo.png';
+import logo from '../../assets/vitalis-logo.png';
 import '../../styles/patient-onboarding.css';
 
 const modules = [

@@ -2,10 +2,9 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { appointmentHistoryPath } from '../api/appointmentFollowUp';
-import { DocumentSearch } from '../components/DocumentSearch';
 import { Notifications } from '../components/Notifications';
 import { doctorSelectionPath } from '../pages/patient/DoctorSelectionPage';
-import logo from '../assets/figma/patient/VitaLisLogo.png';
+import logo from '../assets/vitalis-logo.png';
 import dashboard from '../assets/figma/patient/Margin2.svg';
 import analysis from '../assets/figma/patient/Margin3.svg';
 import calendar from '../assets/figma/patient/Margin4.svg';
@@ -40,6 +39,6 @@ export function PatientDashboardLayout({ children, onProfile }: { children: Reac
       </nav>
       <div className="patient-sidebar-bottom"><button disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button>{logoutError && <p role="alert" className="error-state">{logoutError}</p>}</div>
     </aside>
-    <div className="patient-dashboard-body"><header className="patient-dashboard-header"><button className="icon-button patient-menu-button" aria-label="Mostrar u ocultar navegación" aria-expanded={open} aria-controls="patient-navigation" onClick={() => setOpen(value => !value)}><img src={menu} alt="" /></button><div className="patient-header-title"><span>Panel del paciente</span><strong>Bienvenido de nuevo, {user.name}</strong></div><div className="patient-header-tools"><DocumentSearch user={user} /><Notifications userId={user.id} /><details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong>{logoutError && <p role="alert">{logoutError}</p>}<button className="text-button" disabled={busy} onClick={() => { void logout(); }}>Cerrar sesión</button></div></details></div></header>{children}</div>
+    <div className="patient-dashboard-body"><header className="patient-dashboard-header"><button className="icon-button patient-menu-button" aria-label="Mostrar u ocultar navegación" aria-expanded={open} aria-controls="patient-navigation" onClick={() => setOpen(value => !value)}><img src={menu} alt="" /></button><div className="patient-header-title"><span>Panel del paciente</span><strong>Bienvenido de nuevo, {user.name}</strong></div><div className="patient-header-tools"><Notifications userId={user.id} /><details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong>{logoutError && <p role="alert">{logoutError}</p>}<button className="text-button" disabled={busy} onClick={() => { void logout(); }}>Cerrar sesión</button></div></details></div></header>{children}</div>
   </div>;
 }

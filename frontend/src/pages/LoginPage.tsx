@@ -24,6 +24,8 @@ export function LoginPage() {
   const errorRef = useRef<HTMLParagraphElement>(null);
   const navigationState: unknown = useLocation().state;
   const authenticationRequired = typeof navigationState === 'object' && navigationState !== null && 'authenticationRequired' in navigationState && navigationState.authenticationRequired === true;
+  const registeredRole = typeof navigationState === 'object' && navigationState !== null && 'registeredRole' in navigationState
+    ? navigationState.registeredRole : undefined;
   if (user) return <Navigate to={destination(user.role)} replace />;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -46,6 +48,11 @@ export function LoginPage() {
   return <><HomePage /><Modal title="Iniciar sesión" onClose={() => navigate('/', { replace: true })} busy={submitting || busy}>
       <div className="login-card">
         <p className="login-eyebrow">BIENVENIDO A VITALIS</p>
+        {(registeredRole === 'patient' || registeredRole === 'professional') && <p className="success-state" role="status">
+          {registeredRole === 'professional'
+            ? 'Cuenta creada. Un administrador debe aprobar tu cuenta antes de que puedas iniciar sesión.'
+            : 'Tu cuenta se ha creado. Ya puedes iniciar sesión.'}
+        </p>}
         {authenticationRequired && !error && <p className="error-state" role="alert">Inicia sesión para continuar. Si tu sesión ha caducado o tu cuenta está inactiva, tendrás que identificarte de nuevo o contactar con la administración.</p>}
         {!apiConfigured && <p className="error-state" role="alert">La conexión con el servidor no está configurada. Consulta la guía de instalación.</p>}
         <form onSubmit={(event) => { void submit(event); }} aria-busy={submitting || busy}>

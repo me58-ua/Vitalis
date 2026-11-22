@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password
 from app.models import PatientProfile, ProfessionalProfile, ProfessionalApprovalStatus, User, UserRole
-from app.repositories.user_repository import UserRepository
+from app.repositories.user_repository import UserRepository, user_identifier_conflict_code
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.users import AdminUserCreate, AdminUserUpdate
 from app.models import AuditAction
@@ -20,15 +20,6 @@ class AdminUserNotFoundError(Exception):
 
 class AdminUserValidationError(Exception):
     pass
-
-
-def conflict_code(error: IntegrityError) -> str:
-    # Constraint names only; never return raw database errors or personal data.
-    constraint = getattr(getattr(error.orig, "diag", None), "constraint_name", "") or ""
-    for field in ("license_number", "username", "email", "dni"):
-        if field in constraint:
-            return f"DUPLICATE_{field.upper()}"
-    return "USER_IDENTIFIER_CONFLICT"
 
 
 class AdminUserDeleteConflictError(Exception):
@@ -81,7 +72,7 @@ class AdminUserService:
             return self.users.create(user)
         except IntegrityError as error:
             self.users.rollback()
-            raise AdminUserConflictError(conflict_code(error)) from error
+            raise AdminUserConflictError(user_identifier_conflict_code(error)) from error
 
     def update(self, user: User, data: AdminUserUpdate, actor: User | None = None) -> User:
         values = data.model_dump(exclude_unset=True)
@@ -130,7 +121,7 @@ class AdminUserService:
             return updated
         except IntegrityError as error:
             self.users.rollback()
-            raise AdminUserConflictError(conflict_code(error)) from error
+            raise AdminUserConflictError(user_identifier_conflict_code(error)) from error
 
     def delete(self, user_id, actor: User | None = None) -> None:
         user = self.get(user_id)

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { register } from '../api/auth';
-import { errorMessage } from '../api/errors';
+import { registrationErrorMessage } from '../api/errors';
 import { apiConfigured } from '../api/client';
 import type { Registration } from '../types/api';
 import { DateTimeField } from '../components/DateTimeField';
@@ -13,7 +13,6 @@ export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
   const [submitting, setSubmitting] = useState(false);
   const locked = useRef(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [role, setRole] = useState<'patient' | 'professional'>(initialRole === 'professional' ? 'professional' : 'patient');
   const [step, setStep] = useState<1 | 2>(1);
   const professional = role === 'professional';
@@ -52,20 +51,15 @@ export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
         }),
       };
       await register(payload);
-      setSuccess(professional
-        ? 'Cuenta creada. Un administrador debe aprobar tu cuenta antes de que puedas iniciar sesión.'
-        : 'Tu cuenta se ha creado. Ya puedes iniciar sesión.');
-    } catch (error: unknown) { setError(errorMessage(error)); }
+      navigate('/login', { replace: true, state: { registeredRole: role } });
+    } catch (error: unknown) { setError(registrationErrorMessage(error)); }
     finally { locked.current = false; setSubmitting(false); }
   }
 
   return <section className="registration-form" aria-labelledby="register-title">
     <h1 id="register-title" ref={heading} tabIndex={-1}>{step === 1 ? 'Crea tu cuenta' : 'Completa tu perfil'}</h1>
-    {success ? <div className="success-state" role="status"><p>{success}</p>
-      <button className="button primary" onClick={() => { navigate('/login'); }}>Ir a iniciar sesión</button></div>
-      : <>
         <p className="registration-step" role="status">Paso {step} de 2 · {step === 1 ? 'Cuenta y datos personales' : professional ? 'Datos profesionales' : 'Completa tu perfil de paciente'}</p>
-        <p className="muted">Empieza a conocer mejor tu salud o acompaña a tus pacientes. Los campos con * son obligatorios.</p>
+        {(step === 1 || professional) && <p className="muted">Empieza a conocer mejor tu salud o acompaña a tus pacientes. Los campos con * son obligatorios.</p>}
         {!apiConfigured && <p className="error-state" role="alert">La conexión con el servidor no está configurada. Consulta la guía de instalación.</p>}
         <form onSubmit={(event) => { void submit(event); }} aria-busy={submitting}>
           <fieldset disabled={submitting || !apiConfigured} className="form-grid">
@@ -75,7 +69,14 @@ export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
                 <label>DNI / NIE *<input name="dni" required minLength={5} maxLength={20} /></label>
                 <label>Nombre de usuario *<input name="username" autoComplete="username" required minLength={3} maxLength={50} /></label>
                 <label>Fecha de nacimiento *<DateTimeField name="birth_date" type="date" autoComplete="bday" required /></label>
-                <label>Género (opcional)<input name="gender" maxLength={50} /></label>
+                <label>Género (opcional)
+                  <select name="gender" defaultValue="">
+                    <option value="">Selecciona una opción</option>
+                    <option value="female">Mujer</option>
+                    <option value="male">Hombre</option>
+                    <option value="prefer_not_to_say">Prefiero no decir</option>
+                  </select>
+                </label>
                 <h3 className="full">2. Contacto y acceso</h3>
                 <label>Correo electrónico *<input name="email" type="email" autoComplete="email" required maxLength={320} /></label>
                 <label>Teléfono *<input name="tel" type="tel" autoComplete="tel" required maxLength={32} /></label>
@@ -91,8 +92,8 @@ export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
             <fieldset className="form-grid full patient-registration" hidden={step !== 2 || professional} disabled={step !== 2 || professional}>
               <div className="full"><h3>Completa tu perfil</h3><p className="muted">Añade algunos detalles a tu perfil de paciente. Peso, altura y dirección son opcionales.</p></div>
               <p className="registration-step full">Rol seleccionado: Paciente</p>
-              <label>Peso (kg)<input name="weight_kg" type="number" inputMode="decimal" min={25} max={400} step="any" aria-describedby="weight-help" /><span id="weight-help" className="field-help">Entre 25 y 400 kg.</span></label>
-              <label>Altura (cm)<input name="height_cm" type="number" inputMode="decimal" min={100} max={250} step="any" aria-describedby="height-help" /><span id="height-help" className="field-help">Entre 100 y 250 cm.</span></label>
+              <label>Peso (kg)<input name="weight_kg" type="number" inputMode="decimal" min={25} max={400} step="any" /></label>
+              <label>Altura (cm)<input name="height_cm" type="number" inputMode="decimal" min={100} max={250} step="any" /></label>
               <label className="full">Zona horaria<select name="timezone" defaultValue="Europe/Madrid" required><option value="Europe/Madrid">Europe/Madrid — España peninsular</option><option value="Atlantic/Canary">Atlantic/Canary — Islas Canarias</option><option value="UTC">UTC</option></select><span className="field-help">Se utiliza para mostrar las fechas y horas de tus citas.</span></label>
               <label className="full">Dirección de residencia (opcional)<input name="address" autoComplete="street-address" maxLength={255} placeholder="Calle, número, ciudad, código postal" /></label>
               <div className="registration-privacy full"><strong>Tu salud, mejor comprendida. Tus datos, protegidos.</strong><p>Conoce mejor tu salud e identifica posibles riesgos a partir de tu información y tus hábitos, con la tranquilidad de que tus datos se tratan de forma segura y confidencial.</p></div>
@@ -114,6 +115,5 @@ export function RegistrationForm({ initialRole = 'patient', onStepChange }: {
           {error && <p className="error-state" role="alert">{error}</p>}
         </form>
         <div className="dialog-footer">¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link></div>
-      </>}
   </section>;
 }

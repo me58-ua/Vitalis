@@ -1,11 +1,20 @@
 from uuid import UUID
 
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User, UserRole
 from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
+
+
+def user_identifier_conflict_code(error: IntegrityError) -> str:
+    constraint = getattr(getattr(error.orig, "diag", None), "constraint_name", "") or ""
+    for field in ("license_number", "username", "email", "dni"):
+        if field in constraint:
+            return f"DUPLICATE_{field.upper()}"
+    return "USER_IDENTIFIER_CONFLICT"
 
 
 class UserRepository:

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Notifications } from '../components/Notifications';
-import logo from '../../assets/vitalis logo.png';
+import logo from '../assets/vitalis-logo.png';
 import dashboard from '../assets/figma/professional/nav-dashboard.svg';
 import agenda from '../assets/figma/professional/nav-agenda.svg';
 import patients from '../assets/figma/professional/nav-patients.svg';

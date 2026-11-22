@@ -3,7 +3,7 @@ import { PatientDashboardLayout } from '../../layouts/PatientDashboardLayout';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { getOnboarding } from '../../api/onboarding';
 import { PatientQueryFeedback } from '../../components/PatientDashboardDialogs';
-import logo from '../../assets/figma/patient/VitaLisLogo.png';
+import logo from '../../assets/vitalis-logo.png';
 import '../../styles/patient-health-profile.css';
 
 export function PatientOnboardingCompletePage() {

@@ -22,10 +22,9 @@ from app.services.email_service import (
 )
 from app.services.auth_service import (
 	AuthService,
-	EmailAlreadyRegisteredError,
 	InactiveUserError,
 	InvalidCredentialsError,
-	UsernameAlreadyRegisteredError,
+	RegistrationConflictError,
 	InvalidRefreshTokenError,
 	InvalidAccessTokenError,
 )
@@ -47,11 +46,11 @@ def register(
 		if background_tasks is not None:
 			background_tasks.add_task(send_welcome_email, user.email, user.name)
 		return user
-	except (EmailAlreadyRegisteredError, UsernameAlreadyRegisteredError) as error:
+	except RegistrationConflictError as error:
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
-			detail=str(error) or "The email or username is already registered",
-		)
+			detail=str(error),
+		) from error
 
 
 @router.post("/login", response_model=TokenResponse)

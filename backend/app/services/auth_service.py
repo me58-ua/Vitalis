@@ -15,18 +15,22 @@ from app.core.security import (
     verify_password,
 )
 from app.models import PatientProfile, ProfessionalProfile, RefreshToken, User, UserRole
-from app.repositories.user_repository import UserRepository
+from app.repositories.user_repository import UserRepository, user_identifier_conflict_code
 from app.schemas.auth import UserRegisterRequest
 
 
-class EmailAlreadyRegisteredError(Exception):
-    def __init__(self) -> None:
-        super().__init__("A user with this email already exists")
+class RegistrationConflictError(Exception):
+    pass
 
 
-class UsernameAlreadyRegisteredError(Exception):
+class EmailAlreadyRegisteredError(RegistrationConflictError):
     def __init__(self) -> None:
-        super().__init__("A user with this username already exists")
+        super().__init__("DUPLICATE_EMAIL")
+
+
+class UsernameAlreadyRegisteredError(RegistrationConflictError):
+    def __init__(self) -> None:
+        super().__init__("DUPLICATE_USERNAME")
 
 
 class InvalidCredentialsError(Exception):
@@ -92,9 +96,15 @@ class AuthService:
         try:
             user = self.users.create(user)
         except IntegrityError as error:
-            if "username" in str(error.orig).lower():
+            self.users.rollback()
+            code = user_identifier_conflict_code(error)
+            if code == "DUPLICATE_USERNAME":
                 raise UsernameAlreadyRegisteredError from error
-            raise EmailAlreadyRegisteredError from error
+            if code == "DUPLICATE_EMAIL":
+                raise EmailAlreadyRegisteredError from error
+            if code == "USER_IDENTIFIER_CONFLICT":
+                raise
+            raise RegistrationConflictError(code) from error
         if user.role == UserRole.PROFESSIONAL and self.notifications is not None:
             self.notifications.notify_professional_review(user)
         return user

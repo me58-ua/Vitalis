@@ -17,7 +17,7 @@
 .onboarding-notice { background: #eff4ff; margin: 0; padding: 12px 20px; color: #404944; font-size: 12px; line-height: 1.6; }
 .onboarding-stream { height: min(600px, 65vh); min-height: 340px; overflow: auto; padding: 24px; overscroll-behavior: contain; }
 .onboarding-message { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; }
-.onboarding-avatar { width: 34px; height: 34px; padding: 4px; background: #eff4ff; border-radius: 50%; flex-shrink: 0; }
+.onboarding-avatar { width: 34px; height: 34px; padding: 4px; background: #eff4ff; border-radius: 50%; flex-shrink: 0; object-fit: contain; }
 .onboarding-message > div { min-width: 0; max-width: 90%; }
 .onboarding-speaker { display: block; font-size: 11px; font-weight: 650; color: #003527; margin: 0 0 6px; }
 .onboarding-bubble { padding: 16px; background: #eff4ff; border-radius: 0 14px 14px; overflow-wrap: anywhere; line-height: 1.7; font-size: 14px; }

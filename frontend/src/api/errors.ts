@@ -1,5 +1,21 @@
 import axios from 'axios';
 
+const registrationConflicts = new Map([
+  ['DUPLICATE_EMAIL', 'Este correo electrónico ya está registrado.'],
+  ['DUPLICATE_USERNAME', 'Este nombre de usuario ya está registrado.'],
+  ['DUPLICATE_DNI', 'Este DNI / NIE ya está registrado.'],
+  ['DUPLICATE_LICENSE_NUMBER', 'Este número de colegiación ya está registrado.'],
+]);
+
+export function registrationErrorMessage(error: unknown): string {
+  if (axios.isAxiosError<{ detail?: unknown }>(error) && error.response?.status === 409) {
+    const detail = error.response.data?.detail;
+    const message = typeof detail === 'string' ? registrationConflicts.get(detail) : undefined;
+    return message ?? 'Hay un conflicto con los datos de registro. Revisa tus datos e inténtalo de nuevo.';
+  }
+  return errorMessage(error);
+}
+
 export function errorMessage(error: unknown): string {
   if (!axios.isAxiosError<unknown>(error)) return 'No se pudo completar la solicitud. Inténtalo de nuevo.';
   if (!error.response) return 'No se ha podido conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.';
