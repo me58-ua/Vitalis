@@ -1,7 +1,7 @@
 import type { PatientRiskItem } from '../types/api';
 
 export const riskNames: Record<string, string> = {
-  bmi: 'Índice de masa corporal', audit_c: 'Consumo de alcohol', tobacco: 'Tabaco', sedentary: 'Sedentarismo',
+  bmi: 'Índice de masa corporal', audit_c: 'Consumo de alcohol', tobacco: 'Tabaco', sedentary: 'Sedentarismo', sleep: 'Sueño',
   family_diabetes: 'Antecedentes de diabetes', family_cancer: 'Antecedentes de cáncer', family_cardiovascular: 'Antecedentes cardiovasculares',
   family_huntington: 'Antecedentes de Huntington', family_other: 'Otros antecedentes familiares',
   family_hypertension: 'Antecedentes de hipertensión', family_high_cholesterol: 'Antecedentes de colesterol alto',
@@ -14,16 +14,19 @@ const categories: Record<string, string> = {
   positive_screen: 'Cribado positivo', lower_screen: 'Por debajo del umbral de cribado', none: 'Sin consumo registrado',
   low: 'Consumo bajo', moderate: 'Consumo moderado', high: 'Consumo alto', active: 'Actividad suficiente',
   low_activity: 'Actividad baja', very_low_activity: 'Actividad muy baja', inactive: 'Sin actividad registrada', family_history: 'Antecedentes registrados',
+  short_sleep: 'Sueño insuficiente', meets_sleep_minimum: 'Alcanza el umbral de 7 horas',
 };
 export const trendNames: Record<string, string> = { improving: 'Mejora', worsening: 'Empeoramiento', stable: 'Estable', insufficient_history: 'Historial insuficiente' };
 const missingNames: Record<string, string> = {
   height_cm: 'altura', weight_kg: 'peso', birth_date: 'fecha de nacimiento', adult_age: 'edad adulta', valid_measurements: 'medidas válidas',
   frequency: 'frecuencia de consumo', quantity: 'cantidad consumida', binge: 'consumo intensivo', sex_at_birth: 'sexo al nacer', valid_scores: 'respuestas válidas de AUDIT-C',
   tobacco_logs: 'registros recientes de tabaco', three_exercise_logs: 'al menos tres registros recientes de ejercicio',
+  usual_sleep_hours: 'horas habituales de sueño',
 };
+const riskUnits: Record<string, string> = { bmi: 'kg/m²', audit_c: 'puntos AUDIT-C', tobacco: 'cigarrillos/día', sedentary: 'min/semana', sleep: 'h/noche' };
 export function riskValue(model: string, value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) return 'Valor no disponible';
-  const unit = model === 'bmi' ? 'kg/m²' : model === 'audit_c' ? 'puntos AUDIT-C' : model === 'tobacco' ? 'cigarrillos/día' : model === 'sedentary' ? 'min/semana' : value === 1 ? 'antecedente' : 'antecedentes';
+  const unit = riskUnits[model] ?? (value === 1 ? 'antecedente' : 'antecedentes');
   return `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(value)} ${unit}`;
 }
 export function PatientRiskCards({ results, onHistory }: { results: PatientRiskItem[]; onHistory: (model: string) => void }) {
@@ -38,7 +41,7 @@ export function PatientRiskCards({ results, onHistory }: { results: PatientRiskI
           : <><p className="patient-risk-value">{riskValue(model, item.metric_value)}</p><p>{item.category ? categories[item.category] ?? 'Clasificación no disponible' : 'Sin clasificación'}</p>
             <p className="patient-risk-explanation">{item.explanation}</p>
             {item.source.startsWith('https://') && <p><a href={item.source} target="_blank" rel="noreferrer">Consultar fuente de salud</a></p>}
-            <span className="patient-trend">{trendNames[item.trend] ?? 'Tendencia no disponible'}</span></>}
+            {model !== 'sleep' && <span className="patient-trend">{trendNames[item.trend] ?? 'Tendencia no disponible'}</span>}</>}
       <button className="text-button" onClick={() => onHistory(model)}>Ver historial</button>
       <p className="patient-disclaimer">Evaluación orientativa; no sustituye una consulta médica.</p>
     </article>;

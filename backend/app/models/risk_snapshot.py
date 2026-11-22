@@ -14,6 +14,7 @@ class RiskSnapshotModel(str, enum.Enum):
     AUDIT_C = "audit_c"
     TOBACCO = "tobacco"
     SEDENTARY = "sedentary"
+    SLEEP = "sleep"
     FAMILY_DIABETES = "family_diabetes"
     FAMILY_CANCER = "family_cancer"
     FAMILY_CARDIOVASCULAR = "family_cardiovascular"

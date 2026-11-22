@@ -32,6 +32,20 @@ class Profiles:
 
 
 class OnboardingChatTests(unittest.TestCase):
+    def test_family_history_summary_uses_spanish_labels_and_specific_relationships(self):
+        _, summary = validate_extraction("family_history", {"status": "data", "data": {"entries": [
+            {"relationship": "abuelo", "category": "cancer", "detail": "cáncer de estómago",
+             "relative_detail": "abuelo materno", "age": 78},
+            {"relationship": "abuelo", "category": "hypertension", "relative_detail": "abuela paterna"},
+            {"relationship": "abuelo", "category": "high_cholesterol", "detail": "colesterol alto",
+             "relative_detail": "abuela paterna"},
+        ]}})
+        self.assertEqual(summary, [
+            "Familiar: abuelo materno. Enfermedad: Cáncer (cáncer de estómago). Edad al diagnóstico: 78 años.",
+            "Familiar: abuela paterna. Enfermedad: Hipertensión. Edad al diagnóstico: no indicada.",
+            "Familiar: abuela paterna. Enfermedad: Colesterol alto. Edad al diagnóstico: no indicada.",
+        ])
+
     def test_family_history_preserves_multiple_relatives_details_notes_and_unknown_age(self):
         self.start_at('family_history')
         entries = [
@@ -62,6 +76,28 @@ class OnboardingChatTests(unittest.TestCase):
         record = self.profiles.records[0]
         self.assertEqual(record.value, 3)
         self.assertEqual(record.unit, 'raciones_fruta_verdura/dia')
+
+    def test_exercise_session_range_is_converted_and_confirmed_before_persisting(self):
+        self.start_at("exercise")
+        message = "intento ir al gimnasio tres a quatro veces la semana, y cada sesion dura 90 min."
+        state = self.submit("exercise", {
+            "status": "data",
+            "data": {"sessions_min": 3, "sessions_max": 4, "minutes_per_session": 90},
+        }, message)
+        self.assertIn(message, extraction_prompt("exercise"))
+        self.assertIn("entre 270 y 360 minutos por semana", state["pending"]["summary"][0])
+        self.assertIn("315 minutos por semana", state["pending"]["summary"][0])
+        self.assertEqual(self.profiles.records, [])
+        self.confirm(state)
+        self.assertEqual(self.profiles.records[0].value, 315)
+        self.assertEqual(self.profiles.records[0].unit, "min/semana")
+
+    def test_ambiguous_exercise_asks_for_frequency_and_duration(self):
+        self.start_at("exercise")
+        with self.assertRaisesRegex(ValueError, "cuánto dura cada sesión"):
+            self.submit("exercise", {"status": "clarify"}, "Voy al gimnasio tres veces por semana.")
+        self.assertEqual(self.service.state(self.profile)["stage"], "question")
+        self.assertEqual(self.profiles.records, [])
 
     def test_ambiguous_diet_has_relevant_guidance_and_no_writes(self):
         self.start_at('diet')

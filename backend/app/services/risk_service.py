@@ -10,6 +10,7 @@ from app.repositories.risk_repository import RiskInputs, RiskRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.models import RiskSnapshot, RiskSnapshotTrigger
 from app.services.notification_service import NotificationService
+from app.services.habit_units import normalize_habit_value
 from app.schemas.risk import RiskResult
 from app.models import FamilyHistoryCondition
 
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 OMS_SOURCE = "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight"
 AUDIT_C_SOURCE = "https://www.hepatitis.va.gov/pdf/auditC-card.pdf"
 TOBACCO_SOURCE = "https://www.who.int/news-room/fact-sheets/detail/tobacco"
+SLEEP_SOURCE = "https://www.cdc.gov/cdi/indicator-definitions/sleep.html"
 FAMILY_SOURCE = "https://www.cdc.gov/family-health-history/family-health-history-and-you/family-health-history-and-adults.html"
 DISCLAIMER = "This is a screening aid, not a diagnosis or a probability."
 
@@ -38,6 +40,7 @@ BMI_OVERWEIGHT_MAX = 29.9
 AUDIT_C_WOMEN_THRESHOLD = 3
 AUDIT_C_MEN_THRESHOLD = 4
 SEDENTARY_MINUTES_THRESHOLD = 150
+ADULT_SHORT_SLEEP_HOURS = 7
 
 
 def _insufficient(model: str, missing: list[str], explanation: str, source: str) -> RiskResult:
@@ -216,6 +219,34 @@ def calc_sedentary(logs: Iterable[object]) -> RiskResult:
     return _ok("sedentary", round(weekly_minutes, 2), category, alert, explanation, "https://www.who.int/news-room/fact-sheets/detail/physical-activity")
 
 
+def calc_sleep(log: object | None, birth_date: date | None, today: date | None = None) -> RiskResult:
+    """Screen one reported usual sleep duration against the adult short-sleep threshold."""
+    if log is None or log.value is None:
+        return _insufficient("sleep", ["usual_sleep_hours"], "Indica cuántas horas sueles dormir cada noche.", SLEEP_SOURCE)
+    if birth_date is None:
+        return _insufficient("sleep", ["birth_date"], "La referencia de sueño depende de la edad.", SLEEP_SOURCE)
+    reference = today or date.today()
+    age = reference.year - birth_date.year - ((reference.month, reference.day) < (birth_date.month, birth_date.day))
+    if age < 18:
+        return _insufficient("sleep", ["adult_age"], "El umbral de sueño de adultos se aplica a partir de los 18 años.", SLEEP_SOURCE)
+    try:
+        hours, _ = normalize_habit_value("sueno", float(log.value), log.unit)
+    except (TypeError, ValueError, OverflowError):
+        return _insufficient("sleep", ["usual_sleep_hours"], "Indica una duración habitual del sueño válida.", SLEEP_SOURCE)
+    assert hours is not None
+    if hours < ADULT_SHORT_SLEEP_HOURS:
+        return _ok(
+            "sleep", hours, "short_sleep", "elevated",
+            "Duermes habitualmente menos de 7 horas por noche. Dormir poco de forma habitual se asocia con un mayor riesgo de hipertensión, diabetes tipo 2 y enfermedad cardiovascular.",
+            SLEEP_SOURCE,
+        )
+    return _ok(
+        "sleep", hours, "meets_sleep_minimum", "none",
+        "Las horas de sueño que has indicado alcanzan el umbral de 7 horas usado para detectar sueño insuficiente en adultos. La calidad del sueño también importa.",
+        SLEEP_SOURCE,
+    )
+
+
 def calc_family_history(
     entries: Iterable[object],
     bmi: float | None = None,
@@ -278,6 +309,7 @@ CALCULATORS: dict[str, Calculator] = {
     "audit_c": calc_audit_c,
     "tobacco": calc_tobacco,
     "sedentary": calc_sedentary,
+    "sleep": calc_sleep,
     "family_history": calc_family_history,
 }
 
@@ -349,6 +381,7 @@ class RiskService:
             )),
             ("tobacco", lambda: CALCULATORS["tobacco"](inputs.tobacco_logs)),
             ("sedentary", lambda: CALCULATORS["sedentary"](inputs.exercise_logs)),
+            ("sleep", lambda: CALCULATORS["sleep"](inputs.sleep_log, inputs.profile.birth_date, today)),
         )
         for model, calculate in calls:
             try:

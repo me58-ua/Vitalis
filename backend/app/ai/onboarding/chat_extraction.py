@@ -23,6 +23,17 @@ RECORD_FIELDS = {
     "medication": {"name", "dosage", "frequency", "active"},
 }
 ALCOHOL = {"auditc_frequency": "frequency", "auditc_quantity": "quantity", "auditc_binge": "binge"}
+FAMILY_CONDITION_LABELS = {
+    "diabetes": "Diabetes", "cancer": "Cáncer", "cardiovascular": "Enfermedad cardiovascular",
+    "hypertension": "Hipertensión", "high_cholesterol": "Colesterol alto", "stroke": "Ictus",
+    "osteoporosis": "Osteoporosis", "huntington": "Enfermedad de Huntington",
+    "cystic_fibrosis": "Fibrosis quística", "sickle_cell_disease": "Enfermedad de células falciformes",
+    "familial_hypercholesterolemia": "Hipercolesterolemia familiar", "otro": "Otra enfermedad",
+}
+FAMILY_RELATIONSHIP_LABELS = {
+    "madre": "Madre", "padre": "Padre", "hermano": "Hermano/a", "hijo": "Hijo/a",
+    "abuelo": "Abuelo/a", "tio": "Tío/a", "otro": "Otro familiar",
+}
 
 
 def extraction_prompt(question_id):
@@ -30,7 +41,19 @@ def extraction_prompt(question_id):
     if question_id in NUMERIC:
         key, _, unit, low, high = NUMERIC[question_id]
         shape = f'Return data as {{"{key}":number}} in {unit}; allowed range {low} to {high}. Convert explicit units only.'
-        if question_id == "diet":
+        if question_id == "exercise":
+            shape += (
+                ' Accept natural Spanish descriptions of usual or approximate exercise, including "intento ir". '
+                'If weekly frequency and duration per session are explicit, return data as '
+                '{"sessions_min":number,"sessions_max":number,"minutes_per_session":number} instead of calculating the total. '
+                'For a single frequency, use the same number for both bounds. Convert stated hours per session into minutes. '
+                'Recognize numbers written as words and common spelling variations. '
+                'Example: "intento ir al gimnasio tres a quatro veces la semana, y cada sesion dura 90 min." '
+                'returns {"status":"data","data":{"sessions_min":3,"sessions_max":4,"minutes_per_session":90}}. '
+                'For an explicit weekly total, use value. The question provides the weekly timeframe for a direct total. '
+                'If only frequency or only duration per session is given, ask for clarification. '
+            )
+        elif question_id == "diet":
             shape += (
                 ' Interpret natural Spanish descriptions of usual daily consumption, not just numbers or the word raciones. '
                 'Accept approximate habits such as intento comer or al menos; use the stated minimum as a provisional estimate for patient confirmation. '
@@ -51,7 +74,7 @@ def extraction_prompt(question_id):
         shape = (
             'For status data, use data: {"entries":[{"relationship":"madre|padre|hermano|hijo|abuelo|tio|otro",'
             f'"category":"{FAMILY_CATEGORY_VALUES}","detail":null,"age":null,"relative_detail":null,"notes":null}}]}}. '
-            'Use exactly these Spanish enum values. Detail may be an explicit string; age may be an explicit integer from 0 to 120. '
+            'Use exactly the listed identifiers. Age may be an explicit integer from 0 to 120. '
             'Do not infer diseases, relationships, or ages. Never use entries as a status. ' + FAMILY_EXTRACTION_RULES
         )
     else:
@@ -96,11 +119,25 @@ def validate_extraction(question_id, payload):
     if question_id in NUMERIC:
         key, label, unit, low, high = NUMERIC[question_id]
         value = data.get(key)
+        exercise_range = None
+        if question_id == "exercise" and "sessions_min" in data:
+            minimum = data.get("sessions_min")
+            maximum = data.get("sessions_max")
+            minutes = data.get("minutes_per_session")
+            if any(type(part) not in (int, float) or not 0 < part <= high for part in (minimum, maximum, minutes)) or minimum > maximum:
+                raise ValueError("Indica una frecuencia semanal y una duración por sesión válidas.")
+            exercise_range = (minimum * minutes, maximum * minutes)
+            if exercise_range[1] > high:
+                raise ValueError(f"Indica ejercicio entre {low} y {high} {unit}.")
+            value = sum(exercise_range) / 2
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value) or not low <= value <= high:
             raise ValueError(f"Indica {label.lower()} entre {low} y {high} {unit}.")
         data = {key: value}
         summary = [f"{label}: {value:g} {unit}."]
-        if question_id == "diet":
+        if exercise_range is not None and exercise_range[0] != exercise_range[1]:
+            start, end = exercise_range
+            summary = [f"Ejercicio: entre {start:g} y {end:g} minutos por semana. Confirma si podemos registrar {value:g} minutos por semana como estimación."]
+        elif question_id == "diet":
             summary = [f"Fruta y verdura: aproximadamente {value:g} raciones al día. Confirma si esta cantidad refleja tu consumo habitual."]
     elif question_id in ALCOHOL:
         key = ALCOHOL[question_id]
@@ -149,9 +186,12 @@ def validate_extraction(question_id, payload):
                 clean[-1]['relative_detail'] = relative_detail
             if notes is not None:
                 clean[-1]['notes'] = notes
-            summary.append(f"Familiar: {relationship}. Enfermedad: {category}{': ' + detail if detail else ''}. Edad al diagnóstico: {str(age) + ' años' if age is not None else 'no indicada'}.")
-            if relative_detail:
-                summary[-1] += f" Parentesco indicado: {relative_detail}."
+            relative_label = relative_detail or FAMILY_RELATIONSHIP_LABELS[relationship]
+            condition_label = FAMILY_CONDITION_LABELS[category]
+            if detail and detail.strip().casefold() != condition_label.casefold():
+                condition_label = f"{condition_label} ({detail})"
+            age_label = f"{age} años" if age is not None else "no indicada"
+            summary.append(f"Familiar: {relative_label}. Enfermedad: {condition_label}. Edad al diagnóstico: {age_label}.")
             if notes:
                 summary[-1] += f" Notas: {notes}."
         data = {"entries": clean}

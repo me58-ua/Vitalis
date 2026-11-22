@@ -134,6 +134,8 @@ class OnboardingChatService:
         try:
             extracted, summary = validate_extraction(question_id, payload)
         except (KeyError, TypeError, ValueError):
+            if question_id == "exercise":
+                raise ValueError("Indica los minutos de ejercicio por semana o cuántas veces haces ejercicio por semana y cuánto dura cada sesión. Puedes responder «no sé» si no lo sabes.") from None
             if question_id == "diet":
                 raise ValueError("Indica aproximadamente cuánta fruta y verdura comes al día, por ejemplo: «una fruta y dos raciones de verdura». Puedes responder «no sé» si no lo sabes.") from None
             raise ValueError("No he podido interpretar todos los datos. Responde en un único mensaje con las unidades y detalles solicitados. Si no lo sabes, escribe «no sé». Para alergias, indica la gravedad; para medicamentos, la dosis y la frecuencia.") from None

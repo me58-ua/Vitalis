@@ -8,6 +8,7 @@ from app.services.risk_service import (
     calc_bmi,
     calc_family_history,
     calc_sedentary,
+    calc_sleep,
     calc_tobacco,
     calc_trend,
     RiskService,
@@ -18,6 +19,26 @@ from app.models import HereditaryConditions, FamilyRelationship
 
 
 class RiskCalculatorTests(unittest.TestCase):
+    def test_one_usual_sleep_answer_is_enough_for_the_adult_screen(self):
+        session = Mock()
+        session.get.return_value = SimpleNamespace(
+            ai_processing_consent=True, birth_date=date(1990, 1, 1),
+            height_cm=None, weight_kg=None, sex_at_birth=None, onboarding_state={},
+        )
+        session.scalar.side_effect = [None, SimpleNamespace(value=360, unit="min/noche")]
+        session.scalars.side_effect = [[], []]
+        results = RiskService(RiskRepository(session)).evaluate("patient-id", today=date(2026, 1, 1))
+        sleep = next(result for result in results if result.model == "sleep")
+        self.assertEqual((sleep.metric_value, sleep.category, sleep.alert_level), (6, "short_sleep", "elevated"))
+        self.assertIn("diabetes tipo 2", sleep.explanation)
+
+    def test_sleep_threshold_and_missing_data(self):
+        log = SimpleNamespace(value=7, unit="horas/noche")
+        today = date(2026, 1, 1)
+        self.assertEqual(calc_sleep(log, date(1990, 1, 1), today).alert_level, "none")
+        self.assertEqual(calc_sleep(log, date(2010, 1, 1), today).missing, ["adult_age"])
+        self.assertEqual(calc_sleep(None, date(1990, 1, 1), today).missing, ["usual_sleep_hours"])
+
     def test_every_hereditary_enum_has_explanation_and_authoritative_source(self):
         expected = {
             'diabetes': ('glucosa', 'www.niddk.nih.gov'),
@@ -163,6 +184,7 @@ class RiskCalculatorTests(unittest.TestCase):
             tobacco_logs=[],
             exercise_logs=[],
             family_history=[],
+            sleep_log=None,
         )
         results = RiskService(repository).evaluate(
             "patient-id", today=date(2026, 1, 1)
@@ -201,7 +223,7 @@ class RiskCalculatorTests(unittest.TestCase):
             user_id="user-id", ai_processing_consent=True,
             height_cm=170, weight_kg=70, birth_date=date(1990, 1, 1),
             sex_at_birth="mujer",
-        ), alcohol_log=None, tobacco_logs=[], exercise_logs=[], family_history=[])
+        ), alcohol_log=None, tobacco_logs=[], exercise_logs=[], family_history=[], sleep_log=None)
         snapshots = Mock()
         snapshots.latest_by_model.return_value = None
         notifications = Mock()

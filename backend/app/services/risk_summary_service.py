@@ -6,7 +6,7 @@ from app.repositories.profile_repository import ProfileRepository
 from app.repositories.risk_snapshot_repository import RiskSnapshotRepository
 from app.services.audit_service import AuditService
 from app.services.risk_service import (
-    AUDIT_C_SOURCE, FAMILY_SOURCE, OMS_SOURCE, TOBACCO_SOURCE,
+    AUDIT_C_SOURCE, FAMILY_SOURCE, OMS_SOURCE, SLEEP_SOURCE, TOBACCO_SOURCE,
     RiskService, calc_trend, FAMILY_GUIDANCE,
 )
 from app.models import AuditAction
@@ -17,6 +17,7 @@ SOURCES = {
     "who": "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight",
     "audit_c": "https://pubmed.ncbi.nlm.nih.gov/9698702/",
     "tobacco": "https://www.who.int/initiatives/mpower",
+    "sleep": SLEEP_SOURCE,
     "family_history": FAMILY_SOURCE,
     "diabetes": "https://www.niddk.nih.gov/health-information/diabetes/overview/what-is-diabetes/type-2-diabetes",
     "cancer": "https://www.cdc.gov/cancer/risk-factors/family-health-history.html",

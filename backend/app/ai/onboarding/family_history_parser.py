@@ -14,7 +14,12 @@ FAMILY_EXTRACTION_RULES = (
     'fibrosis quistica to cystic_fibrosis, anemia falciforme/drepanocitosis to sickle_cell_disease. '
     'Use familial_hypercholesterolemia ONLY when that specific diagnosis is explicitly reported; ordinary high cholesterol is not enough. '
     'Preserve separate entries for multiple relatives with the same condition. '
-    'Preserve exact disease/type in detail, exact relative such as abuela materna in relative_detail, and additional reported facts in notes. '
+    'The answer may be in any language. Translate every free-text field into natural Spanish while preserving the meaning: '
+    'the reported disease or subtype in detail, the specific relative in relative_detail, and additional reported facts in notes. '
+    'For example, maternal grandpa is abuelo materno, paternal grandma is abuela paterna, '
+    'stomach cancer is cáncer de estómago, and high cholesterol is colesterol alto. '
+    'Preserve sex and the maternal or paternal side when stated. Translate ambiguous wording faithfully without inventing a diagnosis. '
+    'Keep category and relationship identifiers exactly as listed, regardless of the answer language. '
     'Use null for unknown age; missing age must never block a record. Do not invent facts.'
 )
 
@@ -24,7 +29,7 @@ FAMILY_HISTORY_PROMPT = (
     '"entries":[{"relationship":"madre|padre|hermano|hijo|abuelo|tio|otro",'
     f'"category":"{FAMILY_CATEGORY_VALUES}",'
     '"detail":"string|null","age":0-120|null,"relative_detail":"string|null","notes":"string|null"}]}. '
-    "The patient's answer is in Spanish. Use exactly the Spanish enum values shown in the schema. "
+    "Use exactly the enum identifiers shown in the schema. "
     "Interpret only the current answer. Do not infer diseases, relationships, or ages. " + FAMILY_EXTRACTION_RULES
 )
 

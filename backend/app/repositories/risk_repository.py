@@ -17,6 +17,7 @@ class RiskInputs:
     tobacco_logs: list[HabitLog]
     exercise_logs: list[HabitLog]
     family_history: list[FamilyHistoryEntry]
+    sleep_log: HabitLog | None = None
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,8 @@ class RiskRepository:
         profile = self.session.get(PatientProfile, patient_id)
         if profile is None:
             return None
-        cutoff = (today or date.today()) - timedelta(days=30)
+        reference = today or date.today()
+        cutoff = reference - timedelta(days=30)
         alcohol_log = self.session.scalar(
             select(AlcoholLog)
             .where(AlcoholLog.patient_id == patient_id)
@@ -66,10 +68,22 @@ class RiskRepository:
                 .order_by(FamilyHistoryEntry.recorded_date, FamilyHistoryEntry.id)
             )
         )
+        sleep_log = self.session.scalar(
+            select(HabitLog)
+            .where(
+                HabitLog.patient_id == patient_id,
+                HabitLog.habit_type == "sueno",
+                HabitLog.date <= reference,
+                HabitLog.value.is_not(None),
+            )
+            .order_by(HabitLog.date.desc(), HabitLog.id.desc())
+            .limit(1)
+        )
         return RiskInputs(
             profile=profile,
             alcohol_log=alcohol_log,
             tobacco_logs=[log for log in habits if log.habit_type.value == "tabaco"],
             exercise_logs=[log for log in habits if log.habit_type.value == "ejercicio"],
             family_history=family_history,
+            sleep_log=sleep_log,
         )

@@ -11,7 +11,7 @@ class FamilyHistoryParserTests(unittest.TestCase):
     def test_prompt_is_english_but_requires_spanish_persistence_values(self):
         self.assertIn("Return only JSON", FAMILY_HISTORY_PROMPT)
         self.assertIn("madre|padre|hermano", FAMILY_HISTORY_PROMPT)
-        self.assertIn("answer is in Spanish", FAMILY_HISTORY_PROMPT)
+        self.assertIn("Translate every free-text field into natural Spanish", FAMILY_HISTORY_PROMPT)
 
     def test_sanitize_entries_applies_closed_values_and_limits(self):
         entries = sanitize_entries(
