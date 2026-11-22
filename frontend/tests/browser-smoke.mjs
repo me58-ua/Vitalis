@@ -535,8 +535,10 @@ try {
   await click('.agenda-working-hours summary');
   results.push({ check: 'agenda creates and renders all three weekly schedule types, edits, deactivates and confirms deletion' });
   await click('.agenda-time-blocks .agenda-block-heading button');
-  await fill('block_start', '2030-10-29T12:00');
-  await fill('block_end', '2030-10-29T13:30');
+  await fill('block_start_date', '2030-10-29');
+  await fill('block_start_time', '12:00');
+  await fill('block_end_date', '2030-10-29');
+  await fill('block_end_time', '13:30');
   await fill('block_reason', 'Ausencia de prueba');
   fixture.state.blockConflict = true;
   await click('.agenda-time-blocks button[type="submit"]');

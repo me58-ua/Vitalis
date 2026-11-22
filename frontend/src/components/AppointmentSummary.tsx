@@ -1,7 +1,7 @@
 import type { AppointmentSummary } from '../types/api';
 import { dateTimeFormat as formatter } from '../utils/dateTime';
 
-export const appointmentStatuses = { confirmed: 'Confirmada', cancelled: 'Anulada', completed: 'Finalizada', no_show: 'No presentado' };
+export const appointmentStatuses = { confirmed: 'Confirmada', cancelled: 'Anulada', completed: 'Finalizada', no_show: 'No presentado', noshow_professional: 'Profesional no presentado' };
 export const appointmentTypes = { video: 'Videoconsulta', in_person: 'Presencial' };
 export function appointmentDate(value: string) {
   const date = new Date(value);

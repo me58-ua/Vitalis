@@ -2,7 +2,7 @@ import unittest
 import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from jose import jwt
 
@@ -27,6 +27,14 @@ class FakeAppointmentRepository:
 
     def create_status_history(self, history):
         self.history.append(history)
+
+    def lock_overdue_unattended_video(self, cutoff):
+        appointment = self.appointment
+        if (appointment.type == AppointmentType.VIDEO
+                and appointment.status == AppointmentStatus.CONFIRMED
+                and appointment.start_time <= cutoff):
+            return [appointment]
+        return []
 
 
 class FakeEventRepository:
@@ -102,16 +110,23 @@ class VideoServiceTests(unittest.TestCase):
         self.appointment.end_time = self.appointment.start_time + timedelta(minutes=30)
         self.assertIn('jwt', self.service.create_join_session(self.appointment.id, self.patient))
 
-    def test_late_join_is_allowed_and_token_still_has_a_finite_lifetime(self):
-        for age in (timedelta(hours=8), timedelta(days=40)):
-            self.appointment.start_time = datetime.now(timezone.utc) - age
-            self.appointment.end_time = self.appointment.start_time + timedelta(minutes=30)
-            result = self.service.create_join_session(self.appointment.id, self.patient)
-            self.assertGreater(result['expires_at'], datetime.now(timezone.utc))
-            self.assertLessEqual(result['expires_at'], datetime.now(timezone.utc) + timedelta(seconds=3600))
+    def test_join_grace_period_ends_after_one_hour_unless_professional_attended(self):
+        self.appointment.start_time = datetime.now(timezone.utc) - timedelta(minutes=59)
+        self.service.create_join_session(self.appointment.id, self.professional)
+        self.appointment.start_time -= timedelta(minutes=2)
+        with self.assertRaises(VideoForbiddenError):
+            self.service.create_join_session(self.appointment.id, self.patient)
+        with self.assertRaises(VideoForbiddenError):
+            self.service.record_attendance(self.appointment.id, self.professional, 'joined')
+        self.appointment.start_time += timedelta(minutes=2)
+        self.service.record_attendance(self.appointment.id, self.professional, 'joined')
+        self.appointment.start_time -= timedelta(minutes=2)
+        self.assertIn('jwt', self.service.create_join_session(self.appointment.id, self.patient))
+        self.assertEqual(self.service.expire_professional_no_shows(), 0)
 
     def test_completed_cancelled_and_no_show_appointments_cannot_join(self):
-        for status in (AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW):
+        for status in (AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW,
+                       AppointmentStatus.NO_SHOW_PROFESSIONAL):
             self.appointment.status = status
             with self.assertRaises(VideoForbiddenError):
                 self.service.create_join_session(self.appointment.id, self.patient)
@@ -138,6 +153,27 @@ class VideoServiceTests(unittest.TestCase):
         self.assertEqual(len(self.service.appointments.history), 1)
         self.assertEqual(self.service.appointments.history[0].changed_by, self.patient.id)
         self.assertEqual(sum(item.event == 'left' for item in self.events.events), 2)
+
+    def test_patient_departure_without_professional_attendance_expires_and_audits_once(self):
+        audits = Mock()
+        service = VideoService(self.service.appointments, self.events, audits)
+        for user in (self.patient, self.professional):
+            service.create_join_session(self.appointment.id, user)
+        service.record_attendance(self.appointment.id, self.patient, 'joined')
+        self.assertEqual(service.record_attendance(self.appointment.id, self.patient, 'left')['status'],
+                         AppointmentStatus.CONFIRMED)
+        deadline = self.appointment.start_time + timedelta(hours=1)
+        self.assertEqual(service.expire_professional_no_shows(deadline - timedelta(microseconds=1)), 0)
+        self.assertEqual(service.expire_professional_no_shows(deadline), 1)
+        self.assertEqual(service.expire_professional_no_shows(deadline), 0)
+        self.assertEqual(self.appointment.status, AppointmentStatus.NO_SHOW_PROFESSIONAL)
+        history, = service.appointments.history
+        self.assertIsNone(history.changed_by)
+        self.assertEqual(history.new_status, AppointmentStatus.NO_SHOW_PROFESSIONAL)
+        audits.create.assert_called_once()
+        log = audits.create.call_args.args[0]
+        self.assertIsNone(log.actor_id)
+        self.assertEqual((log.entidad, log.entidad_id), ("appointment_professional_no_show", self.appointment.id))
 
     def test_professional_can_finish_first_without_marking_patient_departed(self):
         self.service.create_join_session(self.appointment.id, self.professional)

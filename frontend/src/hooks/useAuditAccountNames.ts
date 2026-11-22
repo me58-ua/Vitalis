@@ -15,7 +15,7 @@ export function useAuditAccountNames(items: AuditPage['items'] | undefined) {
   const { user } = useAuth();
   const ids = useMemo(() => [...new Set(items?.flatMap(item => {
     const target = auditAccountId(item);
-    return [item.actor_id, ...(target ? [target] : []), ...(item.patient_id ? [item.patient_id] : [])];
+    return [item.actor_id, target, item.patient_id].filter(id => id !== null);
   }) ?? [])], [items]);
   const load = useCallback(async (signal: AbortSignal) => {
     const names: Record<string, AccountName> = {};

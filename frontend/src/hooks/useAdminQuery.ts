@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '../api/errors';
 
 export function useAdminQuery<T>(load: (signal: AbortSignal) => Promise<T>, describeError: (error: unknown) => string = errorMessage) {
@@ -16,5 +16,6 @@ export function useAdminQuery<T>(load: (signal: AbortSignal) => Promise<T>, desc
     return () => controller.abort();
   }, [load, revision, describeError]);
   const current = result?.load === load && result.revision === revision ? result : null;
-  return { data: current?.data ?? null, error: current?.error ?? '', loading: !current, retry: () => setRevision((value) => value + 1) };
+  const retry = useCallback(() => setRevision(value => value + 1), []);
+  return { data: current?.data ?? null, error: current?.error ?? '', loading: !current, retry };
 }

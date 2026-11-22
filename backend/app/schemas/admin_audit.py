@@ -32,8 +32,8 @@ class AuditLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    actor_id: UUID
-    actor_role: UserRole
+    actor_id: UUID | None
+    actor_role: UserRole | None
     patient_id: UUID | None = Field(description="Patient user account UUID (users.id)")
     accion: AuditAction
     entidad: str

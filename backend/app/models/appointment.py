@@ -21,6 +21,7 @@ class AppointmentStatus(str, enum.Enum):
     CANCELLED = "cancelled"
     COMPLETED = "completed"
     NO_SHOW = "no_show"
+    NO_SHOW_PROFESSIONAL = "noshow_professional"
 
 
 class Appointment(Base):

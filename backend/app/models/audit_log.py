@@ -23,10 +23,10 @@ class AuditLog(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=func.gen_random_uuid()
     )
-    actor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    actor_role: Mapped[UserRole] = mapped_column(
+    actor_role: Mapped[UserRole | None] = mapped_column(
         Enum(
             UserRole,
             name="user_role",
@@ -34,7 +34,7 @@ class AuditLog(Base):
             create_type=False,
             values_callable=lambda roles: [role.value for role in roles],
         ),
-        nullable=False,
+        nullable=True,
     )
     patient_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True

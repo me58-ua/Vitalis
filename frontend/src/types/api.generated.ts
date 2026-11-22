@@ -1041,23 +1041,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/patients/{patient_id}/consentimiento": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update Consent */
-        patch: operations["update_consent_patients__patient_id__consentimiento_patch"];
-        trace?: never;
-    };
     "/patients/me/consentimiento": {
         parameters: {
             query?: never;
@@ -1073,6 +1056,23 @@ export interface paths {
         head?: never;
         /** Update Consent */
         patch: operations["update_consent_patients_me_consentimiento_patch"];
+        trace?: never;
+    };
+    "/patients/{patient_id}/consentimiento": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Consent */
+        patch: operations["update_consent_patients__patient_id__consentimiento_patch"];
         trace?: never;
     };
     "/patients/me/family-history": {
@@ -2393,7 +2393,7 @@ export interface components {
          * AppointmentStatus
          * @enum {string}
          */
-        AppointmentStatus: "confirmed" | "cancelled" | "completed" | "no_show";
+        AppointmentStatus: "confirmed" | "cancelled" | "completed" | "no_show" | "noshow_professional";
         /**
          * AppointmentType
          * @enum {string}
@@ -2422,12 +2422,9 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /**
-             * Actor Id
-             * Format: uuid
-             */
-            actor_id: string;
-            actor_role: components["schemas"]["UserRole"];
+            /** Actor Id */
+            actor_id: string | null;
+            actor_role: components["schemas"]["UserRole"] | null;
             /**
              * Patient Id
              * @description Patient user account UUID (users.id)
@@ -6997,13 +6994,13 @@ export interface operations {
             };
         };
     };
-    update_consent_patients__patient_id__consentimiento_patch: {
+    update_consent_patients_me_consentimiento_patch: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                patient_id: string | null;
+            query?: {
+                patient_id?: string | null;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -7032,13 +7029,13 @@ export interface operations {
             };
         };
     };
-    update_consent_patients_me_consentimiento_patch: {
+    update_consent_patients__patient_id__consentimiento_patch: {
         parameters: {
-            query?: {
-                patient_id?: string | null;
-            };
+            query?: never;
             header?: never;
-            path?: never;
+            path: {
+                patient_id: string | null;
+            };
             cookie?: never;
         };
         requestBody: {

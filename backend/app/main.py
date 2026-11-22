@@ -15,9 +15,26 @@ from app.api import appointments, auth, chat, habits, health_documents, notifica
 
 from app.database import SessionLocal
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.video_session_repository import VideoSessionRepository
 from app.services.notification_dispatcher import NotificationDispatcher
+from app.services.video_service import VideoService
+
+
+def _expire_video_no_shows() -> None:
+    with SessionLocal.begin() as db:
+        VideoService(AppointmentRepository(db), VideoSessionRepository(db), AuditRepository(db)).expire_professional_no_shows()
+
+
+async def _video_no_show_loop() -> None:
+    while True:
+        try:
+            await asyncio.to_thread(_expire_video_no_shows)
+        except Exception:
+            logging.exception("Video no-show check failed")
+        await asyncio.sleep(60)
 
 
 async def _notification_loop() -> None:
@@ -41,14 +58,13 @@ async def _notification_loop() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     task = asyncio.create_task(_notification_loop())
+    no_show_task = asyncio.create_task(_video_no_show_loop())
     try:
         yield
     finally:
         task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        no_show_task.cancel()
+        await asyncio.gather(task, no_show_task, return_exceptions=True)
 
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 

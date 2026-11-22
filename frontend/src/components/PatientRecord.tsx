@@ -125,7 +125,7 @@ export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatie
   const health = useAdminQuery(healthLoad, recordError);
   return <Modal title={`Expediente de ${patient.name}`} onClose={onClose} busy={busy}>
     <div className="patient-record"><p>@{patient.username} · {patient.email} · {patient.tel || 'Teléfono no indicado'}</p>
-      <section><h3>Citas e historial con este profesional</h3><p>Una vez iniciada una cita presencial, puedes finalizarla y abrir su seguimiento. Desde el seguimiento puedes guardar el diagnóstico, las notas y la receta.</p>
+      <section><h3>Citas e historial</h3><p>Una vez iniciada una cita presencial, puedes finalizarla y abrir su seguimiento. Desde el seguimiento puedes guardar el diagnóstico, las notas y la receta.</p>
         <Feedback {...history} />
         {history.data && <>{history.data.appointments.length === 0 && <p>No hay citas iniciadas ni finalizadas con este paciente.</p>}
           <ul className="record-list">{[...history.data.appointments].sort((a, b) => Date.parse(b.start_time) - Date.parse(a.start_time)).map(item => <li key={item.id}>
@@ -140,7 +140,7 @@ export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatie
         </>}
       </section>
       {appointment && <PrescriptionAttachment focusRequest={prescriptionFocus} key={appointment.id} professionalId={professionalId} appointment={appointment} onBusy={setBusy} onSaved={() => { recipes.retry(); health.retry(); }} onCancel={() => { setAppointment(null); selectionButton.current?.focus(); }} />}
-      <section><h3>Recetas de este profesional</h3><Feedback {...recipes} />{recipes.data && <>{recipes.data.prescriptions.length === 0 && <p>No hay recetas para este paciente.</p>}<ul className="record-list">{recipes.data.prescriptions.map(item => <li key={item.id}><strong>Receta adjuntada el {appointmentDate(item.created_at)}</strong><p>{item.notas || 'Sin notas adicionales'}</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={item.appointment_id} /></li>)}</ul><PatientPages page={recipes.data.page} size={recipes.data.page_size} total={recipes.data.total} onPage={setRecipePage} /></>}</section>
+      <section><h3>Recetas</h3><p>Solo puedes adjuntar una receta después de finalizar la cita con el paciente.</p><Feedback {...recipes} />{recipes.data && <>{recipes.data.prescriptions.length === 0 && <p>No hay recetas para este paciente.</p>}<ul className="record-list">{recipes.data.prescriptions.map(item => <li key={item.id}><strong>Receta adjuntada el {appointmentDate(item.created_at)}</strong><p>{item.notas || 'Sin notas adicionales'}</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={item.appointment_id} /></li>)}</ul><PatientPages page={recipes.data.page} size={recipes.data.page_size} total={recipes.data.total} onPage={setRecipePage} /></>}</section>
       <section><h3>Resumen de salud compartido</h3><Feedback {...health} />{health.data && <SharedHealthData data={health.data} patientId={patient.id} professionalId={professionalId} />}</section>
     </div>
   </Modal>;

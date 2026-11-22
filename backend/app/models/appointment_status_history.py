@@ -38,8 +38,8 @@ class AppointmentStatusHistory(Base):
         ),
         nullable=False,
     )
-    changed_by: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     changed_at: Mapped[datetime] = mapped_column(

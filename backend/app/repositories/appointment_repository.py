@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, Prescription, ProfessionalSchedule, ProfessionalTimeBlock, User
+from app.models import Appointment, AppointmentNote, AppointmentStatus, AppointmentType, AppointmentStatusHistory, Prescription, ProfessionalSchedule, ProfessionalTimeBlock, User, VideoSessionEvent
 
 
 def latest_health_sharing(patient_id, professional_id):
@@ -96,6 +96,22 @@ class AppointmentRepository:
     def lock_appointment(self, appointment_id: UUID) -> Appointment | None:
         return self.session.scalar(select(Appointment).where(Appointment.id == appointment_id)
                                    .with_for_update().execution_options(populate_existing=True))
+
+    def lock_overdue_unattended_video(self, cutoff: datetime) -> list[Appointment]:
+        professional_joined = select(VideoSessionEvent.id).where(
+            VideoSessionEvent.appointment_id == Appointment.id,
+            VideoSessionEvent.user_id == Appointment.professional_id,
+            VideoSessionEvent.event == "joined",
+        ).exists()
+        return list(self.session.scalars(
+            select(Appointment).where(
+                Appointment.type == AppointmentType.VIDEO,
+                Appointment.status == AppointmentStatus.CONFIRMED,
+                Appointment.start_time <= cutoff,
+                ~professional_joined,
+            ).order_by(Appointment.start_time, Appointment.id)
+            .with_for_update(skip_locked=True)
+        ))
 
     def list_patient_appointments(self, patient_id: UUID, offset: int, limit: int, confirmed_only: bool = False):
         conditions = [Appointment.patient_id == patient_id]

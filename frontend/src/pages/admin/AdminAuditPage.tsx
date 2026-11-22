@@ -14,6 +14,7 @@ const entities: Record<string, string> = {
   professional_profile: 'Perfil profesional', appointment: 'Cita', clinical_note: 'Nota clínica',
   prescription: 'Receta', health_document: 'Documento de salud', risk_assessment: 'Evaluación de riesgos',
   habit_log: 'Registro de hábitos', alcohol_log: 'Registro de consumo de alcohol', family_history_entry: 'Antecedente familiar',
+  appointment_professional_no_show: 'Videoconsulta · Profesional no presentado',
 };
 function date(value: string, format: Intl.DateTimeFormat) {
   const parsed = new Date(value);
@@ -80,7 +81,9 @@ export function AdminAuditPage() {
         {data.items.length === 0 ? <p>No se han encontrado auditorías con estos filtros.</p> : <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="Tabla de auditorías; desplaza horizontalmente para ver todas las columnas"><table className="admin-audit-table"><caption>Acciones registradas · fecha y hora en Europe/Madrid. Los nombres corresponden a las cuentas actuales.</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Hora</th><th scope="col">Realizado por</th><th scope="col">Acción</th><th scope="col">Cuenta o recurso afectado</th><th scope="col">ID de auditoría</th></tr></thead><tbody>
           {data.items.map((item) => {
             const target = auditAccountId(item);
-            return <tr key={item.id}><td><time dateTime={item.fecha_hora}>{date(item.fecha_hora, dateFormat)}</time></td><td><time dateTime={item.fecha_hora}>{date(item.fecha_hora, timeFormat)}</time></td><td><strong>{accountName(item.actor_id)}</strong><span className="audit-account-role">{roles[item.actor_role]}</span><code>{item.actor_id}</code></td><td>{actions[item.accion]}</td><td>{target && <strong className="audit-target-name">{accountName(target)}</strong>}{entities[item.entidad] ?? item.entidad}<code>{item.entidad_id ?? 'Sin identificador de recurso'}</code>{!target && item.patient_id && <span className="audit-associated-account">Cuenta asociada: {accountName(item.patient_id)}</span>}</td><td><code>{item.id}</code></td></tr>;
+            return <tr key={item.id}><td><time dateTime={item.fecha_hora}>{date(item.fecha_hora, dateFormat)}</time></td><td><time dateTime={item.fecha_hora}>{date(item.fecha_hora, timeFormat)}</time></td>
+              <td>{item.actor_id ? <><strong>{accountName(item.actor_id)}</strong>{item.actor_role && <span className="audit-account-role">{roles[item.actor_role]}</span>}<code>{item.actor_id}</code></> : <strong>Sistema</strong>}</td>
+              <td>{actions[item.accion]}</td><td>{target && <strong className="audit-target-name">{accountName(target)}</strong>}{entities[item.entidad] ?? item.entidad}<code>{item.entidad_id ?? 'Sin identificador de recurso'}</code>{!target && item.patient_id && <span className="audit-associated-account">Cuenta asociada: {accountName(item.patient_id)}</span>}</td><td><code>{item.id}</code></td></tr>;
           })}
         </tbody></table></div>}
         <nav className="pagination" aria-label="Paginación de auditorías"><button disabled={data.page <= 1} onClick={() => setQuery({ ...query, page: data.page - 1 })}>Anterior</button><span>Página {data.page} de {Math.max(1, Math.ceil(data.total / data.page_size))}</span><button disabled={data.page * data.page_size >= data.total} onClick={() => setQuery({ ...query, page: data.page + 1 })}>Siguiente</button></nav>

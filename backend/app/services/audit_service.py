@@ -11,8 +11,8 @@ class AuditService:
 
     def record(
         self,
-        actor_id: UUID,
-        actor_role: UserRole,
+        actor_id: UUID | None,
+        actor_role: UserRole | None,
         action: AuditAction,
         entity: str,
         entity_id: UUID | None = None,

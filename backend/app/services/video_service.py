@@ -13,6 +13,9 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.video_session_repository import VideoSessionRepository
 
 
+PROFESSIONAL_JOIN_GRACE = timedelta(hours=1)
+
+
 class VideoNotFoundError(Exception):
     pass
 
@@ -31,6 +34,35 @@ class VideoService:
         self.events = events
         self.audit = AuditService(audits)
 
+    def expire_professional_no_shows(self, now: datetime | None = None) -> int:
+        cutoff = (now or datetime.now(timezone.utc)) - PROFESSIONAL_JOIN_GRACE
+        expired = 0
+        for appointment in self.appointments.lock_overdue_unattended_video(cutoff):
+            # Recheck after taking the same row lock used to record attendance.
+            if self._professional_joined(appointment):
+                continue
+            appointment.status = AppointmentStatus.NO_SHOW_PROFESSIONAL
+            self.appointments.save(appointment)
+            self.appointments.create_status_history(AppointmentStatusHistory(
+                appointment_id=appointment.id, old_status=AppointmentStatus.CONFIRMED,
+                new_status=appointment.status, changed_by=None,
+                reason="El profesional no se conectó durante la primera hora desde el inicio previsto.",
+            ))
+            self.audit.record(None, None, AuditAction.UPDATE, "appointment_professional_no_show",
+                              appointment.id, appointment.patient_id)
+            expired += 1
+        return expired
+
+    def _professional_joined(self, appointment: Appointment) -> bool:
+        return self.events.has_event(appointment.id, appointment.professional_id, "joined")
+
+    @staticmethod
+    def _join_deadline_passed(appointment: Appointment, now: datetime) -> bool:
+        start = appointment.start_time
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        return now >= start + PROFESSIONAL_JOIN_GRACE
+
     def record_attendance(self, appointment_id: UUID, user: User, event: str):
         # Serialize concurrent departures so completion/history are written once.
         appointment = self.appointments.lock_appointment(appointment_id)
@@ -40,6 +72,10 @@ class VideoService:
             raise VideoForbiddenError("User cannot join this appointment")
         if appointment.type != AppointmentType.VIDEO or appointment.status not in (AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED):
             raise VideoForbiddenError("Video is unavailable for this appointment")
+        if (appointment.status == AppointmentStatus.CONFIRMED
+                and self._join_deadline_passed(appointment, datetime.now(timezone.utc))
+                and not self._professional_joined(appointment)):
+            raise VideoForbiddenError("Video join window is closed")
         # The browser reports the SDK's local joined event; token issuance alone
         # must never mark an unattended appointment completed.
         if not self.events.has_event(appointment_id, user.id, "token_issued"):
@@ -48,7 +84,7 @@ class VideoService:
             raise VideoForbiddenError("Participant has not joined this video appointment")
         if not self.events.has_event(appointment_id, user.id, event):
             self.events.create(VideoSessionEvent(appointment_id=appointment_id, user_id=user.id, event=event))
-        if event == "left" and appointment.status == AppointmentStatus.CONFIRMED:
+        if event == "left" and appointment.status == AppointmentStatus.CONFIRMED and self._professional_joined(appointment):
             appointment.status = AppointmentStatus.COMPLETED
             self.appointments.save(appointment)
             self.appointments.create_status_history(AppointmentStatusHistory(
@@ -80,6 +116,8 @@ class VideoService:
             raise VideoConfigurationError("Jitsi is not configured")
 
         now = datetime.now(timezone.utc)
+        if self._join_deadline_passed(appointment, now) and not self._professional_joined(appointment):
+            raise VideoForbiddenError("Video join window is closed")
         start = appointment.start_time.astimezone(ZoneInfo("Europe/Madrid"))
         local_now = now.astimezone(ZoneInfo("Europe/Madrid"))
         window_start = start - timedelta(minutes=settings.VIDEO_JOIN_EARLY_MINUTES)
