@@ -355,7 +355,9 @@ class AppointmentService:
     ) -> Appointment:
         if actor_path_id != current_user.id:
             raise AppointmentAccessError("User identity does not match the URL")
-        appointment = self._get_appointment(appointment_id)
+        appointment = self.appointments.lock_appointment(appointment_id)
+        if appointment is None:
+            raise AppointmentNotFoundError("Appointment not found")
         if current_user.role == UserRole.PATIENT:
             if appointment.patient_id != current_user.id:
                 raise AppointmentAccessError("Appointment does not belong to this patient")
@@ -364,16 +366,21 @@ class AppointmentService:
         else:
             raise AppointmentAccessError("User cannot cancel this appointment")
 
+        old_status = appointment.status
+        if old_status == AppointmentStatus.CANCELLED:
+            return appointment
         if enforce_patient_notice:
+            if old_status != AppointmentStatus.CONFIRMED:
+                raise AppointmentConflictError("Only confirmed appointments can be cancelled by the patient")
             minimum_cancel_time = datetime.now(timezone.utc) + timedelta(hours=24)
-            if appointment.start_time <= minimum_cancel_time:
+            start = appointment.start_time
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if start <= minimum_cancel_time:
                 raise AppointmentValidationError(
                     "Appointments can only be cancelled more than 24 hours before start time"
                 )
 
-        old_status = appointment.status
-        if old_status == AppointmentStatus.CANCELLED:
-            return appointment
         try:
             updated = self.appointments.update_appointment(
                 appointment, {"status": AppointmentStatus.CANCELLED}

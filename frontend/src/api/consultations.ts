@@ -3,12 +3,17 @@ import { api } from './client';
 import { getProfessionalAppointments } from './professional';
 import { errorMessage } from './errors';
 import type { PatientAppointmentPage, VideoAttendanceRequest, VideoAttendanceResponse } from '../types/api';
+import type { components } from '../types/api.generated';
 import type { AppointmentResponse, AppointmentStatusUpdate, ChatMessagePage, ChatRoom, ProfessionalAppointment, PublicProfessional, VideoJoin } from '../types/api';
 
 export class ConsultationStateError extends Error {}
 
 export async function getPatientAppointments(page: number, signal: AbortSignal) {
   return (await api.get<PatientAppointmentPage>('/patients/me/appointments', { params: { page, page_size: 20, confirmed_only: true }, signal })).data;
+}
+export async function cancelPatientAppointment(patientId: string, appointmentId: string, reason: string | null, signal: AbortSignal) {
+  const payload: components['schemas']['AppointmentCancelRequest'] = { cancellation_reason: reason };
+  await api.post(`/patients/${encodeURIComponent(patientId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`, payload, { signal });
 }
 export async function recordVideoAttendance(appointmentId: string, event: VideoAttendanceRequest['event'], signal: AbortSignal) {
   return (await api.post<VideoAttendanceResponse>(`/appointments/${encodeURIComponent(appointmentId)}/video/attendance`, { event }, { signal })).data;
@@ -54,6 +59,7 @@ export function consultationError(error: unknown): string {
   if (error instanceof ConsultationStateError) return error.message;
   if (axios.isAxiosError<{ detail?: unknown }>(error)) {
     const detail = error.response?.data.detail;
+    if (detail === 'Appointments can only be cancelled more than 24 hours before start time') return 'Solo puedes cancelar la cita con más de 24 horas de antelación.';
     if (detail === 'Video join window is closed') return 'Todavía no se ha abierto el acceso según el horario de la cita. Puedes entrar desde 10 minutos antes de su inicio.';
     if (detail === 'Video is unavailable for this appointment') return 'Esta cita debe ser de vídeo y estar confirmada para acceder.';
     if (error.response?.status === 403) return 'No tienes acceso a esta consulta o su estado ya no permite esta acción.';

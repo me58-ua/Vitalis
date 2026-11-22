@@ -23,7 +23,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.appointments import ProfessionalAppointmentStatusUpdate
+from app.schemas.appointments import AppointmentCancelRequest, ProfessionalAppointmentStatusUpdate
 from app.services.appointment_service import AppointmentService
 from app.services.notification_dispatcher import NotificationDispatcher
 
@@ -71,6 +71,32 @@ class AppointmentFollowUpTests(unittest.TestCase):
         self.http = TestClient(app)
         self.editor = f"/professionals/me/appointments/{self.appointment_id}/follow-up"
         self.detail = f"/patients/me/appointments/{self.appointment_id}/follow-up"
+
+    def test_patient_cancellation_is_visible_in_professional_agenda(self):
+        now = datetime.now(timezone.utc)
+        with Session(self.engine) as db:
+            appointment = db.get(Appointment, self.appointment_id)
+            appointment.status = AppointmentStatus.CONFIRMED
+            appointment.start_time = now + timedelta(days=2)
+            appointment.end_time = appointment.start_time + timedelta(minutes=30)
+            appointment.appointment_reason = "Revisión"
+            db.commit()
+            repo = AppointmentRepository(db)
+            service = AppointmentService(repo, UserRepository(db), ProfessionalRepository(db))
+            patient = db.get(User, self.patient_id)
+            for _ in range(2):
+                service.cancel_appointment(self.patient_id, self.appointment_id, patient,
+                                           AppointmentCancelRequest(), enforce_patient_notice=True)
+            db.commit()
+
+            self.assertEqual(repo.list_patient_appointments(self.patient_id, 0, 20, confirmed_only=True), ([], 0))
+            rows, total = repo.list_for_professional(self.professional_id, now, now, now + timedelta(days=7),
+                                                    None, False, 0, 20)
+            self.assertEqual(total, 1)
+            self.assertEqual(rows[0]["status"], AppointmentStatus.CANCELLED)
+            self.assertEqual(rows[0]["appointment_reason"], "Revisión")
+            self.assertIsNone(rows[0]["cancellation_reason"])
+            self.assertEqual(len(list(db.scalars(select(AppointmentStatusHistory)))), 1)
 
     def test_patient_history_filters_completed_consultations_by_madrid_date_and_doctor(self):
         before_midnight = datetime(2025, 3, 29, 22, 30, tzinfo=timezone.utc)

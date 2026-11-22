@@ -274,6 +274,16 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.patientBooking = JSON.parse(raw);
       return send(201, state.patientBooking);
     }
+    const patientCancellation = path.match(/^\/patients\/([^/]+)\/appointments\/([^/]+)\/cancel$/);
+    if (patientCancellation && req.method === 'POST') {
+      const actor = demoLogin?.user ?? account;
+      const item = state.patientDashboardAppointments?.find(row => row.id === patientCancellation[2]);
+      if (actor.role !== 'patient' || patientCancellation[1] !== actor.id || !item) return send(404, { detail: 'NOT_FOUND' });
+      const data = JSON.parse(raw);
+      state.patientCancellation = data;
+      Object.assign(item, data, { status: 'cancelled' });
+      return send(200, item);
+    }
     if (path === '/patients/me/appointments' && req.method === 'GET') {
       if ((demoLogin?.user ?? account).role !== 'patient') return send(403, { detail: 'PATIENT_REQUIRED' });
       if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });

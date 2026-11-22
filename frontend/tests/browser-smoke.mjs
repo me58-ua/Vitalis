@@ -293,6 +293,20 @@ try {
   await click('.booking-form button[type="submit"]');
   await until(`location.pathname === '/patientPanel/misCitas' && document.querySelector('.consultation-main [role="status"]')?.textContent.includes('Cita registrada')`);
   assert.equal(fixture.state.patientBooking.health_sharing, 'basic');
+  fixture.state.patientDashboardAppointments = [{
+    id: '00000000-0000-4000-8000-000000009511', type: 'in_person', status: 'confirmed', professional_name: 'Profesional de prueba',
+    start_time: new Date(Date.now() + 172800000).toISOString(), end_time: new Date(Date.now() + 174600000).toISOString(),
+    appointment_reason: 'Revisión de prueba',
+  }];
+  await reloadUntil(`Array.from(document.querySelectorAll('.consultation-list button')).some(button => button.textContent === 'Cancelar cita')`);
+  await click('.consultation-list button');
+  await until(`document.querySelector('dialog[open] [name="cancellation_reason"]') !== null`);
+  await fill('cancellation_reason', '  Cambio de horario  ');
+  await click('dialog button[type="submit"]');
+  await until(`document.querySelector('main')?.textContent.includes('No tienes próximas citas confirmadas.')`);
+  assert.deepEqual(fixture.state.patientCancellation, { cancellation_reason: 'Cambio de horario' });
+  delete fixture.state.patientDashboardAppointments;
+  results.push({ check: 'patient can cancel from upcoming appointments with a reason and the cancelled appointment disappears' });
   await click('.booking-entry-actions a[href="/patientPanel"]');
   await until(`location.pathname === '/patientPanel' && document.querySelector('.patient-dashboard-main') !== null`);
   results.push({ check: 'patient booking requests the selected modality, clears the previous slot, and handles a closed day' });
