@@ -260,6 +260,7 @@ try {
     assert.equal(await evaluate(`document.querySelector(${JSON.stringify(bookingLink)}).nextElementSibling.textContent`), 'Mis próximas citas');
     await click(bookingLink);
     await until(`document.querySelectorAll('.booking-doctors > li').length === 2`);
+    await until(`document.querySelector('.booking-doctors .chat-avatar img')?.naturalWidth > 0`);
     assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.booking-doctors > li'), card =>
       Array.from(card.querySelectorAll('.booking-tags li'), tag => tag.textContent)
         .filter(tag => ['Presencial', 'Videoconsulta'].includes(tag)))`), [['Presencial', 'Videoconsulta'], ['Videoconsulta']]);
@@ -1287,6 +1288,7 @@ try {
   await until(`document.querySelector('.spontaneous-heading button') !== null`);
   await click('.spontaneous-heading button');
   await until(`document.querySelector('.spontaneous-doctors li .primary:not([disabled])') !== null`);
+  await until(`document.querySelector('.spontaneous-doctors .chat-avatar img')?.naturalWidth > 0`);
   await click('.spontaneous-doctors li .primary');
   await until(`document.querySelector('.spontaneous-compose textarea:not(:disabled)') !== null`);
   await fill('spontaneous_message', 'Consulta rápida de prueba');

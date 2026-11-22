@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Modal } from './Modal';
+import { ProfilePhotoForm } from './ProfilePhotoForm';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import { getPatientHabits, getPatientRiskHistory, uploadPatientDocument, patientUploadError } from '../api/patient';
 import { riskNames, riskValue, trendNames } from './PatientRiskCards';
@@ -43,7 +44,7 @@ export function PatientHabitsDialog({ onClose }: { onClose: () => void }) {
   </div></Modal>;
 }
 export function PatientProfileDialog({ user, profile, onClose }: { user: User; profile: PatientProfile; onClose: () => void }) {
-  return <Modal title="Tu perfil" onClose={onClose}><dl className="patient-profile-details"><dt>Nombre</dt><dd>{user.name}</dd><dt>Correo electrónico</dt><dd>{user.email}</dd><dt>Altura</dt><dd>{profile.height_cm == null ? 'Sin registrar' : `${profile.height_cm} cm`}</dd><dt>Peso</dt><dd>{profile.weight_kg == null ? 'Sin registrar' : `${profile.weight_kg} kg`}</dd><dt>Zona horaria</dt><dd>{profile.timezone}</dd></dl></Modal>;
+  return <Modal title="Tu perfil" onClose={onClose}><ProfilePhotoForm /><dl className="patient-profile-details"><dt>Nombre</dt><dd>{user.name}</dd><dt>Correo electrónico</dt><dd>{user.email}</dd><dt>Altura</dt><dd>{profile.height_cm == null ? 'Sin registrar' : `${profile.height_cm} cm`}</dd><dt>Peso</dt><dd>{profile.weight_kg == null ? 'Sin registrar' : `${profile.weight_kg} kg`}</dd><dt>Zona horaria</dt><dd>{profile.timezone}</dd></dl></Modal>;
 }
 export function PatientUploadDialog({ onClose }: { onClose: () => void }) {
   const [tipo, setTipo] = useState<DocumentType>('informe');

@@ -1,3 +1,4 @@
+import { UserAvatar } from '../components/UserAvatar';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Notifications } from '../components/Notifications';
@@ -18,7 +19,7 @@ export function PublicLayout() {
         {user?.role === 'patient' && <DocumentSearch key={user.id} user={user} />}
         {user ? <>
           <Notifications key={user.id} userId={user.id} />
-          <details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><img src={accountIcon} alt="" /></summary>
+          <details className="account-menu"><summary aria-label={`Cuenta de ${user.name}`}><UserAvatar name={user.name} photoUrl={user.photo_url} fallbackIcon={accountIcon} /></summary>
             <div className="account-panel"><strong>{user.name}</strong><span>{labels[user.role]}</span>
               <p className="field-help">Se cerrará esta sesión. Las demás sesiones seguirán abiertas.</p>
               {logoutError && <p role="alert" className="error-state">{logoutError}</p>}

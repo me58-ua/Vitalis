@@ -82,6 +82,11 @@ class UserRepository:
     def rollback(self) -> None:
         self.session.rollback()
 
+    def get_profile_photo(self, user_id: UUID, photo_url: str) -> bytes | None:
+        return self.session.scalar(select(User.photo_content).where(
+            User.id == user_id, User.is_active.is_(True), User.photo_url == photo_url,
+        ))
+
     def invalidate_sessions(self, user_id: UUID) -> None:
         # Atomic increment: concurrent logout requests must not lose revocations.
         # Both access and refresh validation already check this version.

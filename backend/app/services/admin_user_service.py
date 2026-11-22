@@ -76,6 +76,8 @@ class AdminUserService:
 
     def update(self, user: User, data: AdminUserUpdate, actor: User | None = None) -> User:
         values = data.model_dump(exclude_unset=True)
+        if "photo_url" in values and values["photo_url"] != user.photo_url:
+            values["photo_content"] = None
         patient = values.pop("patient_profile", None)
         professional = values.pop("professional_profile", None)
         role = data.role or user.role

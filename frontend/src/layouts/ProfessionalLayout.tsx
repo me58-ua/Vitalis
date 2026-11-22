@@ -1,3 +1,4 @@
+import { UserAvatar } from '../components/UserAvatar';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -54,7 +55,7 @@ export function ProfessionalLayout() {
       <button ref={menuButton} className="icon-button admin-menu-toggle" aria-expanded={menuOpen} aria-controls="professional-sidebar" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setMenuOpen(!menuOpen)}><img src={menu} alt="" /></button>
       <div><p className="admin-eyebrow">PORTAL PROFESIONAL</p><p>Bienvenido, <strong>{user.name}</strong></p></div>
     </div><div className="admin-header-tools"><Notifications key={`${user.id}:notifications`} userId={user.id} />
-      <details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong><span>Profesional</span>{logoutError && <p className="error-state" role="alert">{logoutError}</p>}<button className="professional-logout admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div></details>
+      <details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><UserAvatar name={user.name} photoUrl={user.photo_url} fallbackIcon={account} /></summary><div className="account-panel"><strong>{user.name}</strong><span>Profesional</span>{logoutError && <p className="error-state" role="alert">{logoutError}</p>}<button className="professional-logout admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div></details>
     </div></header><div key={user.id}><Outlet /></div></div>
   </div>;
 }

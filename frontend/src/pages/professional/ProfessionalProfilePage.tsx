@@ -6,6 +6,7 @@ import { session } from '../../api/session';
 import { professionalError } from '../../api/professionalErrors';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { ProfessionalProfileEditor } from '../../components/ProfessionalProfileEditor';
+import { ProfilePhotoForm } from '../../components/ProfilePhotoForm';
 import { ProfessionalWorkingHours, useWorkingHours } from '../../components/ProfessionalWorkingHours';
 import { localizedValue } from '../../utils/dateTime';
 import '../../styles/professional-agenda.css';
@@ -62,6 +63,7 @@ export function ProfessionalProfilePage() {
   return <main id="contenido" className="professional-main professional-profile-page"><header><h1>Perfil profesional</h1><p>Gestiona tu información profesional, disponibilidad y cuenta.</p></header>
     <section className="professional-upcoming"><h2>Datos personales</h2><dl className="professional-personal"><div><dt>Nombre</dt><dd>{user.name}</dd></div><div><dt>Fecha de nacimiento</dt><dd>{localizedValue(user.birth_date, 'date')}</dd></div><div><dt>Correo de la cuenta</dt><dd>{user.email}</dd></div><div><dt>Teléfono de la cuenta</dt><dd>{user.tel}</dd></div></dl><p className="field-help">El contacto visible para pacientes se configura en los datos profesionales.</p></section>
     <section className="professional-upcoming"><h2>Información visible para pacientes</h2><ProfessionalProfileEditor /></section>
+    <section className="professional-upcoming"><h2>Foto de perfil</h2><ProfilePhotoForm /></section>
     <section className="professional-upcoming"><h2>Gestión de disponibilidad</h2><ProfessionalWorkingHours state={workingHours} onBusy={() => {}} onChanged={() => {}} /><Link className="button secondary" to="/professionalDashboard/agenda">Abrir Agenda y gestionar ausencias</Link></section>
     <AccountSettings />
   </main>;

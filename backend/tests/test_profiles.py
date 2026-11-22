@@ -1,10 +1,12 @@
 import unittest
 import uuid
 from datetime import datetime
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import BackgroundTasks, HTTPException
+from fastapi import BackgroundTasks, HTTPException, UploadFile
+from PIL import Image
 
 from app.api.deps import get_current_patient, get_current_professional
 from app.api.profiles import (
@@ -12,6 +14,7 @@ from app.api.profiles import (
     get_patient_profile,
     update_ai_consent,
     update_patient_profile,
+    upload_profile_photo,
 )
 from app.core.rate_limit import InMemoryRateLimiter
 from app.core.security import hash_password, verify_password
@@ -100,7 +103,19 @@ class ProfileTests(unittest.TestCase):
 
         self.assertEqual(result.timezone, "UTC")
         self.assertIsNone(result.address)
-        self.assertEqual(result.timezone, "UTC")
+
+    def test_profile_upload_normalizes_the_image_and_rejects_invalid_content(self):
+        source = BytesIO()
+        Image.new("RGB", (800, 400)).save(source, format="PNG")
+        source.seek(0)
+        saved = upload_profile_photo(self.user, self.users, UploadFile(source, filename="avatar.png"))
+        self.assertTrue(saved.photo_url.startswith(f"/profile-photos/{self.user.id}/"))
+        with Image.open(BytesIO(saved.photo_content)) as photo:
+            self.assertEqual((photo.format, photo.size), ("JPEG", (384, 192)))
+        with self.assertRaises(HTTPException) as error:
+            upload_profile_photo(self.user, self.users, UploadFile(BytesIO(b"not an image"), filename="avatar.jpg"))
+        self.assertEqual(error.exception.status_code, 422)
+        self.assertEqual(self.users.session.flush_count, 1)
 
     def test_ai_consent_update_is_owned_by_profile_service_and_records_timestamp(self):
         result = self.service.update_ai_consent(self.user, True)

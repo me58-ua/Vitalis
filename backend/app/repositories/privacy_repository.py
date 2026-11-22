@@ -89,6 +89,8 @@ class PrivacyRepository:
         user.username = f"deleted-{suffix}"
         user.email = f"deleted-{suffix}@invalid.local"
         user.tel = "deleted"
+        user.photo_url = None
+        user.photo_content = None
         user.gender = None
         user.password_hash = "!account-erased!"
         user.is_active = False

@@ -1,8 +1,12 @@
+from io import BytesIO
 from typing import Annotated
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Response, UploadFile, status
+from PIL import Image, ImageOps
 
 from app.api.deps import (
+    get_current_user,
     get_current_patient,
     get_current_professional,
     get_profile_repository,
@@ -43,6 +47,44 @@ CurrentProfessional = Annotated[User, Depends(get_current_professional)]
 Users = Annotated[UserRepository, Depends(get_user_repository)]
 Profiles = Annotated[ProfileRepository, Depends(get_profile_repository)]
 Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
+PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+PROFILE_PHOTO_MAX_PIXELS = 16_000_000
+
+
+@router.put("/users/me/photo", response_model=UserResponse)
+def upload_profile_photo(
+    current_user: Annotated[User, Depends(get_current_user)],
+    users: Users,
+    file: UploadFile = File(...),
+) -> User:
+    raw = file.file.read(PROFILE_PHOTO_MAX_BYTES + 1)
+    if len(raw) > PROFILE_PHOTO_MAX_BYTES:
+        raise HTTPException(413, detail="PROFILE_PHOTO_TOO_LARGE")
+    try:
+        with Image.open(BytesIO(raw), formats=("JPEG", "PNG", "WEBP")) as source:
+            if source.width * source.height > PROFILE_PHOTO_MAX_PIXELS:
+                raise HTTPException(413, detail="PROFILE_PHOTO_TOO_LARGE")
+            photo = ImageOps.exif_transpose(source).convert("RGB")
+            photo.thumbnail((384, 384))
+            output = BytesIO()
+            photo.save(output, format="JPEG", quality=85)
+    except Image.DecompressionBombError:
+        raise HTTPException(413, detail="PROFILE_PHOTO_TOO_LARGE") from None
+    except (OSError, ValueError, SyntaxError):
+        raise HTTPException(422, detail="PROFILE_PHOTO_INVALID") from None
+    url = f"/profile-photos/{current_user.id}/{uuid4()}.jpg"
+    return users.update(current_user, {"photo_url": url, "photo_content": output.getvalue()})
+
+
+@router.get("/profile-photos/{user_id}/{photo_id}.jpg", response_class=Response, include_in_schema=False)
+def get_profile_photo(user_id: UUID, photo_id: UUID, users: Users) -> Response:
+    photo = users.get_profile_photo(user_id, f"/profile-photos/{user_id}/{photo_id}.jpg")
+    if photo is None:
+        raise HTTPException(404, detail="PROFILE_PHOTO_NOT_FOUND")
+    return Response(photo, media_type="image/jpeg", headers={
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    })
 
 
 @router.get("/patients/me/profile", response_model=PatientProfileResponse)

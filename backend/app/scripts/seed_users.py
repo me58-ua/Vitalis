@@ -295,6 +295,8 @@ def seed_users(session_factory=SessionLocal, *, include_demo=True, now=None) -> 
                     onboarding_state={},
                 )
             professional = users[seed_user.email]
+            if include_demo and seed_user.role == UserRole.PROFESSIONAL and professional.photo_url is None:
+                professional.photo_url = f"/assets/demo-doctor-photos/{seed_user.username}.jpg"
             if seed_user.role == UserRole.PROFESSIONAL and professional.professional_profile is None:
                 professional.professional_profile = ProfessionalProfile(
                     specialty=seed_user.specialty,

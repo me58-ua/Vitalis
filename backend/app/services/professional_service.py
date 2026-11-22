@@ -91,6 +91,7 @@ class ProfessionalService:
             id=user.id,
             name=user.name,
             specialty=profile.specialty,
+            photo_url=getattr(user, "photo_url", None),
             years_experience=getattr(profile, "years_experience", None),
             languages=getattr(profile, "languages", None) or [],
             bio=profile.bio,

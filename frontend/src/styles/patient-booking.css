@@ -23,7 +23,6 @@
 .booking-doctors > li { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; border-inline-start: 3px solid #08774f; }
 .booking-doctors .button { margin-top: auto; }
 .booking-doctor-title { display: flex; align-items: flex-start; gap: 12px; }
-.booking-initials { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 12px; background: #caf9e6; color: var(--booking-green); font-weight: 700; }
 .booking-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .booking-tags li, .booking-summary div { padding: 6px 10px; border-radius: 8px; background: var(--booking-tint); }
 .booking-breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }

@@ -1,3 +1,5 @@
+import { UserAvatar } from '../components/UserAvatar';
+import { ProfilePhotoForm } from '../components/ProfilePhotoForm';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -57,7 +59,7 @@ export function AdminLayout() {
       <header className="admin-header"><div className="admin-header-title">
         <button ref={menuButton} className="icon-button admin-menu-toggle" aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen} aria-controls="admin-sidebar" onClick={() => setMenuOpen(!menuOpen)}><img src={menu} alt="" /></button>
         <div><p className="admin-eyebrow">PORTAL DE ADMINISTRACIÓN</p><p>Bienvenido, <strong>{user.name}</strong></p></div>
-      </div><div className="admin-header-tools"><Notifications key={user.id} userId={user.id} /><details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><img src={account} alt="" /></summary><div className="account-panel"><strong>{user.name}</strong><span>Administrador</span><p className="field-help">Se cerrará esta sesión. Las demás sesiones seguirán abiertas.</p>{logoutError && <p role="alert" className="error-state">{logoutError}</p>}<button className="admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button></div></details></div></header>
+      </div><div className="admin-header-tools"><Notifications key={user.id} userId={user.id} /><details ref={accountMenu} className="account-menu admin-account-menu"><summary className="admin-account" aria-label={`Cuenta de ${user.name}`}><UserAvatar name={user.name} photoUrl={user.photo_url} fallbackIcon={account} /></summary><div className="account-panel"><strong>{user.name}</strong><span>Administrador</span><p className="field-help">Se cerrará esta sesión. Las demás sesiones seguirán abiertas.</p>{logoutError && <p role="alert" className="error-state">{logoutError}</p>}<button className="admin-logout" disabled={busy} onClick={() => { void logout(); }}><img src={logoutIcon} alt="" />{busy ? 'Cerrando sesión…' : 'Cerrar sesión'}</button><ProfilePhotoForm /></div></details></div></header>
       <div key={`${user.id}:${location.pathname}`}><Outlet /></div>
     </div>
   </div>;

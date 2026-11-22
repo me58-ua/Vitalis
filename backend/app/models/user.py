@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, Integer, String, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, Integer, LargeBinary, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +26,7 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     photo_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    photo_content: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
     dni: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)

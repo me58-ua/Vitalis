@@ -116,6 +116,13 @@ h3 { font-size: 24px; line-height: 1.33; font-weight: 600; margin-bottom: 12px; 
 .footer-brand { color: var(--green); font-size: 22px; font-weight: 700; text-decoration: none; }
 .footer-brand span { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 8px; }
 .notifications, .account-menu { position: relative; }
+.chat-avatar { display: inline-flex; flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%; background: #d9e3f6; color: #003527; align-items: center; justify-content: center; font-weight: 600; overflow: hidden; }
+.chat-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.account-menu > summary > .chat-avatar { width: 100%; height: 100%; }
+.profile-photo-form { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.profile-photo-form label, .profile-photo-form input { min-width: 0; max-width: 100%; }
+.profile-photo-form label { display: grid; gap: 6px; }
+.profile-photo-form p { flex-basis: 100%; margin: 0; }
 .notification-dot { position: absolute; top: 6px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: #ba1a1a; border: 1px solid #f8f9ff; }
 .account-menu > summary { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--green); list-style: none; }
 .account-menu > summary::-webkit-details-marker { display: none; }

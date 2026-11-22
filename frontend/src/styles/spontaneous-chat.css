@@ -19,6 +19,8 @@
 .spontaneous-inbox nav, .spontaneous-doctors nav { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; margin-top: 1rem; }
 .chat-readonly { background: #fff4d8; padding: 12px; border-radius: 8px; }
 .spontaneous-doctors { margin-bottom: 24px; }
+.spontaneous-doctor-identity { display: flex; align-items: center; gap: 12px; }
+.spontaneous-doctor-identity p { margin: 4px 0 0; }
 .spontaneous-layout { gap: 0; border-radius: 16px; overflow: hidden; background: #f8f9ff; box-shadow: 0 8px 24px #121c2a12; }
 .spontaneous-inbox, .spontaneous-room, .spontaneous-empty { border: 0; border-radius: 0; }
 .spontaneous-inbox { border-right: 1px solid #bfc9c333; }

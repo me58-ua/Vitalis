@@ -83,7 +83,8 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.access = 'test-rotated';
       return send(200, { access_token: state.access, refresh_token: 'test-refresh-rotated', token_type: 'bearer' });
     }
-    const publicProfessional = () => ({ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name, appointment_modalities: ['in_person', 'video'] });
+    const publicProfessional = () => ({ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name, appointment_modalities: ['in_person', 'video'],
+      photo_url: '/assets/demo-doctor-photos/beatriz_alonso.jpg' });
     if (path === '/professionals') {
       const modality = new URL(req.url, 'http://fixture.invalid').searchParams.get('appointment_type');
       const professionals = [publicProfessional()];

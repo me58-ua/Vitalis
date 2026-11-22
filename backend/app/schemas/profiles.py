@@ -168,6 +168,7 @@ class ProfessionalPublicResponse(BaseModel):
     id: UUID
     name: str
     specialty: str
+    photo_url: str | None = None
     bio: str | None
     practice_address: str | None
     practice_phone: str | None

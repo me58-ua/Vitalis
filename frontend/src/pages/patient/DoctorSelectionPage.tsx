@@ -1,6 +1,7 @@
 import { useCallback, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { getBookingProfessionals, type DirectoryQuery } from '../../api/patientBooking';
+import { UserAvatar } from '../../components/UserAvatar';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import '../../styles/patient-booking.css';
 
@@ -53,7 +54,7 @@ export function DoctorSelectionPage() {
       <ul className="booking-doctors">
         {result.professionals.map(professional => <li className="booking-panel" key={professional.id}>
           <div className="booking-doctor-title">
-            <span className="booking-initials" aria-hidden="true">{professional.name.trim().split(/\s+/).slice(0, 2).map(word => word.charAt(0)).join('').toLocaleUpperCase('es')}</span>
+            <UserAvatar name={professional.name} photoUrl={professional.photo_url} />
             <div><h2>{professional.name}</h2><p>{professional.specialty} · Col. {professional.license_number}</p></div>
           </div>
           {professional.bio && <p>{professional.bio}</p>}

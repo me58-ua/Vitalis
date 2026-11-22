@@ -663,6 +663,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload Profile Photo */
+        put: operations["upload_profile_photo_users_me_photo_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/patients/me/profile": {
         parameters: {
             query?: never;
@@ -2551,6 +2568,11 @@ export interface components {
             /** Late Reason */
             late_reason?: string | null;
         };
+        /** Body_upload_profile_photo_users_me_photo_put */
+        Body_upload_profile_photo_users_me_photo_put: {
+            /** File */
+            file: string;
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -4017,6 +4039,8 @@ export interface components {
             name: string;
             /** Specialty */
             specialty: string;
+            /** Photo Url */
+            photo_url?: string | null;
             /** Bio */
             bio: string | null;
             /** Practice Address */
@@ -6163,6 +6187,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminAppointmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_profile_photo_users_me_photo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_profile_photo_users_me_photo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
             /** @description Validation Error */
