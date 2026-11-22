@@ -97,15 +97,19 @@ class AppointmentRepository:
         return self.session.scalar(select(Appointment).where(Appointment.id == appointment_id)
                                    .with_for_update().execution_options(populate_existing=True))
 
-    def list_patient_appointments(self, patient_id: UUID, offset: int, limit: int):
-        conditions = Appointment.patient_id == patient_id
-        total = self.session.scalar(select(func.count()).select_from(Appointment).where(conditions)) or 0
+    def list_patient_appointments(self, patient_id: UUID, offset: int, limit: int, confirmed_only: bool = False):
+        conditions = [Appointment.patient_id == patient_id]
+        order = (Appointment.start_time.desc(), Appointment.id.desc())
+        if confirmed_only:
+            conditions.append(Appointment.status == AppointmentStatus.CONFIRMED)
+            order = (Appointment.start_time.asc(), Appointment.id.asc())
+        total = self.session.scalar(select(func.count()).select_from(Appointment).where(*conditions)) or 0
         rows = self.session.execute(select(
             Appointment.id, Appointment.professional_id, User.name.label("professional_name"),
             Appointment.start_time, Appointment.end_time, Appointment.type, Appointment.status,
             Appointment.reason.label("appointment_reason"),
-        ).join(User, User.id == Appointment.professional_id).where(conditions)
-            .order_by(Appointment.start_time.desc(), Appointment.id.desc()).offset(offset).limit(limit)).mappings()
+        ).join(User, User.id == Appointment.professional_id).where(*conditions)
+            .order_by(*order).offset(offset).limit(limit)).mappings()
         return list(rows), total
 
     def get_schedule(self, schedule_id: UUID) -> ProfessionalSchedule | None:
@@ -161,23 +165,49 @@ class AppointmentRepository:
         return self.session.scalar(select(AppointmentNote).where(AppointmentNote.appointment_id == appointment_id))
 
     def patient_follow_ups(self, patient_id: UUID, appointment_id: UUID | None = None):
-        query = (
-            select(Appointment.id.label("appointment_id"), Appointment.start_time, Appointment.appointment_reason,
-                   User.name.label("professional_name"), AppointmentNote.shared_diagnosis, AppointmentNote.shared_notes,
-                   Prescription.id.is_not(None).label("has_prescription"))
-            .select_from(Appointment)
-            .join(User, User.id == Appointment.professional_id)
-            .outerjoin(AppointmentNote, and_(AppointmentNote.appointment_id == Appointment.id,
-                                           AppointmentNote.professional_id == Appointment.professional_id))
-            .outerjoin(Prescription, Prescription.appointment_id == Appointment.id)
-            .where(Appointment.patient_id == patient_id, Appointment.status == AppointmentStatus.COMPLETED)
-        )
+        query = self._patient_follow_up_query(patient_id).where(Appointment.status == AppointmentStatus.COMPLETED)
         if appointment_id is not None:
             query = query.where(Appointment.id == appointment_id)
         else:
             query = query.where(or_(AppointmentNote.shared_diagnosis.is_not(None),
                                     AppointmentNote.shared_notes.is_not(None), Prescription.id.is_not(None)))
         return self.session.execute(query.order_by(Appointment.start_time.desc(), Appointment.id.desc())).mappings().all()
+
+    def list_patient_appointment_history(self, patient_id: UUID, start: datetime | None,
+                                         end: datetime | None, doctor: str, offset: int, limit: int):
+        query = self._patient_follow_up_query(patient_id).where(Appointment.status != AppointmentStatus.CONFIRMED)
+        if start is not None:
+            query = query.where(Appointment.start_time >= start)
+        if end is not None:
+            query = query.where(Appointment.start_time < end)
+        if doctor:
+            query = query.where(User.name.icontains(doctor, autoescape=True))
+        total = self.session.scalar(select(func.count()).select_from(query.subquery())) or 0
+        page = query.order_by(Appointment.start_time.desc(), Appointment.id.desc()).offset(offset).limit(limit)
+        return self.session.execute(page).mappings().all(), total
+
+    def get_patient_appointment_history_detail(self, patient_id: UUID, appointment_id: UUID):
+        query = self._patient_follow_up_query(patient_id).where(
+            Appointment.id == appointment_id, Appointment.status != AppointmentStatus.CONFIRMED,
+        )
+        return self.session.execute(query).mappings().one_or_none()
+
+    @staticmethod
+    def _patient_follow_up_query(patient_id: UUID):
+        return (
+            select(Appointment.id.label("appointment_id"), Appointment.start_time, Appointment.end_time,
+                   Appointment.type, Appointment.status, Appointment.appointment_reason,
+                   User.name.label("professional_name"), AppointmentNote.shared_diagnosis, AppointmentNote.shared_notes,
+                   Prescription.id.is_not(None).label("has_prescription"))
+            .select_from(Appointment)
+            .join(User, User.id == Appointment.professional_id)
+            .outerjoin(AppointmentNote, and_(AppointmentNote.appointment_id == Appointment.id,
+                                           AppointmentNote.professional_id == Appointment.professional_id,
+                                           Appointment.status == AppointmentStatus.COMPLETED))
+            .outerjoin(Prescription, and_(Prescription.appointment_id == Appointment.id,
+                                         Appointment.status == AppointmentStatus.COMPLETED))
+            .where(Appointment.patient_id == patient_id)
+        )
 
     def has_shared_appointment(self, patient_id: UUID, professional_id: UUID) -> bool:
         return self.session.scalar(

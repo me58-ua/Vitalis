@@ -200,11 +200,35 @@ class ProfessionalAppointmentFollowUp(AppointmentFollowUpNotes):
 class PatientAppointmentFollowUp(BaseModel):
     appointment_id: UUID
     start_time: datetime
+    end_time: datetime
+    type: AppointmentType
+    status: AppointmentStatus
     appointment_reason: str | None
     professional_name: str
     shared_diagnosis: str | None
     shared_notes: str | None
     has_prescription: bool
+
+
+class PatientAppointmentHistoryQuery(BaseModel):
+    from_date: date | None = None
+    to_date: date | None = None
+    doctor: str = Field(default="", max_length=100)
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValueError("INVALID_DATE_RANGE")
+        return self
+
+
+class PatientAppointmentHistory(BaseModel):
+    appointments: list[PatientAppointmentFollowUp]
+    total: int
+    page: int
+    page_size: int
 
 
 class AppointmentResponse(AdminAppointmentResponse):

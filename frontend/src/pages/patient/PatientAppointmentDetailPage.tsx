@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { getPatientFollowUp, type PatientFollowUp } from '../../api/appointmentFollowUp';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { appointmentHistoryPath, getPatientFollowUp, type PatientFollowUp } from '../../api/appointmentFollowUp';
 import { consultationError } from '../../api/consultations';
 import { downloadMyPrescription } from '../../api/patient';
-import { appointmentDate } from '../../components/AppointmentSummary';
+import { appointmentDate, appointmentStatuses, appointmentTypes } from '../../components/AppointmentSummary';
 import { PatientQueryFeedback } from '../../components/PatientDashboardDialogs';
 import { useAdminQuery } from '../../hooks/useAdminQuery';
 import '../../styles/videoconsulta.css';
@@ -50,19 +50,27 @@ export function AppointmentPrescriptionDownload({ appointmentId }: { appointment
 
 export function PatientAppointmentDetailPage() {
   const { appointmentId = '' } = useParams();
+  const { state: navigation } = useLocation();
+  const historySearch = navigation?.historySearch;
+  const backSearch = typeof historySearch === 'string' && historySearch.startsWith('?') ? historySearch : '';
   const load = useCallback((signal: AbortSignal) => getPatientFollowUp(appointmentId, signal), [appointmentId]);
   const state = useAdminQuery(load, consultationError);
   const appointment = state.data?.appointment_id === appointmentId ? state.data : null;
   return <main id="contenido" className="consultation-main consultation-patient">
-    <header className="consultation-heading"><h1>Detalles de la cita</h1><Link className="button secondary" to="/patientPanel/misCitas">Volver a mis citas</Link></header>
+    <header className="consultation-heading"><h1>Detalles de la cita</h1><Link className="button secondary" to={{ pathname: appointmentHistoryPath, search: backSearch }}>Volver al historial</Link></header>
     <PatientQueryFeedback {...state} />
     {appointment && <section className="consultation-info appointment-follow-up">
-      <div><h2>{appointment.professional_name}</h2><p>{appointmentDate(appointment.start_time)}</p>
+      <div><h2>{appointment.professional_name}</h2><p><time dateTime={appointment.start_time}>{appointmentDate(appointment.start_time)}</time>
+        {appointment.end_time && <> – <time dateTime={appointment.end_time}>{appointmentDate(appointment.end_time)}</time></>}</p>
+        <p>{appointmentTypes[appointment.type]} · {appointmentStatuses[appointment.status]}</p>
         {appointment.appointment_reason && <p>{appointment.appointment_reason}</p>}</div>
       <SharedAppointmentNotes appointment={appointment} />
-      {appointment.has_prescription && <AppointmentPrescriptionDownload key={appointmentId} appointmentId={appointmentId} />}
+      {appointment.has_prescription && <div><h3>Archivos adjuntos</h3><AppointmentPrescriptionDownload key={appointmentId} appointmentId={appointmentId} /></div>}
       {!appointment.shared_diagnosis && !appointment.shared_notes && !appointment.has_prescription &&
+        appointment.status === 'completed' &&
         <p>El profesional todavía no ha compartido información sobre esta cita.</p>}
+      {appointment.type === 'video' && appointment.status === 'completed' &&
+        <div><Link className="button secondary" to={`/patientPanel/chats?appointment=${encodeURIComponent(appointmentId)}`}>Chat de la videoconsulta</Link></div>}
     </section>}
   </main>;
 }

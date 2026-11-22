@@ -204,7 +204,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
           actor.role !== (professional ? 'professional' : 'patient')) return send(404, { detail: 'NOT_FOUND' });
       if (req.method === 'PUT' && professional) {
         state.followUpNotes = JSON.parse(raw);
-        state.followUpPublic = { appointment_id: item.id, start_time: item.start_time,
+        state.followUpPublic = { appointment_id: item.id, start_time: item.start_time, end_time: item.end_time, type: item.type, status: 'completed',
           appointment_reason: item.appointment_reason, professional_name: actor.name,
           shared_diagnosis: state.followUpNotes.shared_diagnosis, shared_notes: state.followUpNotes.shared_notes,
           has_prescription: true };
@@ -214,6 +214,17 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       }
       if (professional) return send(200, { ...item, can_edit_notes: true, ...state.followUpNotes });
       return send(200, state.followUpPublic);
+    }
+    if (path === '/patients/me/appointments/history') {
+      const params = new URL(req.url, 'http://fixture.invalid').searchParams;
+      state.historyFilters = Object.fromEntries(params);
+      const item = state.followUpPublic;
+      const doctor = params.get('doctor')?.toLowerCase() ?? '';
+      const date = item?.start_time.slice(0, 10);
+      const from = params.get('from_date') || params.get('to_date');
+      const to = params.get('to_date') || from;
+      const rows = item && item.professional_name.toLowerCase().includes(doctor) && (!from || (from <= date && date <= to)) ? [item] : [];
+      return send(200, { appointments: rows, total: rows.length, page: Number(params.get('page') || 1), page_size: 20 });
     }
     if (healthProfileFixture(path, req.method, raw, state, send)) return;
     if (path === '/patients/me/profile') {
@@ -268,7 +279,8 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       if (state.patientAppointmentsFail) return send(503, { detail: 'TEST_UNAVAILABLE' });
       const params = new URL(req.url, 'http://fixture.invalid').searchParams;
       const page = Number(params.get('page') || 1), pageSize = Number(params.get('page_size') || 20);
-      const rows = state.patientDashboardAppointments ?? (state.patientAppointmentsEmpty || !state.videoTestAppointment ? [] : [{ ...state.videoTestAppointment, professional_name: participants.professional.name }]);
+      const allRows = state.patientDashboardAppointments ?? (state.patientAppointmentsEmpty || !state.videoTestAppointment ? [] : [{ ...state.videoTestAppointment, professional_name: participants.professional.name }]);
+      const rows = params.get('confirmed_only') === 'true' ? allRows.filter(item => item.status === 'confirmed') : allRows;
       state.patientDashboardPages = [...(state.patientDashboardPages || []), page];
       return send(200, { appointments: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize });
     }

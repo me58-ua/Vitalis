@@ -72,6 +72,65 @@ class AppointmentFollowUpTests(unittest.TestCase):
         self.editor = f"/professionals/me/appointments/{self.appointment_id}/follow-up"
         self.detail = f"/patients/me/appointments/{self.appointment_id}/follow-up"
 
+    def test_patient_history_filters_completed_consultations_by_madrid_date_and_doctor(self):
+        before_midnight = datetime(2025, 3, 29, 22, 30, tzinfo=timezone.utc)
+        after_midnight = before_midnight + timedelta(hours=1)
+        next_day = datetime(2025, 3, 30, 22, 0, tzinfo=timezone.utc)
+        older_id, newest_id, cancelled_id, confirmed_id, other_doctor_id = (uuid4() for _ in range(5))
+        with Session(self.engine) as db:
+            existing = db.get(Appointment, self.appointment_id)
+            existing.start_time = after_midnight
+            existing.end_time = after_midnight + timedelta(minutes=20)
+            existing.appointment_reason = "Revisión"
+            note = db.scalar(select(AppointmentNote).where(AppointmentNote.appointment_id == self.appointment_id))
+            note.shared_diagnosis, note.shared_notes, note.clinical_notes = "Shared diagnosis", "Shared notes", "Private details"
+            db.add(User(id=other_doctor_id, name="Other doctor", dni="Doctor", username="doctor",
+                        email="doctor@example.test", tel="000", birth_date=date(1990, 1, 1), password_hash="unused",
+                        role=UserRole.PROFESSIONAL))
+            for identifier, patient, doctor, start, status in (
+                (older_id, self.patient_id, other_doctor_id, before_midnight, AppointmentStatus.COMPLETED),
+                (newest_id, self.patient_id, self.professional_id, next_day, AppointmentStatus.COMPLETED),
+                (cancelled_id, self.patient_id, self.professional_id, next_day + timedelta(hours=1), AppointmentStatus.CANCELLED),
+                (confirmed_id, self.patient_id, self.professional_id, after_midnight, AppointmentStatus.CONFIRMED),
+                (uuid4(), uuid4(), self.professional_id, after_midnight, AppointmentStatus.COMPLETED),
+            ):
+                db.add(Appointment(id=identifier, patient_id=patient, professional_id=doctor, start_time=start,
+                                   end_time=start + timedelta(minutes=15), status=status))
+            db.add(Prescription(appointment_id=self.appointment_id, patient_id=uuid4(), professional_id=uuid4(),
+                                file_url="private/fixture.pdf"))
+            db.commit()
+            rows, total = AppointmentRepository(db).list_patient_appointments(self.patient_id, 0, 20, confirmed_only=True)
+            self.assertEqual(total, 1)
+            self.assertEqual([item["id"] for item in rows], [confirmed_id])
+
+        path = "/patients/me/appointments/history"
+        self.assertEqual(self.http.get(path).status_code, 403)
+        self.user = SimpleNamespace(id=self.patient_id, role=UserRole.PATIENT)
+        response = self.http.get(path, params={"page_size": 2})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertEqual(response.json()["total"], 4)
+        self.assertEqual([item["appointment_id"] for item in response.json()["appointments"]],
+                         [str(cancelled_id), str(newest_id)])
+        cancelled = self.http.get(f"/patients/me/appointments/{cancelled_id}/follow-up").json()
+        self.assertEqual(cancelled["status"], "cancelled")
+        self.assertIsNone(cancelled["shared_notes"])
+        self.assertEqual(self.http.get(f"/patients/me/appointments/{confirmed_id}/follow-up").status_code, 404)
+        single = self.http.get(path, params={"from_date": "2025-03-30", "doctor": "pROFESS"}).json()
+        self.assertEqual(single["total"], 1)
+        row = single["appointments"][0]
+        self.assertEqual(row["appointment_reason"], "Revisión")
+        self.assertEqual(row["shared_diagnosis"], "Shared diagnosis")
+        self.assertTrue(row["has_prescription"])
+        self.assertNotIn("clinical_notes", row)
+        self.assertNotIn("file_url", row)
+        self.assertEqual(self.http.get(self.detail).json()["shared_notes"], "Shared notes")
+        span = self.http.get(path, params={"from_date": "2025-03-29", "to_date": "2025-03-30"}).json()
+        self.assertEqual([item["appointment_id"] for item in span["appointments"]],
+                         [str(self.appointment_id), str(older_id)])
+        self.assertEqual(self.http.get(path, params={"doctor": "%"}).json()["total"], 0)
+        self.assertEqual(self.http.get(path, params={"from_date": "2025-03-30", "to_date": "2025-03-29"}).status_code, 422)
+
     def test_started_in_person_visit_can_be_completed_from_patient_history(self):
         with Session(self.engine) as db:
             appointment = db.get(Appointment, self.appointment_id)

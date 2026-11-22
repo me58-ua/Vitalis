@@ -15,7 +15,7 @@ export function PatientBookingPage() {
   const state = useAdminQuery(load);
 
   return <main id="contenido" className="patient-booking">
-    <nav className="booking-breadcrumb" aria-label="Ruta de navegación"><Link to="/patientPanel/misCitas">Mis citas</Link><span aria-hidden="true"> / </span><Link to={doctorSelectionPath}>Equipo médico</Link></nav>
+    <nav className="booking-breadcrumb" aria-label="Ruta de navegación"><Link to="/patientPanel/misCitas">Mis próximas citas</Link><span aria-hidden="true"> / </span><Link to={doctorSelectionPath}>Equipo médico</Link></nav>
     <h1>Reserva tu cita</h1>
     {state.loading && <p role="status">Cargando profesional…</p>}
     {state.error && <div className="error-state" role="alert"><p>{state.error}</p><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}

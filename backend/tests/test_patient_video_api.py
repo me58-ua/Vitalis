@@ -14,7 +14,7 @@ class PatientVideoApiTests(unittest.TestCase):
         self.user = SimpleNamespace(id=uuid4(), role=UserRole.PATIENT, is_active=True)
         self.calls = []
         class Repository:
-            def list_patient_appointments(inner, patient_id, offset, limit):
+            def list_patient_appointments(inner, patient_id, offset, limit, confirmed_only=False):
                 self.calls.append((patient_id, offset, limit))
                 return [], 0
         self.app = FastAPI()

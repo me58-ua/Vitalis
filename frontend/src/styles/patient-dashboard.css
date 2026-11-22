@@ -3,7 +3,7 @@
 .patient-sidebar { position: fixed; inset: 0 auto 0 0; width: 264px; display: flex; flex-direction: column; background: #eff4ff; z-index: 30; box-shadow: 4px 0 12px #00000005; }
 .patient-brand { height: 80px; display: flex; align-items: center; gap: 12px; padding: 24px; color: var(--green); text-decoration: none; border-bottom: 1px solid #bfc9c34d; }
 .patient-brand img { width: 32px; height: 32px; }
-.patient-sidebar nav { display: grid; gap: 4px; padding: 24px 16px; }
+.patient-sidebar nav { display: grid; gap: 4px; min-height: 0; overflow-y: auto; padding: 24px 16px; }
 .patient-sidebar nav a, .patient-sidebar button { display: flex; align-items: center; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 12px; color: var(--muted); background: transparent; text-decoration: none; text-align: left; }
 .patient-sidebar img { flex-shrink: 0; }
 .patient-sidebar nav .active { background: #6cf8bb; color: #00714d; font-weight: 600; }

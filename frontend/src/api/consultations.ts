@@ -8,7 +8,7 @@ import type { AppointmentResponse, AppointmentStatusUpdate, ChatMessagePage, Cha
 export class ConsultationStateError extends Error {}
 
 export async function getPatientAppointments(page: number, signal: AbortSignal) {
-  return (await api.get<PatientAppointmentPage>('/patients/me/appointments', { params: { page, page_size: 20 }, signal })).data;
+  return (await api.get<PatientAppointmentPage>('/patients/me/appointments', { params: { page, page_size: 20, confirmed_only: true }, signal })).data;
 }
 export async function recordVideoAttendance(appointmentId: string, event: VideoAttendanceRequest['event'], signal: AbortSignal) {
   return (await api.post<VideoAttendanceResponse>(`/appointments/${encodeURIComponent(appointmentId)}/video/attendance`, { event }, { signal })).data;

@@ -577,6 +577,23 @@ export interface paths {
         patch: operations["update_appointment_admin_appointments__appointment_id__patch"];
         trace?: never;
     };
+    "/patients/me/appointments/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Patient Appointment History */
+        get: operations["patient_appointment_history_patients_me_appointments_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/patients/me/appointments/{appointment_id}/follow-up": {
         parameters: {
             query?: never;
@@ -3291,6 +3308,13 @@ export interface components {
              * Format: date-time
              */
             start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+            type: components["schemas"]["AppointmentType"];
+            status: components["schemas"]["AppointmentStatus"];
             /** Appointment Reason */
             appointment_reason: string | null;
             /** Professional Name */
@@ -3301,6 +3325,17 @@ export interface components {
             shared_notes: string | null;
             /** Has Prescription */
             has_prescription: boolean;
+        };
+        /** PatientAppointmentHistory */
+        PatientAppointmentHistory: {
+            /** Appointments */
+            appointments: components["schemas"]["PatientAppointmentFollowUp"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
         };
         /** PatientAppointmentPage */
         PatientAppointmentPage: {
@@ -5942,6 +5977,41 @@ export interface operations {
             };
         };
     };
+    patient_appointment_history_patients_me_appointments_history_get: {
+        parameters: {
+            query?: {
+                from_date?: string | null;
+                to_date?: string | null;
+                doctor?: string;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatientAppointmentHistory"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patient_appointment_follow_up_patients_me_appointments__appointment_id__follow_up_get: {
         parameters: {
             query?: never;
@@ -6012,6 +6082,7 @@ export interface operations {
             query?: {
                 page?: number;
                 page_size?: number;
+                confirmed_only?: boolean;
             };
             header?: never;
             path?: never;

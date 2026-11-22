@@ -26,9 +26,10 @@ Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 @router.get("/patients/me/appointments", response_model=PatientAppointmentPage)
 def patient_appointments(user: Annotated[User, Depends(get_current_patient)], appointments: Appointments,
                          response: Response, page: Annotated[int, Query(ge=1)] = 1,
-                         page_size: Annotated[int, Query(ge=1, le=100)] = 20):
+                         page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+                         confirmed_only: bool = False):
     response.headers["Cache-Control"] = "no-store"
-    rows, total = appointments.list_patient_appointments(user.id, (page - 1) * page_size, page_size)
+    rows, total = appointments.list_patient_appointments(user.id, (page - 1) * page_size, page_size, confirmed_only)
     return {"appointments": rows, "total": total, "page": page, "page_size": page_size}
 
 

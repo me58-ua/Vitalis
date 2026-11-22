@@ -14,6 +14,8 @@ import { PatientAppointmentsPage } from './pages/patient/PatientAppointmentsPage
 import { DoctorSelectionPage, doctorSelectionPath } from './pages/patient/DoctorSelectionPage';
 import { PatientBookingPage } from './pages/patient/PatientBookingPage';
 import { PatientAppointmentDetailPage } from './pages/patient/PatientAppointmentDetailPage';
+import { PatientAppointmentHistoryPage } from './pages/patient/PatientAppointmentHistoryPage';
+import { appointmentHistoryPath } from './api/appointmentFollowUp';
 import { AppointmentFollowUpPage } from './pages/professional/AppointmentFollowUpPage';
 import { PatientPrescriptionsPage } from './pages/patient/PatientPrescriptionsPage';
 import { ProfessionalProfilePage } from './pages/professional/ProfessionalProfilePage';
@@ -36,16 +38,19 @@ function PatientMessagesPage() {
   return <PatientDashboardLayout onProfile={() => navigate('/patientPanel')}><SpontaneousChatsPage /></PatientDashboardLayout>;
 }
 
-function PatientBookingLayout() {
+function PatientAppointmentLayout() {
   const navigate = useNavigate();
   return <PatientDashboardLayout onProfile={() => navigate('/patientPanel')}><Outlet /></PatientDashboardLayout>;
 }
 
 export function App() {
   return <BrowserRouter><AuthProvider><Routes>
-  <Route element={<RequireRole role="patient" />}><Route element={<PatientBookingLayout />}>
+  <Route element={<RequireRole role="patient" />}><Route element={<PatientAppointmentLayout />}>
     <Route path={doctorSelectionPath} element={<DoctorSelectionPage />} />
     <Route path={`${doctorSelectionPath}/:professionalId/reservar`} element={<PatientBookingPage />} />
+    <Route path="/patientPanel/misCitas" element={<PatientAppointmentsPage />} />
+    <Route path="/patientPanel/misCitas/:appointmentId" element={<PatientAppointmentDetailPage />} />
+    <Route path={appointmentHistoryPath} element={<PatientAppointmentHistoryPage />} />
   </Route></Route>
   <Route element={<PublicLayout />}>
     <Route path="/" element={<HomePage />} />
@@ -53,8 +58,6 @@ export function App() {
     <Route path="/forgot-password" element={<PasswordRecoveryPage key="request" mode="request" />} />
     <Route path="/reset-password" element={<PasswordRecoveryPage key="reset" mode="reset" />} />
     <Route element={<RequireRole role="patient" />}>
-      <Route path="/patientPanel/misCitas" element={<PatientAppointmentsPage />} />
-      <Route path="/patientPanel/misCitas/:appointmentId" element={<PatientAppointmentDetailPage />} />
       <Route path="/patientPanel/videoconsulta/:appointmentId" element={<VideoConsultationPage />} />
     </Route>
     <Route path="*" element={<main id="contenido" className="not-found section-container"><h1>Página no disponible</h1><Link to="/">Volver al inicio</Link></main>} />

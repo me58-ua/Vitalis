@@ -1,6 +1,7 @@
 from typing import Annotated
-from datetime import date
+from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.schemas.admin_appointments import AdminAppointmentsQuery, AdminAppointmentListResponse, AdminUpcomingAppointmentsResponse
@@ -31,6 +32,8 @@ from app.schemas.appointments import (
     AvailabilitySlot,
     PatientAppointmentCreate,
     PatientAppointmentFollowUp,
+    PatientAppointmentHistory,
+    PatientAppointmentHistoryQuery,
 )
 from app.services.appointment_service import (
     AppointmentAccessError,
@@ -54,15 +57,34 @@ Audits = Annotated[AuditRepository, Depends(get_audit_repository)]
 Notifications = Annotated[NotificationService, Depends(get_notification_service)]
 
 
+@patient_router.get("/patients/me/appointments/history", response_model=PatientAppointmentHistory)
+def patient_appointment_history(
+    current_patient: CurrentPatient, appointments: Appointments, response: Response,
+    query: Annotated[PatientAppointmentHistoryQuery, Query()],
+):
+    zone = ZoneInfo("Europe/Madrid")
+    first = query.from_date or query.to_date
+    last = query.to_date or query.from_date
+    start = datetime.combine(first, time.min, tzinfo=zone).astimezone(timezone.utc) if first else None
+    end = (datetime.combine(last + timedelta(days=1), time.min, tzinfo=zone).astimezone(timezone.utc)
+           if last and last < date.max else None)
+    rows, total = appointments.list_patient_appointment_history(
+        current_patient.id, start, end, query.doctor.strip(),
+        (query.page - 1) * query.page_size, query.page_size,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return PatientAppointmentHistory(appointments=rows, total=total, page=query.page, page_size=query.page_size)
+
+
 @patient_router.get("/patients/me/appointments/{appointment_id}/follow-up", response_model=PatientAppointmentFollowUp)
 def patient_appointment_follow_up(
     appointment_id: UUID, current_patient: CurrentPatient, appointments: Appointments, response: Response,
 ):
-    rows = appointments.patient_follow_ups(current_patient.id, appointment_id)
-    if not rows:
+    appointment = appointments.get_patient_appointment_history_detail(current_patient.id, appointment_id)
+    if appointment is None:
         raise HTTPException(status_code=404, detail="Consulta no encontrada")
     response.headers["Cache-Control"] = "no-store"
-    return rows[0]
+    return appointment
 
 
 @router.get("/appointments", response_model=AdminAppointmentListResponse)

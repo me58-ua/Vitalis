@@ -259,7 +259,7 @@ try {
   {
     fixture.state.testBookingDirectory = true;
     const bookingLink = '.patient-sidebar a[href="/patientPanel/equipoMedico"]';
-    assert.equal(await evaluate(`document.querySelector(${JSON.stringify(bookingLink)}).nextElementSibling.textContent`), 'Mis citas');
+    assert.equal(await evaluate(`document.querySelector(${JSON.stringify(bookingLink)}).nextElementSibling.textContent`), 'Mis próximas citas');
     await click(bookingLink);
     await until(`document.querySelectorAll('.booking-doctors > li').length === 2`);
     await evaluate(`(() => {
@@ -791,7 +791,7 @@ try {
   await until(`document.querySelector('.consultation-main [role="alert"]') !== null`);
   fixture.state.patientAppointmentsFail = false; fixture.state.patientAppointmentsEmpty = true;
   await click('.consultation-main .error-state button');
-  await until(`document.querySelector('.consultation-main')?.textContent.includes('No tienes citas.')`);
+  await until(`document.querySelector('.consultation-main')?.textContent.includes('No tienes próximas citas confirmadas.')`);
   fixture.state.patientAppointmentsEmpty = false;
   await reloadUntil(`document.querySelector('.patient-join-video') !== null`);
   assert.equal(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
@@ -828,6 +828,34 @@ try {
   await until(`document.querySelector('#health-appointment-follow-ups button:not([disabled])') !== null`);
   assert.equal(fixture.state.patientPrescriptionDownloads, downloadsBeforeFollowUp + 1);
   results.push({ check: 'patient notification opens shared appointment details and health profile shows only shared data' });
+  await evaluate(`history.pushState(null, '', '/patientPanel/misCitas'); window.dispatchEvent(new PopStateEvent('popstate'))`);
+  await until(`document.querySelector('.consultation-main')?.textContent.includes('No tienes próximas citas confirmadas.')`);
+  assert.equal(await evaluate(`document.querySelector('main h1').textContent`), 'Mis próximas citas');
+  assert.equal(await evaluate(`document.querySelector('main a[href="/patientPanel/historial"]')`), null);
+  await click('.patient-menu-button');
+  await click('.patient-sidebar a[href="/patientPanel/historial"]');
+  await until(`document.querySelector('.appointment-history-list')?.textContent.includes('Diagnóstico compartido de prueba')`);
+  assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+  await fill('doctor', 'Médico inexistente');
+  await click('.appointment-history-filters button[type="submit"]');
+  await until(`document.querySelector('main')?.textContent.includes('No hay consultas que coincidan')`);
+  const doctor = fixture.state.followUpPublic.professional_name;
+  await fill('doctor', doctor);
+  await fill('from_date', '04/11/2030');
+  await click('.appointment-history-filters button[type="submit"]');
+  await until(`document.querySelector('.appointment-history-list li') !== null`);
+  assert.deepEqual(fixture.state.historyFilters, { doctor, from_date: '2030-11-04' });
+  await fill('to_date', '05/11/2030');
+  await click('.appointment-history-filters button[type="submit"]');
+  await until(`document.querySelector('.appointment-history-list li') !== null`);
+  assert.deepEqual(fixture.state.historyFilters, { doctor, from_date: '2030-11-04', to_date: '2030-11-05' });
+  await click('.appointment-history-list a');
+  await until(`document.querySelector('.appointment-follow-up')?.textContent.includes('Archivos adjuntos')`);
+  assert.match(await evaluate(`document.querySelector('.appointment-follow-up').textContent`), /Indicaciones compartidas.*Descargar receta/s);
+  await click('a[href^="/patientPanel/historial?"]');
+  await until(`document.querySelector('.appointment-history-list li') !== null`);
+  assert.deepEqual(fixture.state.historyFilters, { doctor, from_date: '2030-11-04', to_date: '2030-11-05' });
+  results.push({ check: 'patient consultation history supports doctor, single date, range, appointment files and back navigation' });
   await evaluate(`history.pushState(null, '', ${JSON.stringify(patientVideoPath)}); window.dispatchEvent(new PopStateEvent('popstate'))`);
   await until(`document.querySelector('.consultation-status')?.textContent.includes('Finalizada')`);
   fixture.state.chatForbidden = true;

@@ -27,7 +27,7 @@ export function DoctorSelectionPage() {
   return <main id="contenido" className="patient-booking">
     <header className="booking-heading">
       <div><h1>Equipo médico y especialistas</h1><p>Encuentra a un profesional por nombre o especialidad.</p></div>
-      <Link className="button secondary" to="/patientPanel/misCitas">Mis citas</Link>
+      <Link className="button secondary" to="/patientPanel/misCitas">Mis próximas citas</Link>
     </header>
     <form className="booking-panel booking-search" onSubmit={search} aria-label="Buscar profesionales">
       <label>Profesional<input name="name" type="search" maxLength={100} placeholder="Nombre del profesional" /></label>

@@ -56,6 +56,11 @@
 .consultation-list h2 { margin: 0; font-size: 22px; }
 .consultation-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
 .consultation-list p { color: #404944; line-height: 1.6; }
+.appointment-history-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 16px; padding: 16px; border: 1px solid #d9e3f6; border-radius: 14px; }
+.appointment-history-filters label { display: grid; gap: 6px; flex: 1 1 150px; min-width: 0; }
+.appointment-history-filters input { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; border: 1px solid #bfc9c3; border-radius: 8px; }
+.appointment-history-filters > p { flex-basis: 100%; margin: 0; font-size: 14px; }
+.appointment-history-list li > div { flex: 1 1 320px; min-width: 0; overflow-wrap: anywhere; }
 .patient-video-entry { margin: 28px 0; max-width: 680px; padding: 24px; border-radius: 14px; background: #eff4ff; }
 .patient-video-entry label { display: grid; gap: 8px; margin-bottom: 16px; }
 .patient-video-entry input { width: 100%; min-width: 0; border: 1px solid #bfc9c3; padding: 12px; border-radius: 8px; }

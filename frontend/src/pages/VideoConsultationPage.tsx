@@ -116,9 +116,9 @@ function Consultation({ user, appointmentId, date }: { user: User; appointmentId
   }
 
   return <main id="contenido" className={`consultation-main${professional ? '' : ' consultation-patient'}`}>
-    <header className="consultation-heading"><div><p className="admin-eyebrow">ATENCIÓN A DISTANCIA</p><h1>Videoconsulta</h1>{state.data && <p>Con {state.data.otherName}{state.data.appointment && <> · {appointmentDate(state.data.appointment.start_time)}</>}</p>}</div><Link className="button secondary" to={back}>Volver a mis citas</Link></header>
+    <header className="consultation-heading"><div><p className="admin-eyebrow">ATENCIÓN A DISTANCIA</p><h1>Videoconsulta</h1>{state.data && <p>Con {state.data.otherName}{state.data.appointment && <> · {appointmentDate(state.data.appointment.start_time)}</>}</p>}</div><Link className="button secondary" to={back}>{professional ? 'Volver a mis citas' : 'Volver a mis próximas citas'}</Link></header>
     {state.loading && <p role="status">Cargando la consulta…</p>}
-    {state.error && <div role="alert" className="error-state"><p>{state.error}</p><Link to={back}>Ver mis citas</Link><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}
+    {state.error && <div role="alert" className="error-state"><p>{state.error}</p><Link to={back}>{professional ? 'Ver mis citas' : 'Ver mis próximas citas'}</Link><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}
     {state.data && <>
       <div className="consultation-info"><span className="consultation-status">{status && appointmentStatuses[status]}</span>{state.data.appointment?.appointment_reason && <p>{state.data.appointment.appointment_reason}</p>}</div>
       {error && <div className="error-state" role="alert"><p>{error}</p>{completionPending && <button className="button secondary" disabled={busy} onClick={() => { void complete(); }}>Reintentar guardar finalización</button>}</div>}
