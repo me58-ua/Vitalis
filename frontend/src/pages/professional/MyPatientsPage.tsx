@@ -5,7 +5,6 @@ import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { PatientPages } from '../../components/PatientPages';
 import { PatientRecord } from '../../components/PatientRecord';
 import type { ProfessionalPatientPage } from '../../types/api';
-import '../../styles/my-patients.css';
 
 export function MyPatientsPage() {
   const [search, setSearch] = useState('');

@@ -562,6 +562,10 @@ try {
   assert.equal(await evaluate(`document.querySelector('.prescription-link-action').disabled`), true);
   assert.equal(await evaluate(`document.activeElement.id`), 'agenda-detail-title');
   assert.equal(await evaluate(`document.querySelector('dialog') === null`), true);
+  await click('.appointment-record-action');
+  await until(`document.querySelector('dialog[open] h2')?.textContent === 'Expediente de ' + document.querySelector('.professional-appointment-details h3').textContent`);
+  await click('dialog[open] [aria-label="Cerrar ventana"]');
+  assert.equal(await evaluate(`document.activeElement.classList.contains('appointment-record-action')`), true);
   await click('.agenda-detail-heading button');
   assert.equal(await evaluate(`document.activeElement.classList.contains('agenda-event')`), true);
   await fill('agenda_days', '5');

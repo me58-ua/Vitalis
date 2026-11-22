@@ -6,6 +6,7 @@ import { DateTimeField } from '../../components/DateTimeField';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useProfessionalWeek } from '../../hooks/useProfessionalWeek';
 import { ProfessionalAppointmentDetails } from '../../components/ProfessionalPanels';
+import { PatientRecord } from '../../components/PatientRecord';
 import { ProfessionalWeekCalendar } from '../../components/ProfessionalWeekCalendar';
 import { appointmentStatuses } from '../../components/AppointmentSummary';
 import { addDays, dayLabel, madridDay, mondayOf, validCalendarDay } from '../../utils/agenda';
@@ -26,6 +27,7 @@ export function ProfessionalAgendaPage() {
   const mobileDay = requestedDay && days.includes(requestedDay) ? requestedDay : days.includes(today) ? today : week;
   const [status, setStatus] = useState<StatusFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [recordOpen, setRecordOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const detailHeading = useRef<HTMLHeadingElement>(null);
@@ -74,10 +76,11 @@ export function ProfessionalAgendaPage() {
     <ProfessionalTimeBlocks blocks={timeBlocks.data ?? []} ready={Boolean(timeBlocks.data)} onBusy={setBusy} onChanged={() => { timeBlocks.retry(); state.retry(); }} />
     <section id="agenda-appointment-detail" className="agenda-detail" hidden={!selected} aria-labelledby="agenda-detail-title">
       {selected && <><div className="agenda-detail-heading"><h2 id="agenda-detail-title" ref={detailHeading} tabIndex={-1}>Detalle de la cita</h2><button className="button secondary" disabled={busy} onClick={closeDetail}>Cerrar detalle</button></div>
-        <ProfessionalAppointmentDetails key={`${selected.id}:${selected.status}`} item={selected} onBusy={setBusy} onChanged={() => { setBusy(false); setSelectedId(null); setNotice('Cita cancelada correctamente. Se ha conservado el motivo original.'); state.retry(); }} />
+        <ProfessionalAppointmentDetails key={`${selected.id}:${selected.status}`} item={selected} onBusy={setBusy} onOpenRecord={() => setRecordOpen(true)} onChanged={() => { setBusy(false); setSelectedId(null); setNotice('Cita cancelada correctamente. Se ha conservado el motivo original.'); state.retry(); }} />
         {selected.type === 'video' && (selected.status === 'confirmed' || selected.status === 'completed') && <Link className="button secondary" to={`/professionalDashboard/chats?appointment=${encodeURIComponent(selected.id)}`}>Chat de la videoconsulta</Link>}
       </>}
     </section>
+    {selected && recordOpen && <PatientRecord key={selected.patient_id} patient={{ id: selected.patient_id, name: selected.patient_name, username: selected.patient_username }} onClose={() => setRecordOpen(false)} />}
     <section aria-label="Semana de citas" aria-busy={state.loading}>
       {state.loading && <p className="agenda-feedback" role="status">Cargando la semana…</p>}
       {state.error && <div className="error-state" role="alert"><p>{state.error}</p><button type="button" className="button secondary" onClick={state.retry}>Reintentar</button></div>}

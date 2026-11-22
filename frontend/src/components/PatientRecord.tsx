@@ -15,6 +15,7 @@ import type { PatientHealthSnapshot, ProfessionalHistoryPage, ProfessionalPatien
 import { riskNames, riskValue } from './PatientRiskCards';
 import { familyConditionNames } from '../utils/familyHistory';
 import { downloadDocument } from '../api/documents';
+import '../styles/my-patients.css';
 
 function recordError(error: unknown) {
   if (axios.isAxiosError<{ detail?: unknown }>(error)) {
@@ -108,7 +109,10 @@ function SharedHealthData({ data, patientId, professionalId }: { data: PatientHe
   </>;
 }
 
-export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatientPage['patients'][number]; onClose: () => void }) {
+type PatientSummary = ProfessionalPatientPage['patients'][number];
+type RecordPatient = Pick<PatientSummary, 'id' | 'name' | 'username'> & Partial<Pick<PatientSummary, 'email' | 'tel'>>;
+
+export function PatientRecord({ patient, onClose }: { patient: RecordPatient; onClose: () => void }) {
   const { user } = useAuth();
   const professionalId = user?.id ?? '';
   const [page, setPage] = useState(1);
@@ -124,7 +128,7 @@ export function PatientRecord({ patient, onClose }: { patient: ProfessionalPatie
   const recipes = useAdminQuery(recipeLoad, professionalError);
   const health = useAdminQuery(healthLoad, recordError);
   return <Modal title={`Expediente de ${patient.name}`} onClose={onClose} busy={busy}>
-    <div className="patient-record"><p>@{patient.username} · {patient.email} · {patient.tel || 'Teléfono no indicado'}</p>
+    <div className="patient-record"><p>@{patient.username}{patient.email && <> · {patient.email} · {patient.tel || 'Teléfono no indicado'}</>}</p>
       <section><h3>Citas e historial</h3><p>Una vez iniciada una cita presencial, puedes finalizarla y abrir su seguimiento. Desde el seguimiento puedes guardar el diagnóstico, las notas y la receta.</p>
         <Feedback {...history} />
         {history.data && <>{history.data.appointments.length === 0 && <p>No hay citas iniciadas ni finalizadas con este paciente.</p>}

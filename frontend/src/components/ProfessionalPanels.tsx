@@ -83,7 +83,7 @@ export function ProfessionalCreateDialog({ onClose, onCreated }: { onClose: () =
   </fieldset>{error && <p ref={errorRef} tabIndex={-1} className="error-state" role="alert">{error}</p>}</form></Modal>;
 }
 
-export function ProfessionalAppointmentDetails({ item, onBusy, onChanged }: { item: ProfessionalAppointment; onBusy: (busy: boolean) => void; onChanged: () => void }) {
+export function ProfessionalAppointmentDetails({ item, onBusy, onChanged, onOpenRecord }: { item: ProfessionalAppointment; onBusy: (busy: boolean) => void; onChanged: () => void; onOpenRecord?: () => void }) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -115,6 +115,7 @@ export function ProfessionalAppointmentDetails({ item, onBusy, onChanged }: { it
       {prescription.data && <div className="prescription-current"><p>Esta cita ya tiene una receta vinculada.</p><PrescriptionDownloadButton professionalId={professionalId} appointmentId={item.id} /></div>}
     </div>}
     <div className="professional-appointment-actions">
+    {onOpenRecord && <button className="button secondary appointment-record-action" type="button" disabled={busy} onClick={event => { event.currentTarget.focus(); onOpenRecord(); }}>Abrir expediente del paciente</button>}
     {item.status === 'completed' && <Link className="button secondary" to={professionalFollowUpPath(item.id)}>Seguimiento de la cita</Link>}
     {user && item.type === 'in_person' && item.status === 'confirmed' && Date.parse(item.start_time) <= Date.now() && !confirming && <CompleteInPersonAppointment appointmentId={item.id} professionalId={user.id} busy={busy} onBusy={value => { setBusy(value); onBusy(value); }} />}
     {(item.status === 'completed' || item.status === 'confirmed') && <button ref={prescriptionButton} type="button" className="button secondary prescription-link-action" disabled={item.status !== 'completed' || busy} aria-expanded={prescriptionOpen} onClick={() => { setPrescriptionOpen(true); setPrescriptionFocus(value => value + 1); }}>Vincular receta</button>}
