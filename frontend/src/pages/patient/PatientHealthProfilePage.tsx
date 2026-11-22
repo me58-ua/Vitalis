@@ -5,7 +5,7 @@ import { useAdminQuery } from '../../hooks/useAdminQuery';
 import { getHealthProfile, updateHealthSharingConsent } from '../../api/healthProfile';
 import { errorMessage } from '../../api/errors';
 import { patientAppointmentPath } from '../../api/appointmentFollowUp';
-import { AppointmentPrescriptionDownload, SharedAppointmentNotes } from './PatientAppointmentDetailPage';
+import { SharedAppointmentNotes } from './PatientAppointmentDetailPage';
 import { restartOnboarding, onboardingError } from '../../api/onboarding';
 import { PatientQueryFeedback, patientDate } from '../../components/PatientDashboardDialogs';
 import { ProfessionalHealthSharing } from '../../components/ProfessionalHealthSharing';
@@ -71,6 +71,7 @@ export function PatientHealthProfilePage() {
   const completed = data?.onboarding_stage === 'completed';
   const empty = (key: string, none: string) => data?.declarations[key] === 'none' ? none : data?.declarations[key] === 'unknown' ? 'No lo sabes todavía. Completa este dato mediante el asistente IA cuando lo conozcas.' : 'No hay datos registrados en esta sección.';
   const latestAlcohol = data?.alcohol_current ?? data?.alcohol_logs[0];
+  const followUps = data?.appointment_follow_ups?.filter(item => item.shared_diagnosis || item.shared_notes);
   return <PatientDashboardLayout onProfile={() => navigate('/patientPanel')}><main id="contenido" className="health-profile-main">
     <nav className="health-breadcrumb" aria-label="Ruta de navegación"><Link to="/patientPanel">Portal del paciente</Link><span aria-hidden="true">›</span><span>Mi perfil de salud</span></nav>
     <PatientQueryFeedback {...state} />{startError && <p role="alert" className="error-state">{startError}</p>}
@@ -103,14 +104,13 @@ export function PatientHealthProfilePage() {
         </Section>
         <section className="health-analysis-note"><h2>Tu perfil y tus análisis</h2><p>Las evaluaciones se muestran cuando hay información suficiente y has dado tu consentimiento. No sustituyen una valoración profesional.</p><Link to="/patientPanel#evaluaciones">Consultar análisis →</Link></section>
       </div></div>
-      <Section id="health-appointment-follow-ups" title="Información compartida en tus citas" subtitle="Diagnósticos, notas clínicas y recetas de tus citas finalizadas" icon={historyIcon}>
-        {data.appointment_follow_ups == null && <p className="health-empty">La información compartida de tus citas no está disponible.</p>}
-        {data.appointment_follow_ups?.length === 0 && <p className="health-empty">Aún no hay información compartida sobre tus citas.</p>}
-        {data.appointment_follow_ups?.map(item => <article className="health-record" key={item.appointment_id}>
+      <Section id="health-appointment-follow-ups" title="Notas y diagnósticos de citas previas" subtitle="Información clínica compartida por tus profesionales" icon={historyIcon}>
+        {followUps == null && <p className="health-empty">La información compartida de tus citas no está disponible.</p>}
+        {followUps?.length === 0 && <p className="health-empty">Aún no hay notas ni diagnósticos compartidos de tus citas.</p>}
+        {followUps?.map(item => <article className="health-record" key={item.appointment_id}>
           <h3>{item.professional_name}</h3><p>{patientDate(item.start_time, profile.timezone)}</p>
           <SharedAppointmentNotes appointment={item} />
-          {item.has_prescription && <AppointmentPrescriptionDownload appointmentId={item.appointment_id} />}
-          <Link to={patientAppointmentPath(item.appointment_id)}>Ver detalles de la cita</Link>
+          <Link className="button secondary" to={patientAppointmentPath(item.appointment_id)}>Ver detalles de la cita</Link>
         </article>)}
       </Section>
       <section className="health-consent"><span className="health-section-icon"><img src={privacyIcon} alt="" /></span><div><h2>Tu consentimiento</h2><p>Procesamiento mediante IA: <strong>{profile.ai_processing_consent ? 'aceptado' : 'no aceptado'}</strong>.</p>{profile.ai_processing_consent_at && <p>Última decisión registrada: {patientDate(profile.ai_processing_consent_at, profile.timezone)}.</p>}</div></section>

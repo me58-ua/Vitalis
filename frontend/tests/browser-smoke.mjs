@@ -845,9 +845,12 @@ try {
   await evaluate(`history.pushState(null, '', '/patientPanel/perfilSalud'); window.dispatchEvent(new PopStateEvent('popstate'))`);
   await until(`document.getElementById('health-appointment-follow-ups')?.textContent.includes('Diagnóstico compartido de prueba')`);
   assert.doesNotMatch(await evaluate('document.body.textContent'), /Nota privada de prueba/);
+  assert.doesNotMatch(await evaluate(`document.getElementById('health-appointment-follow-ups').textContent`), /Descargar receta/);
+  await click('#health-appointment-follow-ups a');
+  await until(`document.querySelector('.appointment-follow-up')?.textContent.includes('Descargar receta')`);
   const downloadsBeforeFollowUp = fixture.state.patientPrescriptionDownloads || 0;
-  await click('#health-appointment-follow-ups button');
-  await until(`document.querySelector('#health-appointment-follow-ups button:not([disabled])') !== null`);
+  await click('.appointment-follow-up button');
+  await until(`document.querySelector('.appointment-follow-up button:not([disabled])') !== null`);
   assert.equal(fixture.state.patientPrescriptionDownloads, downloadsBeforeFollowUp + 1);
   results.push({ check: 'patient notification opens shared appointment details and health profile shows only shared data' });
   await evaluate(`history.pushState(null, '', '/patientPanel/misCitas'); window.dispatchEvent(new PopStateEvent('popstate'))`);
