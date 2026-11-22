@@ -123,7 +123,7 @@ class AppointmentFollowUpTests(unittest.TestCase):
                 db.add(Appointment(id=identifier, patient_id=patient, professional_id=doctor, start_time=start,
                                    end_time=start + timedelta(minutes=15), status=status))
             db.add(Prescription(appointment_id=self.appointment_id, patient_id=uuid4(), professional_id=uuid4(),
-                                file_url="private/fixture.pdf"))
+                                file_url="private/fixture.pdf", codigo="TEST-RECIPE"))
             db.commit()
             rows, total = AppointmentRepository(db).list_patient_appointments(self.patient_id, 0, 20, confirmed_only=True)
             self.assertEqual(total, 1)

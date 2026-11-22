@@ -2546,8 +2546,6 @@ export interface components {
             fecha_emision: string;
             /** Fecha Caducidad */
             fecha_caducidad?: string | null;
-            /** Codigo */
-            codigo?: string | null;
             /** Notas */
             notas?: string | null;
             /** Late Reason */

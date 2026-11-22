@@ -86,7 +86,6 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
       titulo: String(data.get('titulo') ?? '').trim(),
       fecha_emision: String(data.get('fecha_emision') ?? ''),
       fecha_caducidad: String(data.get('fecha_caducidad') ?? '') || null,
-      codigo: String(data.get('codigo') ?? '').trim() || null,
     };
     if (!metadata.titulo || !metadata.fecha_emision) { setError('Indica el título y la fecha de emisión del documento.'); return; }
     if (metadata.fecha_caducidad && metadata.fecha_caducidad < metadata.fecha_emision) {
@@ -137,7 +136,6 @@ export function PrescriptionAttachment({ professionalId, appointment, onBusy, on
       <label>Fecha de emisión<DateTimeField name="fecha_emision" type="date" required defaultValue={prescription?.fecha_emision ?? ''} /></label>
       <label>Válida hasta (opcional)<DateTimeField name="fecha_caducidad" type="date" defaultValue={prescription?.fecha_caducidad ?? ''} /></label>
       <p className="field-help">Deja la caducidad en blanco si no está especificada en el documento.</p>
-      <label>Código del documento (opcional)<input name="codigo" maxLength={100} defaultValue={prescription?.codigo ?? ''} /></label>
       <label>Archivo de receta (PDF, JPEG o PNG)<input name="file" type="file" accept="application/pdf,image/jpeg,image/png" required /></label>
       <label>Notas opcionales<textarea name="notes" rows={3} defaultValue={prescription?.notas ?? ''} /></label>
       {late && <>

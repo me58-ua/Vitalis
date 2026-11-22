@@ -15,13 +15,11 @@ class PrescriptionMetadata(BaseModel):
     titulo: str = Field(min_length=1, max_length=300)
     fecha_emision: date
     fecha_caducidad: date | None = None
-    codigo: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def validate_dates(self):
         if self.fecha_caducidad is not None and self.fecha_caducidad < self.fecha_emision:
             raise ValueError("La fecha de caducidad no puede ser anterior a la fecha de emisión")
-        self.codigo = self.codigo or None
         return self
 
 

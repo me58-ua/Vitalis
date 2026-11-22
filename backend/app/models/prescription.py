@@ -33,7 +33,7 @@ class Prescription(Base):
     titulo: Mapped[str | None] = mapped_column(String(300), nullable=True)
     fecha_emision: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_caducidad: Mapped[date | None] = mapped_column(Date, nullable=True)
-    codigo: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    codigo: Mapped[str | None] = mapped_column(String(100), nullable=True, server_default=text("(CAST(gen_random_uuid() AS VARCHAR))"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

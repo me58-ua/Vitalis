@@ -99,13 +99,12 @@ def upload_prescription(
     titulo: str = Form(..., min_length=1, max_length=300),
     fecha_emision: date = Form(...),
     fecha_caducidad: date | None = Form(default=None),
-    codigo: str | None = Form(default=None, max_length=100),
     notas: str | None = Form(default=None),
     late_reason: str | None = Form(default=None, max_length=1000),
 ):
     try:
         metadata = PrescriptionMetadata(tipo=tipo, titulo=titulo, fecha_emision=fecha_emision,
-                                        fecha_caducidad=fecha_caducidad, codigo=codigo)
+                                        fecha_caducidad=fecha_caducidad)
         result = _service(appointments, profiles, prescriptions, storage, audits, notifications).upload(
             professional_id,
             current_user,

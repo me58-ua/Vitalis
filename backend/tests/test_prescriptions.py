@@ -70,6 +70,7 @@ class FakePrescriptions:
 
     def create(self, prescription):
         prescription.id = uuid.uuid4()
+        prescription.codigo = str(uuid.uuid4())
         prescription.created_at = datetime.now(timezone.utc)
         self.prescription = prescription
         return prescription
@@ -125,10 +126,11 @@ class PrescriptionServiceTests(unittest.TestCase):
         args = (self.professional_id, self.professional, self.appointment_id)
         first = self.upload(*args, io.BytesIO(b"pdf"), "recipe.pdf", "application/pdf", None,
             metadata=PrescriptionMetadata(tipo="medicacion", titulo="  Dos medicamentos  ",
-                fecha_emision=date(2026, 9, 29), fecha_caducidad=date(2026, 10, 29), codigo="  EXT-123  "))
+                fecha_emision=date(2026, 9, 29), fecha_caducidad=date(2026, 10, 29)))
         first_id = first.id
+        first_code = first.codigo
         self.assertEqual(first.titulo, "Dos medicamentos")
-        self.assertEqual(first.codigo, "EXT-123")
+        self.assertTrue(first_code)
         self.assertEqual(first.fecha_caducidad, date(2026, 10, 29))
         replacement = self.upload(*args, io.BytesIO(b"image"), "request.png", "image/png", "Prueba solicitada",
             metadata=PrescriptionMetadata(tipo="prueba", titulo="Solicitud de analítica", fecha_emision=date(2026, 9, 29)))
@@ -136,12 +138,12 @@ class PrescriptionServiceTests(unittest.TestCase):
         self.assertEqual(replacement.tipo, "prueba")
         self.assertEqual(replacement.titulo, "Solicitud de analítica")
         self.assertIsNone(replacement.fecha_caducidad)
-        self.assertIsNone(replacement.codigo)
+        self.assertEqual(replacement.codigo, first_code)
         self.assertTrue(replacement.file_url.endswith('.png'))
 
     def test_metadata_rejects_invalid_dates_blank_title_and_unknown_type(self):
         valid = dict(tipo="prueba", titulo="Analítica", fecha_emision="2026-09-29")
-        for change in ({"fecha_caducidad": "2026-09-28"}, {"titulo": "   "}, {"tipo": "invalid"}, {"codigo": "x" * 101}):
+        for change in ({"fecha_caducidad": "2026-09-28"}, {"titulo": "   "}, {"tipo": "invalid"}):
             with self.subTest(change=change), self.assertRaises(ValidationError):
                 PrescriptionMetadata(**{**valid, **change})
         self.assertEqual(PrescriptionMetadata(**valid, fecha_caducidad="2026-09-29").fecha_caducidad, date(2026, 9, 29))

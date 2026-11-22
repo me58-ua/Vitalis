@@ -403,7 +403,7 @@ try {
   await fill('titulo', 'Atorvastatina y Metformina');
   await fill('fecha_emision', '03/11/2026');
   await fill('fecha_caducidad', '03/12/2026');
-  await fill('codigo', 'EXT-TEST-1');
+  assert.equal(await evaluate(`document.querySelector('.prescription-form [name="codigo"]')`), null);
   await fill('fecha_caducidad', '02/11/2026');
   await click('.prescription-form button[type="submit"]');
   await until(`document.querySelector('.prescription-form [role="alert"]')?.textContent.includes('anterior')`);
@@ -420,7 +420,8 @@ try {
   assert.match(fixture.state.recipeBody, /name="file"/);
   assert.match(fixture.state.recipeBody, /2026-11-03/);
   assert.equal(fixture.state.patientRecipes[0].titulo, 'Atorvastatina y Metformina');
-  assert.equal(fixture.state.patientRecipes[0].codigo, 'EXT-TEST-1');
+  assert.ok(fixture.state.patientRecipes[0].codigo);
+  assert.doesNotMatch(fixture.state.recipeBody, /name="codigo"/);
   fixture.state.failRecipeDownload = true;
   await click('.prescription-form .prescription-download button');
   await until(`document.querySelector('.prescription-form .prescription-download [role="alert"]') !== null`);

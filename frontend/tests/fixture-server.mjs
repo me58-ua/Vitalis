@@ -367,7 +367,8 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         state.recipePath = path; state.recipeBody = raw;
         if (!field('tipo') || !field('titulo') || !field('fecha_emision')) return send(422, { detail: 'METADATA_REQUIRED' });
         const item = { id: notification.id, appointment_id: path.split('/')[4], patient_id: participants.patient.id, professional_id: actor.id, file_url: 'test-only.pdf', notas: null, created_at: '2026-11-03T12:00:00Z',
-          tipo: field('tipo'), titulo: field('titulo'), fecha_emision: field('fecha_emision'), fecha_caducidad: field('fecha_caducidad'), codigo: field('codigo') };
+          tipo: field('tipo'), titulo: field('titulo'), fecha_emision: field('fecha_emision'), fecha_caducidad: field('fecha_caducidad'),
+          codigo: state.patientRecipes?.find(recipe => recipe.appointment_id === path.split('/')[4])?.codigo ?? randomUUID() };
         state.patientRecipes = [item]; return send(201, item);
       }
       if (path.endsWith('/appointments/history') && new URL(req.url, 'http://fixture.invalid').searchParams.has('patient_id')) {

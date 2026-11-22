@@ -67,7 +67,7 @@ export async function getPatientPrescriptions(professionalId: string, patientId:
 }
 export type PrescriptionMetadata = {
   tipo: NonNullable<Prescription['tipo']>; titulo: string; fecha_emision: string;
-  fecha_caducidad: string | null; codigo: string | null;
+  fecha_caducidad: string | null;
 };
 
 export async function attachPrescription(professionalId: string, appointmentId: string, file: File, notes: string, metadata: PrescriptionMetadata, signal: AbortSignal, lateReason?: string): Promise<Prescription | null> {
