@@ -66,8 +66,8 @@ def get_my_health(current_user: CurrentPatient, profiles: Profiles):
     return PatientHealthService(profiles).snapshot(_profile(current_user, profiles))
 
 
-@router.patch("/patients/me/consentimiento")
 @router.patch("/patients/{patient_id}/consentimiento")
+@router.patch("/patients/me/consentimiento")
 def update_consent(
     data: ConsentUpdate,
     current_user: CurrentPatient,

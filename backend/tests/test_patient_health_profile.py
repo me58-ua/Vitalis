@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.api import patient_health
 from app.api import patient_health_profile as module
 from app.api.deps import get_appointment_repository, get_current_patient, get_profile_repository, get_audit_repository, get_notification_service
 from app.database import get_db
@@ -27,6 +28,7 @@ class PatientHealthProfileTests(unittest.TestCase):
             'medications': [], 'habit_logs': [], 'family_history_entries': []}
         self.profiles.list_alcohol_logs.return_value = []
         self.app = FastAPI()
+        self.app.include_router(patient_health.router)
         self.app.include_router(module.router)
         self.app.dependency_overrides[get_current_patient] = lambda: self.user
         self.app.dependency_overrides[get_profile_repository] = lambda: self.profiles
@@ -38,6 +40,21 @@ class PatientHealthProfileTests(unittest.TestCase):
         self.app.dependency_overrides[get_db] = lambda: Mock()
         self.http = TestClient(self.app)
         self.addCleanup(patch.stopall)
+
+    def test_global_sharing_consent_can_be_enabled_and_revoked_through_me(self):
+        for enabled in (True, False):
+            with self.subTest(enabled=enabled):
+                response = self.http.patch('/patients/me/consentimiento', json={'share_health_data': enabled})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {'share_health_data': enabled})
+                profile = self.http.get('/patients/me/health-profile').json()['profile']
+                self.assertEqual(profile['share_health_data'], enabled)
+
+    def test_explicit_consent_route_rejects_another_patients_id(self):
+        response = self.http.patch(f'/patients/{uuid4()}/consentimiento', json={'share_health_data': True})
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(self.profile.share_health_data)
+        self.profiles.session.flush.assert_not_called()
 
     def test_patient_can_read_own_data_without_professional_sharing(self):
         response = self.http.get('/patients/me/health-profile')
