@@ -29,6 +29,18 @@ class NotificationService:
         self.repository = repository
         self.max_email_attempts = max_email_attempts
 
+    def notify_spontaneous_chat_message(self, professional_id: UUID, chat_id: UUID) -> None:
+        self.repository.create(Notification(
+            recipient_id=professional_id,
+            type="spontaneous_chat_message",
+            entity="spontaneous_chat",
+            entity_id=chat_id,
+            title="Nuevo mensaje de chat",
+            message="Un paciente te ha enviado un mensaje en el chat espontáneo.",
+            email_required=False,
+            email_status=EmailStatus.NOT_APPLICABLE,
+        ))
+
     def notify_appointment_follow_up(self, patient_id: UUID, appointment_id: UUID, *, clinical_update: bool = False) -> None:
         message = "Tu profesional ha compartido información sobre tu cita. Abre los detalles en el historial de citas para consultarla."
         if clinical_update:

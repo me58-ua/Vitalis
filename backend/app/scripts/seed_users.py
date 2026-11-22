@@ -69,6 +69,8 @@ DOCTORS = (
     ("Sofía Castro Vidal", "sofia_castro", "Medicina general"),
 )
 CHAT_DOCTOR = "alba_ruiz"
+IN_PERSON_ONLY = {"ines_morales", "daniel_sanz"}
+VIDEO_ONLY = {"rafael_nunez"}
 APPOINTMENT_FIXTURE_DOCTORS = 6
 DEMO_USERS = tuple(
     SeedUser(name, f"DEV-P-{index:04d}", username, f"patient{index + 1}@vitalis.local",
@@ -89,11 +91,29 @@ def _seed_working_hours(session, professionals):
     for professional in professionals:
         hours.lock_owner(professional.id)
         rows = hours.list(professional.id)
+        username = professional.username
+        appointment_channels = ("in_person",) if username in IN_PERSON_ONLY else (
+            ("video",) if username in VIDEO_ONLY else ("in_person", "video")
+        )
+        if rows and len(appointment_channels) == 1:
+            expected = {(channel, day) for channel in ("in_person", "video") for day in range(7)}
+            if (
+                len(rows) == len(expected)
+                and {(row.channel, row.day_of_week) for row in rows} == expected
+                and all(row.is_active and row.start_time == time(9) and row.end_time == time(18)
+                        and row.slot_duration_min == 30 for row in rows)
+            ):
+                obsolete = [row for row in rows if row.channel not in appointment_channels]
+                for row in obsolete:
+                    session.delete(row)
+                rows = [row for row in rows if row.channel in appointment_channels]
+                professional.professional_profile.telehealth_enabled = "video" in appointment_channels
         if not rows:
-            channels = {"chat": (time.min, time.max)} if professional.username == CHAT_DOCTOR else {
-                "in_person": (time(9), time(18)),
-                "video": (time(9), time(18)),
+            channels = {"chat": (time.min, time.max)} if username == CHAT_DOCTOR else {
+                channel: (time(9), time(18)) for channel in appointment_channels
             }
+            if len(appointment_channels) == 1:
+                professional.professional_profile.telehealth_enabled = "video" in appointment_channels
             rows = [
                 ProfessionalSchedule(professional_id=professional.id, day_of_week=day,
                                      channel=channel, start_time=start, end_time=end)
@@ -278,7 +298,7 @@ def seed_users(session_factory=SessionLocal, *, include_demo=True, now=None) -> 
             if seed_user.role == UserRole.PROFESSIONAL and professional.professional_profile is None:
                 professional.professional_profile = ProfessionalProfile(
                     specialty=seed_user.specialty,
-                    bio=f"Consulta de {seed_user.specialty.lower()} y seguimiento de pacientes.",
+                    bio=f"Consulta de {seed_user.specialty.lower()}.",
                     practice_address="Calle de Pruebas 2, Madrid",
                     practice_phone=professional.tel, license_number=f"DEV-{professional.username}",
                     is_accepting_new_patients=True,
@@ -288,8 +308,11 @@ def seed_users(session_factory=SessionLocal, *, include_demo=True, now=None) -> 
                     rejection_reason=None, reviewed_at=now,
                     reviewed_by=admin.id,
                 )
-            elif seed_user.role == UserRole.PROFESSIONAL and professional.professional_profile.bio == "Perfil sintético para desarrollo local de Vitalis.":
-                professional.professional_profile.bio = f"Consulta de {seed_user.specialty.lower()} y seguimiento de pacientes."
+            elif seed_user.role == UserRole.PROFESSIONAL and professional.professional_profile.bio in {
+                "Perfil sintético para desarrollo local de Vitalis.",
+                f"Consulta de {seed_user.specialty.lower()} y seguimiento de pacientes.",
+            }:
+                professional.professional_profile.bio = f"Consulta de {seed_user.specialty.lower()}."
         session.flush()
         if include_demo:
             _seed_appointments(session, users, now)

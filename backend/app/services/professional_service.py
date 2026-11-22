@@ -70,8 +70,9 @@ class ProfessionalService:
             limit=page_size,
             appointment_type=appointment_type,
         )
+        modalities = self.professionals.appointment_modalities([user.id for user, _ in records])
         return ProfessionalListResponse(
-            professionals=[self._public_response(user, profile) for user, profile in records],
+            professionals=[self._public_response(user, profile, modalities.get(user.id, set())) for user, profile in records],
             total=total,
             page=page,
             page_size=page_size,
@@ -81,10 +82,11 @@ class ProfessionalService:
         record = self.professionals.get_professional(professional_id)
         if record is None:
             raise ProfessionalNotFoundError("Professional not found")
-        return self._public_response(*record)
+        modalities = self.professionals.appointment_modalities([professional_id])
+        return self._public_response(*record, modalities.get(professional_id, set()))
 
     @staticmethod
-    def _public_response(user, profile) -> ProfessionalPublicResponse:
+    def _public_response(user, profile, modalities: set[str]) -> ProfessionalPublicResponse:
         return ProfessionalPublicResponse(
             id=user.id,
             name=user.name,
@@ -97,5 +99,9 @@ class ProfessionalService:
             is_accepting_new_patients=profile.is_accepting_new_patients,
             default_consultation_duration_minutes=profile.default_consultation_duration_minutes,
             telehealth_enabled=profile.telehealth_enabled,
+            appointment_modalities=[
+                modality for modality in ("in_person", "video")
+                if modality in modalities and (modality != "video" or profile.telehealth_enabled)
+            ],
             license_number=profile.license_number,
         )

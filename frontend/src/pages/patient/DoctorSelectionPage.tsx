@@ -58,11 +58,14 @@ export function DoctorSelectionPage() {
           </div>
           {professional.bio && <p>{professional.bio}</p>}
           <ul className="booking-tags">
-            {professional.telehealth_enabled && <li>Videoconsulta</li>}
+            {professional.appointment_modalities.includes('in_person') && <li>Presencial</li>}
+            {professional.appointment_modalities.includes('video') && <li>Videoconsulta</li>}
             {professional.languages?.map(language => <li key={language}>{language}</li>)}
           </ul>
           {professional.is_accepting_new_patients
-            ? <Link className="button primary" to={`${doctorSelectionPath}/${encodeURIComponent(professional.id)}/reservar${modality ? `?modalidad=${modality}` : ''}`} aria-label={`Reservar cita con ${professional.name}`}>Reservar cita</Link>
+            ? professional.appointment_modalities.length > 0
+              ? <Link className="button primary" to={`${doctorSelectionPath}/${encodeURIComponent(professional.id)}/reservar${modality ? `?modalidad=${modality}` : ''}`} aria-label={`Reservar cita con ${professional.name}`}>Reservar cita</Link>
+              : <p>No ofrece citas programadas.</p>
             : <p>No acepta nuevos pacientes.</p>}
         </li>)}
       </ul>

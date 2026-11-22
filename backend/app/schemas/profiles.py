@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from uuid import UUID
-from typing import Annotated
+from typing import Annotated, Literal
 from pydantic import StringConstraints, field_validator
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_serializer
@@ -174,6 +174,7 @@ class ProfessionalPublicResponse(BaseModel):
     is_accepting_new_patients: bool
     default_consultation_duration_minutes: int
     telehealth_enabled: bool
+    appointment_modalities: list[Literal["in_person", "video"]]
     license_number: str
 
 

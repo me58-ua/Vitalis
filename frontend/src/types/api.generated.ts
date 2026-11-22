@@ -4034,6 +4034,8 @@ export interface components {
             default_consultation_duration_minutes: number;
             /** Telehealth Enabled */
             telehealth_enabled: boolean;
+            /** Appointment Modalities */
+            appointment_modalities: ("in_person" | "video")[];
             /** License Number */
             license_number: string;
         };

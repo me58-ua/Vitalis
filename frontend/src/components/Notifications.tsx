@@ -69,6 +69,8 @@ export function Notifications({ userId }: { userId: string }) {
             <Link className="text-button" to="/adminPanel/gestionUsuarios?role=professional" onClick={state.toggle}>Revisar solicitud</Link>}
           {item.type === 'appointment_follow_up' && item.entity_id &&
             <Link className="text-button" to={patientAppointmentPath(item.entity_id)} onClick={state.toggle}>Ver detalles de la cita</Link>}
+          {item.type === 'spontaneous_chat_message' && item.entity_id &&
+            <Link className="text-button" to={`/professionalDashboard/chats?chat=${encodeURIComponent(item.entity_id)}`} onClick={state.toggle}>Abrir conversación</Link>}
           {!item.read_at && <button className="text-button" disabled={state.pendingId !== null}
             onClick={() => { void state.read(item.id); }}>{state.pendingId === item.id ? 'Guardando…' : 'Marcar como leída'}</button>}
         </li>)}

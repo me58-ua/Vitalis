@@ -13,13 +13,18 @@ export function PatientBookingPage() {
   const modality = params.get('modalidad');
   const load = useCallback((signal: AbortSignal) => getBookingProfessional(professionalId, signal), [professionalId]);
   const state = useAdminQuery(load);
+  const modalities = state.data?.appointment_modalities;
+  const requestedType = modality === 'video' || modality === 'in_person' ? modality : undefined;
+  const initialType = requestedType && modalities?.includes(requestedType) ? requestedType : modalities?.[0];
 
   return <main id="contenido" className="patient-booking">
     <nav className="booking-breadcrumb" aria-label="Ruta de navegación"><Link to="/patientPanel/misCitas">Mis próximas citas</Link><span aria-hidden="true"> / </span><Link to={doctorSelectionPath}>Equipo médico</Link></nav>
     <h1>Reserva tu cita</h1>
     {state.loading && <p role="status">Cargando profesional…</p>}
     {state.error && <div className="error-state" role="alert"><p>{state.error}</p><button className="button secondary" onClick={state.retry}>Reintentar</button></div>}
-    {state.data && <BookingForm key={`${state.data.id}/${modality}`} professional={state.data} initialType={modality === 'video' && state.data.telehealth_enabled ? 'video' : 'in_person'} />}
+    {state.data && (initialType
+      ? <BookingForm key={`${state.data.id}/${initialType}`} professional={state.data} initialType={initialType} />
+      : <p>Este profesional no ofrece citas programadas.</p>)}
   </main>;
 }
 
@@ -35,7 +40,7 @@ function BookingForm({ professional, initialType }: { professional: BookingProfe
   const profile = useAdminQuery(getPatientProfile);
   const submitting = useRef(false);
   const navigate = useNavigate();
-  const canBook = professional.is_accepting_new_patients && (type === 'in_person' || professional.telehealth_enabled);
+  const canBook = professional.is_accepting_new_patients && professional.appointment_modalities.includes(type);
   const loadSlots = useCallback((signal: AbortSignal) => canBook
     ? getBookingAvailability(professional.id, { requested_date: day, appointment_type: type }, signal)
     : Promise.resolve(null), [canBook, professional.id, day, type]);
@@ -89,8 +94,8 @@ function BookingForm({ professional, initialType }: { professional: BookingProfe
         {type === 'in_person' && professional.practice_address && <p>{professional.practice_address}</p>}</div>
       <fieldset className="booking-modalities" disabled={busy || !professional.is_accepting_new_patients}>
         <legend>Modalidad</legend>
-        {(['video', 'in_person'] as const).map(value => <label key={value}>
-          <input type="radio" name="modality" value={value} checked={type === value} disabled={value === 'video' && !professional.telehealth_enabled} onChange={() => { setType(value); setSlot(null); setError(''); }} />
+        {professional.appointment_modalities.map(value => <label key={value}>
+          <input type="radio" name="modality" value={value} checked={type === value} onChange={() => { setType(value); setSlot(null); setError(''); }} />
           {appointmentTypes[value]}
         </label>)}
       </fieldset>

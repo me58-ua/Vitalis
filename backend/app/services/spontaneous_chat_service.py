@@ -15,9 +15,10 @@ class SpontaneousChatError(Exception):
 
 
 class SpontaneousChatService:
-    def __init__(self, repository, hours, availability, storage, audits=None):
+    def __init__(self, repository, hours, availability, storage, audits=None, *, notifications=None):
         self.repository, self.hours, self.availability, self.storage = repository, hours, availability, storage
         self.audit = AuditService(audits)
+        self.notifications = notifications
 
     def owned(self, chat_id, user, lock=False):
         chat = self.repository.get(chat_id, lock)
@@ -90,6 +91,8 @@ class SpontaneousChatService:
             self.repository.save(message)
             self.repository.save(chat)
             self.audit.record(user.id, user.role, AuditAction.CREATE, 'spontaneous_chat_message', message.id, chat.patient_id)
+            if user.role == UserRole.PATIENT and self.notifications is not None:
+                self.notifications.notify_spontaneous_chat_message(chat.professional_id, chat.id)
             return message
         except Exception:
             if file_key: self.storage.path_for(file_key).unlink(missing_ok=True)

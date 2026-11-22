@@ -4,13 +4,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 
-from app.api.deps import DbSession, get_current_user, get_audit_repository, get_file_storage
+from app.api.deps import DbSession, get_current_user, get_audit_repository, get_file_storage, get_notification_service
 from app.models import User, UserRole
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.working_hours_repository import WorkingHoursRepository
 from app.repositories.professional_repository import ProfessionalRepository
 from app.repositories.spontaneous_chat_repository import SpontaneousChatRepository
 from app.services.file_storage import FileStorage
+from app.services.notification_service import NotificationService
 from app.services.working_hours_service import SpontaneousChatAvailabilityService
 from app.services.spontaneous_chat_service import SpontaneousChatService, SpontaneousChatError
 from app.schemas.spontaneous_chat import StartSpontaneousChat, SpontaneousChatResponse, SpontaneousChatPage, SpontaneousMessageResponse, SpontaneousMessagePage
@@ -24,10 +25,10 @@ Storage = Annotated[FileStorage, Depends(get_file_storage)]
 limiter = InMemoryRateLimiter(10, 5)
 
 
-def service(db, storage=None, audits=None):
+def service(db, storage=None, audits=None, *, notifications=None):
     hours = WorkingHoursRepository(db)
     return SpontaneousChatService(SpontaneousChatRepository(db), hours,
-        SpontaneousChatAvailabilityService(hours, ProfessionalRepository(db)), storage, audits)
+        SpontaneousChatAvailabilityService(hours, ProfessionalRepository(db)), storage, audits, notifications=notifications)
 
 
 def translate(operation):
@@ -79,9 +80,10 @@ def messages(chat_id: UUID, user: Current, db: DbSession, response: Response, li
 
 @router.post('/{chat_id}/messages', response_model=SpontaneousMessageResponse, status_code=201)
 async def send_message(chat_id: UUID, user: Current, db: DbSession, storage: Storage, audits: Audits,
+                 notifications: Annotated[NotificationService, Depends(get_notification_service)],
                  client_id: UUID = Form(...), content: str = Form('', max_length=2000), file: UploadFile | None = File(None)):
     if not limiter.allow(f'{user.id}:{chat_id}'): raise HTTPException(429, 'CHAT_RATE_LIMITED')
-    message = translate(lambda: service(db, storage, audits).send(chat_id, user, client_id, content, file))
+    message = translate(lambda: service(db, storage, audits, notifications=notifications).send(chat_id, user, client_id, content, file))
     result = SpontaneousMessageResponse.model_validate(message)
     db.commit()
     await manager.broadcast(chat_id, {"type": "changed"})

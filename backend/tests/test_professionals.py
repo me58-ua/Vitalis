@@ -27,6 +27,9 @@ class FakeProfessionalRepository:
         self.captured["detail_id"] = professional_id
         return self.detail
 
+    def appointment_modalities(self, professional_ids):
+        return {professional_id: {"in_person", "video"} for professional_id in professional_ids}
+
 
 class ProfessionalListingTests(unittest.TestCase):
     def setUp(self):
@@ -114,6 +117,7 @@ class ProfessionalListingTests(unittest.TestCase):
         self.assertEqual(response.total, 1)
         self.assertEqual(response.professionals[0].name, "Dr. Garcia")
         self.assertEqual(response.professionals[0].specialty, "Cardiology")
+        self.assertEqual(response.professionals[0].appointment_modalities, ["in_person", "video"])
         filters = self.repository.captured["professionals"]
         self.assertEqual(filters["name"], "Garcia")
         self.assertEqual(filters["specialty"], "Cardio")

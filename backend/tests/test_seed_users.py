@@ -13,7 +13,7 @@ from app.repositories.professional_repository import ProfessionalRepository
 from app.services.professional_service import ProfessionalService
 from app.repositories.user_repository import UserRepository
 from app.repositories.working_hours_repository import WorkingHoursRepository
-from app.scripts.seed_users import CHAT_DOCTOR, DEMO_USERS, SEED_USERS, seed_users
+from app.scripts.seed_users import CHAT_DOCTOR, DEMO_USERS, IN_PERSON_ONLY, SEED_USERS, VIDEO_ONLY, seed_users
 from app.services.working_hours_service import SpontaneousChatAvailabilityService
 from app.services.auth_service import AuthService
 
@@ -179,9 +179,21 @@ class SeedUsersTests(unittest.TestCase):
                             result = service.get(account.id, datetime.combine(local_day, at, madrid))
                             self.assertTrue(result["available"])
                             self.assertEqual(result["closes_at"], datetime.combine(local_day + timedelta(days=1), time.min, madrid))
+                elif account.username in IN_PERSON_ONLY:
+                    self.assertEqual({(row.day_of_week, row.channel) for row in rows}, {(day, "in_person") for day in range(7)})
+                    self.assertFalse(account.professional_profile.telehealth_enabled)
+                elif account.username in VIDEO_ONLY:
+                    self.assertEqual({(row.day_of_week, row.channel) for row in rows}, {(day, "video") for day in range(7)})
+                    self.assertTrue(account.professional_profile.telehealth_enabled)
                 else:
                     self.assertEqual(len(rows), 14)
                     self.assertEqual({row.channel for row in rows}, {"in_person", "video"})
+            video, _ = doctors.list_professionals(None, None, True, None, 0, 20, "video")
+            in_person, _ = doctors.list_professionals(None, None, True, None, 0, 20, "in_person")
+            video_names = {doctor.username for doctor, _ in video}
+            in_person_names = {doctor.username for doctor, _ in in_person}
+            self.assertTrue(IN_PERSON_ONLY <= in_person_names - video_names)
+            self.assertTrue(VIDEO_ONLY <= video_names - in_person_names)
 
     def test_cancelled_seed_does_not_create_an_assignment_on_rerun(self):
         now = datetime(2026, 11, 4, 12, tzinfo=timezone.utc)

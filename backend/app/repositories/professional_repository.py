@@ -115,6 +115,23 @@ class ProfessionalRepository:
         )
         return list(self.session.execute(query).all()), self.session.scalar(count_query) or 0
 
+    def appointment_modalities(self, professional_ids: list[UUID]) -> dict[UUID, set[str]]:
+        if not professional_ids:
+            return {}
+        rows = self.session.execute(
+            select(ProfessionalSchedule.professional_id, ProfessionalSchedule.channel)
+            .where(
+                ProfessionalSchedule.professional_id.in_(professional_ids),
+                ProfessionalSchedule.is_active.is_(True),
+                ProfessionalSchedule.channel.in_(("in_person", "video")),
+            )
+            .distinct()
+        )
+        modalities: dict[UUID, set[str]] = {}
+        for professional_id, channel in rows:
+            modalities.setdefault(professional_id, set()).add(channel)
+        return modalities
+
     def get_professional(self, professional_id: UUID) -> tuple[User, ProfessionalProfile] | None:
         query = (
             select(User, ProfessionalProfile)

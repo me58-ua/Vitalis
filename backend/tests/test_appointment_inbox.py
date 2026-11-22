@@ -107,7 +107,7 @@ class SpontaneousCommitTests(unittest.IsolatedAsyncioTestCase):
             events.append('broadcast')
         with patch.object(spontaneous_chat, 'service', return_value=current), \
              patch.object(spontaneous_chat.manager, 'broadcast', side_effect=broadcast):
-            await spontaneous_chat.send_message(chat_id, SimpleNamespace(id=sender_id), db, None, None,
+            await spontaneous_chat.send_message(chat_id, SimpleNamespace(id=sender_id), db, None, None, Mock(),
                                                 message.client_id, 'Hello', None)
         self.assertEqual(events, ['commit', 'broadcast'])
 
@@ -122,7 +122,7 @@ class SpontaneousCommitTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(spontaneous_chat, 'service', return_value=current), \
              patch.object(spontaneous_chat.manager, 'broadcast', new_callable=AsyncMock) as broadcast:
             with self.assertRaises(RuntimeError):
-                await spontaneous_chat.send_message(chat_id, SimpleNamespace(id=sender_id), db, None, None,
+                await spontaneous_chat.send_message(chat_id, SimpleNamespace(id=sender_id), db, None, None, Mock(),
                                                     message.client_id, 'Hello', None)
             broadcast.assert_not_called()
 

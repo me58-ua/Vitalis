@@ -83,12 +83,12 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
       state.access = 'test-rotated';
       return send(200, { access_token: state.access, refresh_token: 'test-refresh-rotated', token_type: 'bearer' });
     }
-    const publicProfessional = () => ({ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name });
+    const publicProfessional = () => ({ ...detailUser(participants.professional).professional_profile, id: participants.professional.id, name: participants.professional.name, appointment_modalities: ['in_person', 'video'] });
     if (path === '/professionals') {
       const modality = new URL(req.url, 'http://fixture.invalid').searchParams.get('appointment_type');
       const professionals = [publicProfessional()];
       if (state.testBookingDirectory && modality !== 'in_person') {
-        professionals.push({ ...publicProfessional(), id: '00000000-0000-4000-8000-000000000203', name: 'Profesional solo por vídeo' });
+        professionals.push({ ...publicProfessional(), id: '00000000-0000-4000-8000-000000000203', name: 'Profesional solo por vídeo', appointment_modalities: ['video'] });
       }
       return send(200, { professionals, total: professionals.length, page: 1, page_size: 10 });
     }

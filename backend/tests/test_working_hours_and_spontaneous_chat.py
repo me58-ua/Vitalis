@@ -13,9 +13,10 @@ from pydantic import ValidationError
 from app.api import working_hours, spontaneous_chat
 from app.api.deps import get_current_user, get_audit_repository, get_file_storage
 from app.database import get_db
-from app.models import UserRole, SpontaneousChat
+from app.models import EmailStatus, UserRole, SpontaneousChat
 from app.schemas.working_hours import WorkingHoursCreate, WorkingHoursUpdate, WorkingHoursBatch, WorkingHoursBatchDelete
 from app.services.file_storage import LocalFileStorage
+from app.services.notification_service import NotificationService
 from app.services.working_hours_service import WorkingHoursService, SpontaneousChatAvailabilityService
 from app.services.spontaneous_chat_service import SpontaneousChatService, SpontaneousChatError
 from app.services.appointment_service import AppointmentNotFoundError
@@ -141,6 +142,23 @@ class SpontaneousChatTests(unittest.TestCase):
             self.assertIs(self.service.send(self.chat.id, user, message.client_id, '', upload), message)
             self.repo.existing_message.return_value = None
             self.availability.get.return_value = {'available': True}
+
+    def test_new_patient_message_creates_one_in_app_notification_for_the_professional(self):
+        notifications = Mock()
+        self.service.notifications = NotificationService(notifications)
+        client_id = uuid4()
+        message = self.service.send(self.chat.id, self.patient, client_id, "Contenido privado")
+        self.repo.existing_message.return_value = message
+        self.service.send(self.chat.id, self.patient, client_id, "Contenido privado")
+        self.repo.existing_message.return_value = None
+        self.service.send(self.chat.id, self.professional, uuid4(), "Respuesta")
+        notifications.create.assert_called_once()
+        alert = notifications.create.call_args.args[0]
+        self.assertEqual((alert.recipient_id, alert.entity_id), (self.professional.id, self.chat.id))
+        self.assertEqual(alert.type, "spontaneous_chat_message")
+        self.assertEqual(alert.email_status, EmailStatus.NOT_APPLICABLE)
+        self.assertFalse(alert.email_required)
+        self.assertNotIn(message.content, alert.message)
 
     def test_invalid_empty_large_or_forged_files_rejected(self):
         for mime, data in (('image/png', b'<html>'), ('text/html', b'<html>'), ('application/pdf', b''), ('image/png', b'x' * (10 * 1024 * 1024 + 1))):

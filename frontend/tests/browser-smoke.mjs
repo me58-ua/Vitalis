@@ -165,7 +165,6 @@ try {
   results.push({ check: 'en-US browser still displays DD/MM/YYYY, rejects impossible dates and submits an unambiguous ISO birth date' });
   assert.equal(fixture.state.registrations[0].telehealth_enabled, false);
   results.push({ check: 'professional registration schema and approval notice' });
-  await click('.success-state button');
   await until(`document.querySelector('[name="identifier"]') !== null`);
   await until(`location.pathname === '/login' && document.querySelector('dialog[open]') !== null`);
   results.push({ check: 'login mobile geometry and local icons', assets: await checkGeometry() });
@@ -209,7 +208,6 @@ try {
   assert.equal(fixture.state.registrations[1].timezone, 'Atlantic/Canary');
   assert.equal(fixture.state.registrations[1].address, 'Synthetic address');
   results.push({ check: 'patient step 2 measurements, validation, back navigation and registration payload' });
-  await click('.success-state button');
   await until(`location.pathname === '/login' && document.querySelector('dialog[open]') !== null`);
   await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 960, deviceScaleFactor: 1, mobile: false });
   results.push({ check: 'login desktop geometry and local icons', assets: await checkGeometry() });
@@ -262,6 +260,9 @@ try {
     assert.equal(await evaluate(`document.querySelector(${JSON.stringify(bookingLink)}).nextElementSibling.textContent`), 'Mis próximas citas');
     await click(bookingLink);
     await until(`document.querySelectorAll('.booking-doctors > li').length === 2`);
+    assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.booking-doctors > li'), card =>
+      Array.from(card.querySelectorAll('.booking-tags li'), tag => tag.textContent)
+        .filter(tag => ['Presencial', 'Videoconsulta'].includes(tag)))`), [['Presencial', 'Videoconsulta'], ['Videoconsulta']]);
     await evaluate(`(() => {
       const select = document.querySelector('.booking-search select');
       select.value = 'in_person';
