@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import MetaData, create_engine, func, select
@@ -7,11 +7,14 @@ from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import sessionmaker
 
 from app.models import (User, UserRole, PatientProfile, ProfessionalProfile, ProfessionalApprovalStatus,
-                        Appointment, AppointmentStatus, AppointmentType, ProfessionalPatient, Allergy, ChronicCondition)
+                        Appointment, AppointmentStatus, AppointmentType, ProfessionalPatient, Allergy, ChronicCondition,
+                        ProfessionalSchedule, ProfessionalTimeBlock)
 from app.repositories.professional_repository import ProfessionalRepository
 from app.services.professional_service import ProfessionalService
 from app.repositories.user_repository import UserRepository
-from app.scripts.seed_users import DEMO_USERS, SEED_USERS, seed_users
+from app.repositories.working_hours_repository import WorkingHoursRepository
+from app.scripts.seed_users import CHAT_DOCTOR, DEMO_USERS, SEED_USERS, seed_users
+from app.services.working_hours_service import SpontaneousChatAvailabilityService
 from app.services.auth_service import AuthService
 
 
@@ -22,7 +25,8 @@ class SeedUsersTests(unittest.TestCase):
         # SQLite checks seed data and slot selection. PostgreSQL alone enforces
         # its GiST exclusion constraint; remove it only from this metadata copy.
         self.tables = [model.__table__ for model in
-                       (User, PatientProfile, ProfessionalProfile, Appointment, ProfessionalPatient, Allergy, ChronicCondition)]
+                       (User, PatientProfile, ProfessionalProfile, Appointment, ProfessionalPatient, Allergy,
+                        ChronicCondition, ProfessionalSchedule, ProfessionalTimeBlock)]
         metadata = MetaData()
         for table in self.tables:
             copy = table.to_metadata(metadata)
@@ -76,12 +80,13 @@ class SeedUsersTests(unittest.TestCase):
 
     def test_demo_accounts_bookings_assignments_and_rerun(self):
         now = datetime(2026, 11, 6, 20, tzinfo=timezone.utc)  # Friday; skip weekend.
-        self.assertEqual(seed_users(self.sessions, now=now), 26)
+        self.assertEqual(seed_users(self.sessions, now=now), 33)
         with self.sessions() as db:
             self.assertEqual(db.scalar(select(func.count()).select_from(PatientProfile)), 19)
             profiles = list(db.scalars(select(ProfessionalProfile)))
-            self.assertEqual(len(profiles), 6)
-            self.assertEqual(len({p.specialty for p in profiles}), 6)
+            self.assertEqual(len(profiles), 13)
+            self.assertEqual(len({p.specialty for p in profiles}), 7)
+            self.assertEqual(sum(p.specialty == "Medicina general" for p in profiles), 5)
             self.assertTrue(all(p.approval_status == ProfessionalApprovalStatus.APPROVED for p in profiles))
             first = db.scalar(select(User).where(User.email == 'professional1@vitalis.local'))
             appointments = list(db.scalars(select(Appointment)))
@@ -146,6 +151,37 @@ class SeedUsersTests(unittest.TestCase):
                 for other in rows:
                     if item.id != other.id:
                         self.assertFalse(item.start_time < other.end_time and item.end_time > other.start_time)
+
+    def test_demo_schedules_preserve_custom_agenda_and_cover_chat_through_midnight(self):
+        now = datetime(2026, 11, 6, 20, tzinfo=timezone.utc)
+        seed_users(self.sessions, include_demo=False)
+        with self.sessions.begin() as db:
+            doctor = db.scalar(select(User).where(User.username == "professional_one"))
+            db.add(ProfessionalSchedule(professional_id=doctor.id, channel="in_person", day_of_week=0,
+                                        start_time=time(10), end_time=time(13)))
+        seed_users(self.sessions, now=now)
+        seed_users(self.sessions, now=now)
+        with self.sessions() as db:
+            hours = WorkingHoursRepository(db)
+            doctors = ProfessionalRepository(db)
+            accounts = db.scalars(select(User).where(User.role == UserRole.PROFESSIONAL)).all()
+            for account in accounts:
+                rows = hours.list(account.id)
+                if account.username == "professional_one":
+                    self.assertEqual([(row.channel, row.start_time) for row in rows], [("in_person", time(10))])
+                elif account.username == CHAT_DOCTOR:
+                    self.assertEqual({(row.day_of_week, row.channel) for row in rows}, {(day, "chat") for day in range(7)})
+                    service = SpontaneousChatAvailabilityService(hours, doctors)
+                    madrid = ZoneInfo("Europe/Madrid")
+                    for day in range(7):
+                        local_day = (now + timedelta(days=day)).date()
+                        for at in (time.min, time(12), time.max):
+                            result = service.get(account.id, datetime.combine(local_day, at, madrid))
+                            self.assertTrue(result["available"])
+                            self.assertEqual(result["closes_at"], datetime.combine(local_day + timedelta(days=1), time.min, madrid))
+                else:
+                    self.assertEqual(len(rows), 14)
+                    self.assertEqual({row.channel for row in rows}, {"in_person", "video"})
 
     def test_cancelled_seed_does_not_create_an_assignment_on_rerun(self):
         now = datetime(2026, 11, 4, 12, tzinfo=timezone.utc)

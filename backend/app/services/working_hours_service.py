@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -103,7 +103,8 @@ class SpontaneousChatAvailabilityService:
             return result
         local = now.astimezone(ZoneInfo('Europe/Madrid'))
         rows = [row for row in self.hours.list(professional_id, 'chat') if row.is_active and row.day_of_week == local.weekday()
-                and row.start_time <= local.time() < row.end_time]
+                and row.start_time <= local.time()
+                and (local.time() < row.end_time or row.end_time == time.max)]
         if not rows:
             return {**result, 'reason': 'outside_hours'}
         db = self.hours.session
@@ -113,5 +114,11 @@ class SpontaneousChatAvailabilityService:
         busy = db.scalar(select(Appointment.id).where(Appointment.professional_id == professional_id,
                          Appointment.status == AppointmentStatus.CONFIRMED, Appointment.start_time <= now, Appointment.end_time > now).limit(1))
         if busy: return {**result, 'reason': 'busy'}
-        closes = min(datetime.combine(local.date(), row.end_time, local.tzinfo) for row in rows)
+        end_time = min(row.end_time for row in rows)
+        # Python and PostgreSQL round-trip time.max as the last instant of a
+        # day. For a chat window through midnight, report the next midnight.
+        closes = (
+            datetime.combine(local.date() + timedelta(days=1), time.min, local.tzinfo)
+            if end_time == time.max else datetime.combine(local.date(), end_time, local.tzinfo)
+        )
         return {**result, 'available': True, 'reason': 'available', 'closes_at': closes}

@@ -9,8 +9,9 @@ from app.database import SessionLocal
 from app.core.security import hash_password
 from app.models import (
     Appointment, AppointmentStatus, AppointmentType, PatientProfile, ProfessionalPatient,
-    ProfessionalProfile, ProfessionalApprovalStatus, User, UserRole,
+    ProfessionalProfile, ProfessionalApprovalStatus, ProfessionalSchedule, ProfessionalTimeBlock, User, UserRole,
 )
+from app.repositories.working_hours_repository import WorkingHoursRepository
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,16 @@ DOCTORS = (
     ("Laura Vázquez Romero", "laura_vazquez", "Endocrinología"),
     ("Carlos Serrano Molina", "carlos_serrano", "Neurología"),
     ("Cristina Torres Delgado", "cristina_torres", "Medicina interna"),
+    ("Inés Morales Vega", "ines_morales", "Oncología"),
+    ("Rafael Núñez Ortiz", "rafael_nunez", "Neurología"),
+    ("Patricia León Romero", "patricia_leon", "Cardiología"),
+    ("Alba Ruiz Méndez", "alba_ruiz", "Medicina general"),
+    ("Daniel Sanz Moreno", "daniel_sanz", "Medicina general"),
+    ("Marta Gil Herrera", "marta_gil", "Medicina general"),
+    ("Sofía Castro Vidal", "sofia_castro", "Medicina general"),
 )
+CHAT_DOCTOR = "alba_ruiz"
+APPOINTMENT_FIXTURE_DOCTORS = 6
 DEMO_USERS = tuple(
     SeedUser(name, f"DEV-P-{index:04d}", username, f"patient{index + 1}@vitalis.local",
              "Patient123!", UserRole.PATIENT, f"+34000{index:06d}",
@@ -68,31 +78,68 @@ DEMO_USERS = tuple(
 ) + tuple(
     SeedUser(name, f"DEV-M-{index:04d}", username, f"professional{index + 1}@vitalis.local",
              "Professional123!", UserRole.PROFESSIONAL, f"+34001{index:06d}",
-             date(1975 + index, index + 1, index + 1), None, specialty)
+             date(1975 + index, index % 12 + 1, index + 1), None, specialty)
     for index, (name, username, specialty) in enumerate(DOCTORS, start=1)
 )
 
 
-def _next_slot(session, professional_id, patient_id, candidate):
+def _seed_working_hours(session, professionals):
+    hours = WorkingHoursRepository(session)
+    video_windows = {}
+    for professional in professionals:
+        hours.lock_owner(professional.id)
+        rows = hours.list(professional.id)
+        if not rows:
+            channels = {"chat": (time.min, time.max)} if professional.username == CHAT_DOCTOR else {
+                "in_person": (time(9), time(18)),
+                "video": (time(9), time(18)),
+            }
+            rows = [
+                ProfessionalSchedule(professional_id=professional.id, day_of_week=day,
+                                     channel=channel, start_time=start, end_time=end)
+                for channel, (start, end) in channels.items() for day in range(7)
+            ]
+            session.add_all(rows)
+            session.flush()
+        video_windows[professional.id] = [row for row in rows if row.is_active and row.channel == "video"]
+    return video_windows
+
+
+def _free_video_slot(session, professional_id, patient_id, candidate, windows):
+    end = candidate + timedelta(minutes=30)
+    if not any(row.day_of_week == candidate.weekday() and row.start_time <= candidate.time()
+               and end.time() <= row.end_time for row in windows):
+        return None
+    start_utc, end_utc = candidate.astimezone(timezone.utc), end.astimezone(timezone.utc)
+    conflict = session.scalar(select(Appointment.id).where(
+        or_(Appointment.professional_id == professional_id, Appointment.patient_id == patient_id),
+        Appointment.status != AppointmentStatus.CANCELLED,
+        Appointment.start_time < end_utc, Appointment.end_time > start_utc,
+    ).limit(1))
+    blocked = session.scalar(select(ProfessionalTimeBlock.id).where(
+        ProfessionalTimeBlock.professional_id == professional_id,
+        ProfessionalTimeBlock.start_time < end_utc, ProfessionalTimeBlock.end_time > start_utc,
+    ).limit(1))
+    if conflict is None and blocked is None:
+        return start_utc, end_utc
+    return None
+
+
+def _next_slot(session, professional_id, patient_id, candidate, windows):
     """Find a weekday slot without professional or patient overlap (Madrid time)."""
-    for _ in range(48 * 366):
+    if not any(row.day_of_week < 5 and max(row.start_time, time(9)) < min(row.end_time, time(18)) for row in windows):
+        return None
+    for _ in range(18 * 366):
         if candidate.weekday() >= 5 or candidate.hour >= 18:
             candidate = datetime.combine(candidate.date() + timedelta(days=1), time(9), candidate.tzinfo)
             continue
-        end = candidate + timedelta(minutes=30)
-        start_utc, end_utc = candidate.astimezone(timezone.utc), end.astimezone(timezone.utc)
-        conflict = session.scalar(select(Appointment.id).where(
-            or_(Appointment.professional_id == professional_id, Appointment.patient_id == patient_id),
-            Appointment.status != AppointmentStatus.CANCELLED,
-            Appointment.start_time < end_utc, Appointment.end_time > start_utc,
-        ).limit(1))
-        if conflict is None:
-            return start_utc, end_utc
-        candidate = end
-    raise ValueError("No free development appointment slot within one year")
+        if slot := _free_video_slot(session, professional_id, patient_id, candidate, windows):
+            return slot
+        candidate += timedelta(minutes=30)
+    return None
 
 
-def _seed_past_appointment(session, professional, patient, day, hour, label, reason):
+def _seed_past_appointment(session, professional, patient, day, hour, label, reason, windows):
     appointment_id = uuid5(NAMESPACE_URL, f"vitalis-development-appointment:{professional.email}:{patient.email}:{label}")
     if session.get(Appointment, appointment_id) is not None:
         return
@@ -100,14 +147,10 @@ def _seed_past_appointment(session, professional, patient, day, hour, label, rea
     preferred = (hour - 9) * 2
     for index in range(18):
         slot = (preferred + index) % 18
-        start = datetime.combine(day, time(9 + slot // 2, (slot % 2) * 30), ZoneInfo("Europe/Madrid")).astimezone(timezone.utc)
-        end = start + timedelta(minutes=30)
-        conflict = session.scalar(select(Appointment.id).where(
-            or_(Appointment.professional_id == professional.id, Appointment.patient_id == patient.id),
-            Appointment.status != AppointmentStatus.CANCELLED,
-            Appointment.start_time < end, Appointment.end_time > start,
-        ).limit(1))
-        if conflict is None:
+        candidate = datetime.combine(day, time(9 + slot // 2, (slot % 2) * 30), ZoneInfo("Europe/Madrid"))
+        available = _free_video_slot(session, professional.id, patient.id, candidate, windows)
+        if available:
+            start, end = available
             session.add(Appointment(
                 id=appointment_id, patient_id=patient.id, professional_id=professional.id,
                 start_time=start, end_time=end, status=AppointmentStatus.COMPLETED,
@@ -116,16 +159,17 @@ def _seed_past_appointment(session, professional, patient, day, hour, label, rea
             ))
             session.flush()
             return
-    raise ValueError("No free appointment slot on the requested historical day")
 
 
 def _seed_appointments(session, users, now):
     patients = [users[seed.email] for seed in (*SEED_USERS, *DEMO_USERS) if seed.role == UserRole.PATIENT]
     professionals = [users[seed.email] for seed in (*SEED_USERS, *DEMO_USERS) if seed.role == UserRole.PROFESSIONAL]
+    video_windows = _seed_working_hours(session, professionals)
     today = now.astimezone(ZoneInfo("Europe/Madrid")).date()
     local_day = today + timedelta(days=1)
     previous_month = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
-    for professional_index, professional in enumerate(professionals):
+    for professional_index, professional in enumerate(professionals[:APPOINTMENT_FIXTURE_DOCTORS]):
+        windows = video_windows[professional.id]
         selected = patients if professional_index == 0 else patients[(professional_index - 1) * 3:professional_index * 3]
         for patient_index, patient in enumerate(selected):
             key = f"vitalis-development-appointment:{professional.email}:{patient.email}"
@@ -135,28 +179,29 @@ def _seed_appointments(session, users, now):
                 day_offset = patient_index // 5 if professional_index == 0 else 7 + professional_index
                 hour = 9 + (patient_index % 5 if professional_index == 0 else patient_index)
                 candidate = datetime.combine(local_day + timedelta(days=day_offset), time(hour), ZoneInfo("Europe/Madrid"))
-                start, end = _next_slot(session, professional.id, patient.id, candidate)
-                appointment = Appointment(
-                    id=appointment_id, patient_id=patient.id, professional_id=professional.id,
-                    start_time=start, end_time=end,
-                    status=AppointmentStatus.CONFIRMED,
-                    type=AppointmentType.VIDEO,
-                    appointment_reason="Consulta de seguimiento",
-                )
-                session.add(appointment)
-                session.flush()
+                slot = _next_slot(session, professional.id, patient.id, candidate, windows)
+                if slot:
+                    start, end = slot
+                    session.add(Appointment(
+                        id=appointment_id, patient_id=patient.id, professional_id=professional.id,
+                        start_time=start, end_time=end,
+                        status=AppointmentStatus.CONFIRMED,
+                        type=AppointmentType.VIDEO,
+                        appointment_reason="Consulta de seguimiento",
+                    ))
+                    session.flush()
             elif appointment.appointment_reason == "Consulta de seguimiento (datos sintéticos de desarrollo).":
                 # Upgrade only our exact old text, never a manually edited reason.
                 appointment.appointment_reason = "Consulta de seguimiento"
             if professional_index == 0 and patient_index < 8:
                 _seed_past_appointment(session, professional, patient, today - timedelta(days=1),
-                                       9 + patient_index, "yesterday", "Revisión y seguimiento de la consulta anterior")
+                                       9 + patient_index, "yesterday", "Revisión y seguimiento de la consulta anterior", windows)
             if professional_index == 0 and patient_index < 12:
                 _seed_past_appointment(session, professional, patient, previous_month.replace(day=5 + patient_index),
-                                       10, "last-month", "Consulta de revisión general")
+                                       10, "last-month", "Consulta de revisión general", windows)
             elif professional_index > 0 and patient_index < 2:
                 _seed_past_appointment(session, professional, patient, previous_month.replace(day=20 + professional_index),
-                                       10 + patient_index, "last-month", "Consulta de valoración y seguimiento")
+                                       10 + patient_index, "last-month", "Consulta de valoración y seguimiento", windows)
             # Derive assignments from an actual booking, never from the user list.
             qualifying = session.scalar(select(Appointment.id).where(
                 Appointment.professional_id == professional.id, Appointment.patient_id == patient.id,
@@ -171,7 +216,7 @@ def _seed_appointments(session, users, now):
 
 
 def seed_users(session_factory=SessionLocal, *, include_demo=True, now=None) -> int:
-    """Seed development accounts with linked future and historical appointments.
+    """Seed development accounts, weekly schedules and linked appointments.
 
     Re-running repairs account metadata/missing profiles without resetting passwords
     or overwriting an existing patient's profile or clinical information.
