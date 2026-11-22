@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from uuid import UUID
 from typing import Literal
 
@@ -75,6 +75,12 @@ class AdminAppointmentResponse(AdminAppointmentCreate):
     created_at: datetime
     updated_at: datetime
     cancellation_reason: str | None = None
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def restore_stored_timezone(cls, value: datetime) -> datetime:
+        # SQLite drops the timezone from stored UTC timestamps when rows are refreshed.
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
 class AdminAppointmentUpdate(BaseModel):

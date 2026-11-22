@@ -164,15 +164,17 @@ def professional_availability(
     professional_id: UUID,
     requested_date: date,
     appointment_type: AppointmentType,
-    _: CurrentPatient,
+    current_patient: CurrentPatient,
     appointments: Appointments,
     users: Users,
     professionals: Professionals,
+    response: Response,
 ):
     try:
         slots = AppointmentService(appointments, users, professionals).list_available_slots(
-            professional_id, requested_date, appointment_type
+            professional_id, requested_date, appointment_type, current_patient.id
         )
+        response.headers["Cache-Control"] = "no-store"
         return AvailabilityResponse(
             professional_id=professional_id,
             date=requested_date,

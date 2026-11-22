@@ -86,7 +86,7 @@ class AppointmentService:
         )
         return self._create_appointment(appointment)
 
-    def list_available_slots(self, professional_id, requested_date: date, appointment_type):
+    def list_available_slots(self, professional_id, requested_date: date, appointment_type, patient_id=None):
         professional_record = self.professionals.get_professional(professional_id)
         if professional_record is None:
             raise AppointmentNotFoundError("Professional not found")
@@ -103,7 +103,7 @@ class AppointmentService:
             professional_id, requested_date.weekday(), appointment_type.value
         )
         booked = self.appointments.list_booked_appointments(
-            professional_id, local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc)
+            professional_id, local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc), patient_id
         )
         slots = []
         for schedule in schedules:
@@ -130,7 +130,8 @@ class AppointmentService:
         if data.type.value == "video" and not profile.telehealth_enabled:
             raise AppointmentValidationError("Teleconsultation is not enabled")
         available_slots = self.list_available_slots(
-            data.professional_id, data.start_time.astimezone(ZoneInfo("Europe/Madrid")).date(), data.type
+            data.professional_id, data.start_time.astimezone(ZoneInfo("Europe/Madrid")).date(), data.type,
+            current_user.id,
         )
         if (data.start_time, data.end_time) not in available_slots:
             raise AppointmentValidationError("Selected time is not an available slot")

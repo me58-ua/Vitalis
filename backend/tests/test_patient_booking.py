@@ -24,10 +24,12 @@ class FakeAppointments:
     def list_active_schedules(self, professional_id, day_of_week, channel):
         return [schedule for schedule in self.schedules if schedule.day_of_week == day_of_week and schedule.channel == channel]
 
-    def list_booked_appointments(self, professional_id, start, end):
+    def list_booked_appointments(self, professional_id, start, end, patient_id=None):
         return [
             appointment for appointment in self.booked
             if appointment.start_time < end and appointment.end_time > start
+            and (appointment.professional_id == professional_id or appointment.patient_id == patient_id)
+            and appointment.status != AppointmentStatus.CANCELLED
         ]
 
     def create_appointment(self, appointment):
@@ -81,6 +83,8 @@ class PatientBookingTests(unittest.TestCase):
         booked_start = datetime(2026, 9, 28, 9, 30, tzinfo=ZoneInfo("Europe/Madrid"))
         self.appointments.booked = [
             SimpleNamespace(
+                professional_id=self.professional_id,
+                patient_id=uuid.uuid4(),
                 start_time=booked_start,
                 end_time=booked_start + timedelta(minutes=30),
                 status=AppointmentStatus.CONFIRMED,
@@ -91,6 +95,26 @@ class PatientBookingTests(unittest.TestCase):
         )
         self.assertEqual(len(slots), 3)
         self.assertNotIn((booked_start, booked_start + timedelta(minutes=30)), slots)
+
+    def test_patient_overlap_across_doctors_is_hidden_and_rejected(self):
+        start = datetime.combine(self.requested_date, time(9), tzinfo=ZoneInfo("Europe/Madrid"))
+        existing = SimpleNamespace(
+            professional_id=uuid.uuid4(), patient_id=self.patient_id, status=AppointmentStatus.CONFIRMED,
+            start_time=start + timedelta(minutes=10), end_time=start + timedelta(hours=1),
+        )
+        self.appointments.booked.append(existing)
+        slots = self.service.list_available_slots(self.professional_id, self.requested_date, AppointmentType.VIDEO, self.patient_id)
+        self.assertEqual([slot[0] for slot in slots], [start + timedelta(hours=1), start + timedelta(minutes=90)])
+        unrelated = self.service.list_available_slots(self.professional_id, self.requested_date, AppointmentType.VIDEO, uuid.uuid4())
+        self.assertEqual(len(unrelated), 4)
+        data = PatientAppointmentCreate(professional_id=self.professional_id, start_time=start + timedelta(minutes=30),
+                                        end_time=start + timedelta(hours=1), type=AppointmentType.VIDEO)
+        patient = SimpleNamespace(id=self.patient_id, role=UserRole.PATIENT)
+        with self.assertRaisesRegex(AppointmentValidationError, "not an available slot"):
+            self.service.create_for_patient(patient, data)
+        self.assertEqual(self.appointments.created, [])
+        existing.status = AppointmentStatus.CANCELLED
+        self.assertEqual(self.service.create_for_patient(patient, data).status, AppointmentStatus.CONFIRMED)
 
     def test_patient_can_book_only_an_available_slot(self):
         start = datetime(2026, 9, 28, 9, 0, tzinfo=ZoneInfo("Europe/Madrid"))

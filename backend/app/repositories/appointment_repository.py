@@ -129,12 +129,16 @@ class AppointmentRepository:
             )
         )
 
-    def list_booked_appointments(self, professional_id: UUID, start: datetime, end: datetime):
+    def list_booked_appointments(self, professional_id: UUID, start: datetime, end: datetime,
+                                 patient_id: UUID | None = None):
+        participants = Appointment.professional_id == professional_id
+        if patient_id is not None:
+            participants = or_(participants, Appointment.patient_id == patient_id)
         return list(
             self.session.scalars(
                 select(Appointment)
                 .where(
-                    Appointment.professional_id == professional_id,
+                    participants,
                     Appointment.status != AppointmentStatus.CANCELLED,
                     Appointment.start_time < end,
                     Appointment.end_time > start,

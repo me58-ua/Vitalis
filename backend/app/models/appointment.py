@@ -35,6 +35,13 @@ class Appointment(Base):
             using="gist",
             name="no_overlapping_appointments",
         ),
+        ExcludeConstraint(
+            ("patient_id", "="),
+            (literal_column("tstzrange(start_time, end_time)"), "&&"),
+            where=text("status != 'cancelled'"),
+            using="gist",
+            name="no_overlapping_patient_appointments",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
