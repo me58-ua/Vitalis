@@ -9,6 +9,7 @@ from app.models import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.video_session_repository import VideoSessionRepository
 from app.schemas.video import VideoJoinResponse, VideoAttendanceRequest, VideoAttendanceResponse, PatientAppointmentPage
+from app.services.daily_client import DailyUnavailableError
 from app.services.video_service import (
     VideoConfigurationError,
     VideoForbiddenError,
@@ -59,3 +60,5 @@ def join_video(
         raise HTTPException(status_code=403, detail=str(error)) from error
     except VideoConfigurationError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+    except DailyUnavailableError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error

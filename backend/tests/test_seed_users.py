@@ -90,11 +90,24 @@ class SeedUsersTests(unittest.TestCase):
             self.assertTrue(all(p.approval_status == ProfessionalApprovalStatus.APPROVED for p in profiles))
             first = db.scalar(select(User).where(User.email == 'professional1@vitalis.local'))
             appointments = list(db.scalars(select(Appointment)))
-            self.assertEqual(len(appointments), 64)
+            self.assertEqual(len(appointments), 73)
             self.assertEqual(sum(a.professional_id == first.id for a in appointments), 39)
-            future = [a for a in appointments if a.status != AppointmentStatus.COMPLETED]
+            carlos = db.scalar(select(User).where(User.username == "carlos_serrano"))
+            madrid = ZoneInfo("Europe/Madrid")
+            monday = datetime(2026, 11, 2, tzinfo=madrid)
+            following_monday = monday + timedelta(days=7)
+            carlos_week = [
+                a for a in appointments if a.professional_id == carlos.id
+                and monday <= a.start_time.replace(tzinfo=timezone.utc) < following_monday
+            ]
+            self.assertEqual(len(carlos_week), 9)
+            self.assertEqual(sum(a.type == AppointmentType.IN_PERSON for a in carlos_week), 5)
+            self.assertEqual(sum(a.type == AppointmentType.VIDEO for a in carlos_week), 4)
+            self.assertTrue(all(a.status == AppointmentStatus.COMPLETED for a in carlos_week))
+            original_appointments = [a for a in appointments if a not in carlos_week]
+            future = [a for a in original_appointments if a.status != AppointmentStatus.COMPLETED]
             self.assertEqual(len(future), 34)
-            historical = [a for a in appointments if a.status == AppointmentStatus.COMPLETED]
+            historical = [a for a in original_appointments if a.status == AppointmentStatus.COMPLETED]
             self.assertEqual(len(historical), 30)
             local_now = now.astimezone(ZoneInfo('Europe/Madrid'))
             historical_dates = [a.start_time.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/Madrid')).date() for a in historical]
@@ -116,12 +129,13 @@ class SeedUsersTests(unittest.TestCase):
                 self.assertNotIn('sintético', item.appointment_reason)
                 self.assertNotIn('desarrollo', item.appointment_reason)
                 self.assertEqual(item.end_time - item.start_time, timedelta(minutes=30))
-                self.assertEqual(item.type, AppointmentType.VIDEO)
+                if item not in carlos_week:
+                    self.assertEqual(item.type, AppointmentType.VIDEO)
                 for other in appointments:
                     if item.id != other.id and (item.professional_id == other.professional_id or item.patient_id == other.patient_id):
                         self.assertFalse(item.start_time < other.end_time and item.end_time > other.start_time)
             assignments = list(db.scalars(select(ProfessionalPatient)))
-            self.assertEqual(len(assignments), 34)
+            self.assertEqual(len(assignments), 43)
             for link in assignments:
                 self.assertTrue(any(a.patient_id == link.patient_id and a.professional_id == link.professional_id for a in appointments))
             original = {a.id: (a.start_time, a.room_id, a.status) for a in appointments}
@@ -130,7 +144,7 @@ class SeedUsersTests(unittest.TestCase):
         self.assertEqual(seed_users(self.sessions, now=now + timedelta(days=1)), 0)
         with self.sessions() as db:
             self.assertEqual(original, {a.id: (a.start_time, a.room_id, a.status) for a in db.scalars(select(Appointment))})
-            self.assertEqual(db.scalar(select(func.count()).select_from(ProfessionalPatient)), 34)
+            self.assertEqual(db.scalar(select(func.count()).select_from(ProfessionalPatient)), 43)
 
     def test_existing_patient_or_professional_booking_moves_new_seed_slot(self):
         now = datetime(2026, 11, 4, 12, tzinfo=timezone.utc)
@@ -146,7 +160,7 @@ class SeedUsersTests(unittest.TestCase):
         seed_users(self.sessions, now=now)
         with self.sessions() as db:
             rows = list(db.scalars(select(Appointment).where(Appointment.patient_id == patient_id)))
-            self.assertEqual(len(rows), 6)  # Existing + 2 future + 3 historical.
+            self.assertEqual(len(rows), 7)  # Existing + 2 future + 3 historical + Carlos's weekly booking.
             for item in rows:
                 for other in rows:
                     if item.id != other.id:

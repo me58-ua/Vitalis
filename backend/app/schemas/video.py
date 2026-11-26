@@ -6,9 +6,8 @@ from app.models import AppointmentStatus, AppointmentType
 
 
 class VideoJoinResponse(BaseModel):
-    domain: str
-    room_name: str
-    jwt: str
+    room_url: str
+    token: str
     expires_at: datetime
 
 

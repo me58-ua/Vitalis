@@ -36,18 +36,14 @@
 .consultation-chat-error { padding: 12px; font-size: 12px; background: #ffedea; color: #93000a; }
 .consultation-chat-error p { margin: 0 0 8px; line-height: 1.5; }
 .consultation-chat-error button { color: inherit; background: white; border: 1px solid #e6b9b1; padding: 6px 10px; border-radius: 8px; }
-.jitsi-call { position: relative; display: flex; flex-direction: column; height: 700px; min-height: 500px; overflow: hidden; background: #27313f; border-radius: 24px; box-shadow: 0 10px 24px #00000018; }
-.jitsi-status { padding: 12px 20px; background: #27313f; color: #f8f9ff; font-size: 13px; font-variant-numeric: tabular-nums; }
-.jitsi-mount { flex: 1; min-height: 0; }
-.jitsi-mount iframe { border: 0; display: block; width: 100%; height: 100%; }
-.jitsi-controls { display: flex; justify-content: center; align-items: start; gap: 18px; padding: 14px 10px; background: #27313f; }
-.jitsi-controls button { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #eee; font: inherit; font-size: 11px; background: transparent; border: 0; cursor: pointer; min-width: 60px; max-width: 100px; }
-.jitsi-controls button > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: #d9e3f633; }
-.jitsi-controls .jitsi-hangup > span { background: #ba1a1a; }
-.jitsi-controls button:disabled { opacity: .45; cursor: default; }
-.jitsi-controls button[aria-pressed="true"] > span { box-shadow: 0 0 0 2px #6cf8bb; }
-.jitsi-controls img { display: block; }
-.jitsi-error { padding: 18px; background: #ffedea; color: #93000a; line-height: 1.6; }
+.daily-call { position: relative; display: flex; flex-direction: column; height: 700px; min-height: 500px; overflow: hidden; background: #27313f; border-radius: 24px; box-shadow: 0 10px 24px #00000018; }
+.daily-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; color: #f8f9ff; }
+.daily-status { font-size: 13px; font-variant-numeric: tabular-nums; }
+.daily-mount { flex: 1; min-height: 0; }
+.daily-mount iframe { border: 0; display: block; width: 100%; height: 100%; }
+.daily-hangup { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; border: 0; border-radius: 8px; padding: 6px 10px; color: #fff; background: #ba1a1a; font: inherit; font-size: 12px; cursor: pointer; }
+.daily-hangup img { width: 18px; height: 18px; }
+.daily-error { padding: 18px; background: #ffedea; color: #93000a; line-height: 1.6; }
 .consultation-completion, .consultation-confirmation { padding: 20px; background: #eff4ff; border: 1px solid #c4d9cc; border-radius: 14px; margin-top: 18px; line-height: 1.6; }
 .consultation-confirmation h2 { font-size: 22px; margin: 0; }
 .consultation-confirmation > div { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -65,11 +61,11 @@
 .patient-video-entry label { display: grid; gap: 8px; margin-bottom: 16px; }
 .patient-video-entry input { width: 100%; min-width: 0; border: 1px solid #bfc9c3; padding: 12px; border-radius: 8px; }
 @media(max-width: 1100px) { .consultation-grid { grid-template-columns: minmax(0, 1fr); } .consultation-chat { height: 540px; max-height: none; } .consultation-prejoin { min-height: 420px; } }
-@media(max-width: 600px) { .consultation-main { padding: 20px 14px; } .consultation-prejoin { padding: 28px 20px; min-height: 380px; } .jitsi-call { height: 65dvh; min-height: 450px; } .jitsi-controls { gap: 6px; padding: 12px 5px; } .jitsi-controls button { min-width: 54px; font-size: 10px; } .jitsi-controls button > span { width: 44px; height: 44px; } .consultation-patient-link { margin-left: 0; } }
+@media(max-width: 600px) { .consultation-main { padding: 20px 14px; } .consultation-prejoin { padding: 28px 20px; min-height: 380px; } .daily-call { height: 65dvh; min-height: 450px; } .consultation-patient-link { margin-left: 0; } }
 
 /* Compact video-room chat, Figma 1:2604. The inbox keeps its own presentation. */
 .consultation-grid { --consultation-pane-height: clamp(540px, calc(100dvh - 240px), 820px); grid-template-columns: minmax(0, 1fr) 320px; }
-.consultation-grid .jitsi-call { height: var(--consultation-pane-height); }
+.consultation-grid .daily-call { height: var(--consultation-pane-height); }
 .consultation-grid .consultation-prejoin { min-height: var(--consultation-pane-height); box-sizing: border-box; }
 .consultation-grid > .consultation-chat-call { height: var(--consultation-pane-height); max-height: none; }
 .consultation-chat-call > header { position: relative; min-height: 56px; box-sizing: border-box; padding: 16px; flex-wrap: nowrap; gap: 10px; }
@@ -96,6 +92,6 @@
 .consultation-chat-call .consultation-chat-form .button { display: grid; place-items: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border-radius: 50%; background: #003527; }
 .consultation-chat-call button:focus-visible, .consultation-chat-call summary:focus-visible { outline: 2px solid #006c49; outline-offset: 3px; }
 @media(max-width: 900px) { .consultation-grid { grid-template-columns: minmax(0, 1fr); } .consultation-grid > .consultation-chat-call { height: 500px; } }
-@media(max-width: 600px) { .consultation-grid .jitsi-call { height: 65dvh; } .consultation-grid .consultation-prejoin { min-height: 380px; } }
+@media(max-width: 600px) { .consultation-grid .daily-call { height: 65dvh; } .consultation-grid .consultation-prejoin { min-height: 380px; } }
 .appointment-follow-up { display: grid; gap: 1rem; }
 .appointment-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }

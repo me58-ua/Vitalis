@@ -3,11 +3,11 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext';
 import { useAdminQuery } from '../hooks/useAdminQuery';
 import { ConsultationStateError, consultationError, findVideoAppointment, getChatRoom, getPublicProfessional, joinVideo, recordVideoAttendance } from '../api/consultations';
-import { jitsiOrigin } from '../api/jitsi';
+import { validateDailyRoomUrl } from '../api/daily';
 import { professionalFollowUpPath } from '../api/appointmentFollowUp';
 import { appointmentDate, appointmentStatuses } from '../components/AppointmentSummary';
 import { ConsultationChat } from '../components/ConsultationChat';
-import { JitsiCall } from '../components/JitsiCall';
+import { DailyCall } from '../components/DailyCall';
 import { validCalendarDay } from '../utils/agenda';
 import type { ProfessionalAppointment, User, VideoJoin } from '../types/api';
 import '../styles/videoconsulta.css';
@@ -109,8 +109,8 @@ function Consultation({ user, appointmentId, date }: { user: User; appointmentId
     try {
       const result = await joinVideo(appointmentId, signal);
       if (signal.aborted) return;
-      if (!result.domain || !result.room_name || !result.jwt || !Number.isFinite(Date.parse(result.expires_at)) || Date.parse(result.expires_at) <= Date.now()) throw new ConsultationStateError('No se ha recibido un acceso válido a la llamada.');
-      jitsiOrigin(result.domain); joined.current = false; attendance.current = null; setAccess(result);
+      if (!result.room_url || !result.token || !Number.isFinite(Date.parse(result.expires_at)) || Date.parse(result.expires_at) <= Date.now()) throw new ConsultationStateError('No se ha recibido un acceso válido a la llamada.');
+      validateDailyRoomUrl(result.room_url); joined.current = false; attendance.current = null; setAccess(result);
     } catch (reason: unknown) { if (!signal.aborted) setError(consultationError(reason)); }
     finally { if (!signal.aborted) { lock.current = false; setBusy(false); } }
   }
@@ -124,7 +124,7 @@ function Consultation({ user, appointmentId, date }: { user: User; appointmentId
       {error && <div className="error-state" role="alert"><p>{error}</p>{completionPending && <button className="button secondary" disabled={busy} onClick={() => { void complete(); }}>Reintentar guardar finalización</button>}</div>}
       {notice && <p className="success-state" role="status">{notice}</p>}
       <div className="consultation-grid"><div className="consultation-video-column">
-        {access ? <JitsiCall access={access} displayName={user.name} onJoined={onJoined} onClosed={onClosed} /> : <section className="consultation-prejoin" aria-label="Acceso a la videollamada">
+        {access ? <DailyCall access={access} onJoined={onJoined} onClosed={onClosed} /> : <section className="consultation-prejoin" aria-label="Acceso a la videollamada">
           <div className="consultation-prejoin-mark" aria-hidden="true">◉</div><h2>{status === 'completed' ? 'Esta consulta ha finalizado' : 'Prepara tu videoconsulta'}</h2>
           {status === 'confirmed' && !completionPending ? <><p>Puedes entrar desde 10 minutos antes del inicio, sin límite posterior por la hora prevista de fin. Podrás comprobar la cámara y el micrófono antes de unirte.</p><button className="button primary" disabled={busy} onClick={() => { void enter(); }}>{busy ? 'Comprobando acceso…' : 'Entrar a la videollamada'}</button></>
             : <p>{completionPending ? 'Guardando la finalización de tu llamada.' : status === 'completed' ? 'Puedes consultar los mensajes de la cita.' : 'El estado actual de la cita no permite acceder a la videollamada.'}</p>}

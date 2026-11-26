@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { fixtureServer } from './fixture-server.mjs';
-import { jitsiFixture } from './jitsi-fixture.mjs';
+import { dailyFixture } from './daily-fixture.mjs';
 import { checkPatientDashboard } from './patient-dashboard-browser.mjs';
 import { checkPatientPrescriptions } from './patient-prescriptions-browser.mjs';
 import { checkPatientOnboarding } from './patient-onboarding-browser.mjs';
@@ -56,7 +56,7 @@ try {
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(String(event.data));
     if (message.method === 'Fetch.requestPaused') {
-      void command('Fetch.fulfillRequest', { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/javascript' }], body: Buffer.from(jitsiFixture).toString('base64') }, message.sessionId).catch(() => {});
+      void command('Fetch.fulfillRequest', { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/javascript' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: Buffer.from(dailyFixture).toString('base64') }, message.sessionId).catch(() => {});
       return;
     }
     if (message.method === 'Runtime.exceptionThrown') runtimeErrors.push(message.params.exceptionDetails.text);
@@ -744,8 +744,8 @@ try {
   await click('.account-menu summary'); await click('.account-panel button');
   await until(`location.pathname === '/login' && document.querySelector('[name="identifier"]') !== null`);
   results.push({ check: 'session persistence on reload, expired-access refresh, restoration error/retry and role guards' });
-  // Video uses real REST/WebSocket fixture transport and a controlled Jitsi API script.
-  await command('Fetch.enable', { patterns: [{ urlPattern: 'https://jitsi.fixture.invalid/external_api.js', requestStage: 'Request' }] });
+  // Video uses real REST/WebSocket fixture transport and a controlled Daily SDK script.
+  await command('Fetch.enable', { patterns: [{ urlPattern: 'https://unpkg.com/@daily-co/daily-js@0.94.0/dist/daily.js', requestStage: 'Request' }] });
   fixture.state.videoTestAppointment = { id: '00000000-0000-4000-8000-000000000990', patient_id: fixture.participants.patient.id, patient_name: 'Paciente de videoconsulta', patient_username: 'video_fixture', professional_id: fixture.account.id, type: 'video', status: 'confirmed', start_time: '2030-11-04T10:00:00Z', end_time: '2030-11-04T10:30:00Z', appointment_reason: 'Consulta de prueba', cancellation_reason: null };
   await fill('identifier', 'test_user'); await fill('password', 'TestPassword!'); await click('button[type="submit"]');
   await until(`document.querySelector('.professional-more[aria-label="Ver cita de Paciente de videoconsulta"]') !== null`);
@@ -762,33 +762,45 @@ try {
   await until(`document.querySelector('.consultation-main [role="alert"]')?.textContent.includes('horario')`);
   fixture.state.videoDenied = false;
   await evaluate(`document.querySelector('.consultation-prejoin button').click(); document.querySelector('.consultation-prejoin button').click()`);
-  await until(`document.querySelector('.jitsi-controls button:first-child:not([disabled])') !== null`);
+  await until(`document.querySelector('.daily-hangup')?.textContent.includes('Terminar')`);
   assert.equal(fixture.state.videoJoinCalls, 2);
-  assert.equal(await evaluate(`window.__jitsiTest.correctAccess`), true);
-  await click('.jitsi-controls button:first-child');
-  await click('.jitsi-controls button:nth-child(2)');
-  await click('.jitsi-controls button:nth-child(3)');
-  assert.deepEqual(await evaluate(`window.__jitsiTest.commands`), ['toggleAudio', 'toggleVideo', 'toggleShareScreen']);
+  assert.equal(await evaluate(`window.__dailyTest.correctAccess`), true);
+  assert.equal(await evaluate(`(() => {
+    const box = document.querySelector('.daily-call').getBoundingClientRect();
+    const frame = document.querySelector('.daily-mount iframe').getBoundingClientRect();
+    return frame.width === box.width && frame.bottom === box.bottom && frame.height >= box.height * 0.85;
+  })()`), true);
   await until(`document.querySelector('[name="consultation_message"]:not([disabled])') !== null`);
   await fill('consultation_message', 'Mensaje de consulta');
   await click('.consultation-chat-form button[type="submit"]');
   await until(`document.querySelector('.consultation-message.is-own')?.textContent.includes('Mensaje de consulta')`);
   assert.equal(fixture.state.chatMessages.length, 1);
-  results.push({ check: 'automatically confirmed video booking, early-entry denial, duplicate join prevention, Jitsi controls and persisted native WebSocket chat', assets: await checkGeometry() });
+  // Persist a reply without broadcasting it to this tab, as on a different backend worker.
+  fixture.state.chatMessages.push({
+    id: '00000000-0000-4000-8000-000000000991',
+    appointment_id: fixture.state.videoTestAppointment.id,
+    sender_id: fixture.participants.patient.id,
+    content: 'Respuesta durante la llamada',
+    created_at: new Date(Date.now() + 1000).toISOString(),
+  });
+  await until(`document.querySelector('.consultation-messages')?.textContent.includes('Respuesta durante la llamada')`);
+  assert.equal(await evaluate(`window.__dailyTest.disposals`), 0);
+  assert.equal(fixture.state.videoJoinCalls, 2);
+  results.push({ check: 'automatically confirmed video booking, early-entry denial, duplicate join prevention, embedded Daily call and persisted native WebSocket chat', assets: await checkGeometry() });
   await screenshot('videoconsulta-professional-desktop');
   await click('.consultation-heading > a');
   await until(`document.querySelector('.consultation-list') !== null`);
-  assert.equal(await evaluate(`window.__jitsiTest.disposals`), 1);
+  assert.equal(await evaluate(`window.__dailyTest.disposals`), 1);
   await sleep(100); assert.equal(fixture.chatConnections.size, 0);
   await click('.consultation-list a[href*="000000000990"]');
   await until(`document.querySelector('.consultation-prejoin button')?.textContent.includes('Entrar')`);
   await reloadUntil(`document.querySelector('.consultation-prejoin button')?.textContent.includes('Entrar')`);
   await click('.consultation-prejoin button');
-  await until(`document.querySelector('.jitsi-controls button:first-child:not([disabled])') !== null`);
+  await until(`document.querySelector('.daily-hangup')?.textContent.includes('Terminar')`);
   await command('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 1, mobile: true });
   assert.equal(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
   await screenshot('videoconsulta-professional-mobile');
-  await click('.jitsi-hangup');
+  await click('.daily-hangup');
   await until(`location.pathname.endsWith('/seguimiento') && document.querySelector('[name="shared_diagnosis"]') !== null`);
   assert.equal(fixture.state.videoTestAppointment.status, 'completed');
   assert.deepEqual(fixture.state.videoStatusWrites, [{ status: 'completed' }]);
@@ -822,10 +834,10 @@ try {
   await until(`document.querySelector('.consultation-prejoin button')?.textContent.includes('Entrar')`);
   assert.equal(await evaluate(`document.querySelector('.consultation-patient-link') === null && document.querySelector('.consultation-completion') === null`), true);
   await click('.consultation-prejoin button');
-  await until(`document.querySelector('.jitsi-controls button:first-child:not([disabled])') !== null`);
+  await until(`document.querySelector('.daily-hangup')?.textContent.includes('Terminar')`);
   await screenshot('videoconsulta-patient-mobile');
   fixture.state.attendanceFail = true;
-  await click('.jitsi-hangup');
+  await click('.daily-hangup');
   await until(`document.querySelector('.consultation-main [role="alert"] button') !== null`);
   assert.equal(fixture.state.videoTestAppointment.status, 'confirmed');
   fixture.state.attendanceFail = false;
@@ -1233,10 +1245,10 @@ try {
   await evaluate(`history.pushState(null, '', '/professionalDashboard/videoconsulta/${pairId}'); window.dispatchEvent(new PopStateEvent('popstate'))`);
   await until(`document.querySelector('.consultation-prejoin button') !== null`);
   await click('.consultation-prejoin button');
-  await until(`document.querySelector('.jitsi-controls button:first-child:not([disabled])') !== null`);
-  const professionalDisposals = await evaluate('window.__jitsiTest.disposals');
+  await until(`document.querySelector('.daily-hangup')?.textContent.includes('Terminar')`);
+  const professionalDisposals = await evaluate('window.__dailyTest.disposals');
   targetSession = patientTab;
-  await command('Fetch.enable', { patterns: [{ urlPattern: 'https://jitsi.fixture.invalid/external_api.js', requestStage: 'Request' }] });
+  await command('Fetch.enable', { patterns: [{ urlPattern: 'https://unpkg.com/@daily-co/daily-js@0.94.0/dist/daily.js', requestStage: 'Request' }] });
   await fill('identifier', 'patient_fixture'); await fill('password', 'TestPassword!'); await click('button[type="submit"]');
   await until(`document.querySelector('.patient-quick-actions a') !== null`);
   await click('.patient-quick-actions a');
@@ -1244,19 +1256,19 @@ try {
   await click('.patient-join-video');
   await until(`document.querySelector('.consultation-prejoin button') !== null`);
   await click('.consultation-prejoin button');
-  await until(`document.querySelector('.jitsi-controls button:first-child:not([disabled])') !== null`);
-  await click('.jitsi-hangup');
+  await until(`document.querySelector('.daily-hangup')?.textContent.includes('Terminar')`);
+  await click('.daily-hangup');
   await until(`document.querySelector('.consultation-status')?.textContent.includes('Finalizada')`);
   targetSession = adminTab;
   // Completion refresh must update the appointment/chat without remounting or
   // disposing the professional's existing media session.
   await sleep(6000);
   await until(`document.querySelector('.consultation-status')?.textContent.includes('Finalizada')`);
-  assert.equal(await evaluate(`document.querySelector('.jitsi-controls button:first-child:not([disabled])') !== null`), true);
-  assert.equal(await evaluate('window.__jitsiTest.disposals'), professionalDisposals);
-  await click('.jitsi-hangup');
-  await until(`document.querySelector('.jitsi-call') === null`);
-  assert.equal(await evaluate('window.__jitsiTest.disposals'), professionalDisposals + 1);
+  assert.equal(await evaluate(`document.querySelector('.daily-hangup')?.textContent.includes('Terminar')`), true);
+  assert.equal(await evaluate('window.__dailyTest.disposals'), professionalDisposals);
+  await click('.daily-hangup');
+  await until(`document.querySelector('.daily-call') === null`);
+  assert.equal(await evaluate('window.__dailyTest.disposals'), professionalDisposals + 1);
   results.push({ check: 'two authenticated tabs: patient joins from Mis citas and ends locally; professional session survives completed status until own hangup' });
   targetSession = patientTab;
   fixture.state.inboxTestAppointment = { ...fixture.state.videoTestAppointment, id: '00000000-0000-4000-8000-000000887766', status: 'confirmed' };

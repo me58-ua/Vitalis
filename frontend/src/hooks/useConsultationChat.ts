@@ -44,6 +44,10 @@ export function useConsultationChat(appointmentId: string, userId: string) {
     let currentSocket: WebSocket | null = null;
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
+    let messagesSync: Promise<void> | undefined;
+    const messageTimer = setInterval(() => {
+      void synchronizeMessages().catch(() => { /* Retry on the next poll. */ });
+    }, 2000);
     const heartbeat = setInterval(() => {
       if (currentSocket?.readyState === WebSocket.OPEN) currentSocket.send(JSON.stringify({ type: 'ping' }));
       void synchronize().catch(() => { /* Reconnect and send surface access errors. */ });
@@ -58,6 +62,13 @@ export function useConsultationChat(appointmentId: string, userId: string) {
       const metadata = await getChatRoom(appointmentId, abort.signal);
       if (abort.signal.aborted) return;
       canWrite.current = metadata.can_write; setRoom(metadata);
+      await synchronizeMessages();
+    }
+    function synchronizeMessages() {
+      messagesSync ??= fetchMissedMessages().finally(() => { messagesSync = undefined; });
+      return messagesSync;
+    }
+    async function fetchMissedMessages() {
       if (!latest.current) {
         const rows = await getChatMessages(appointmentId, abort.signal);
         if (abort.signal.aborted) return;
@@ -65,7 +76,7 @@ export function useConsultationChat(appointmentId: string, userId: string) {
         oldest.current = rows[0]?.id; latest.current = rows.at(-1)?.id;
         setHasOlder(rows.length === 50);
       } else {
-        // Recover every missed page after a disconnect, not just the first 50.
+        // Only REST pages advance this cursor. A socket event can arrive ahead of missed messages.
         for (;;) {
           const before: string | undefined = latest.current;
           const rows = await getChatMessages(appointmentId, abort.signal, { after_id: before });
@@ -101,7 +112,6 @@ export function useConsultationChat(appointmentId: string, userId: string) {
           const message = socketMessage(value, appointmentId);
           if (message) {
             if (message.sender_id !== userId) setTyping(false);
-            latest.current = message.id;
             setMessages(previous => merge(previous, [message]));
             const sent = pending.current;
             if (message.sender_id === userId && sent?.content === message.content) {
@@ -129,7 +139,7 @@ export function useConsultationChat(appointmentId: string, userId: string) {
     }
     void connect();
     return () => {
-      abort.abort(); clearInterval(heartbeat); clearInterval(typingTimer); clearTimeout(reconnect);
+      abort.abort(); clearInterval(messageTimer); clearInterval(heartbeat); clearInterval(typingTimer); clearTimeout(reconnect);
       if (currentSocket) { currentSocket.onclose = null; currentSocket.onmessage = null; currentSocket.onopen = null; currentSocket.onerror = null; currentSocket.close(); }
       socket.current = null; canWrite.current = false;
       rejectPending('Has salido del chat.');

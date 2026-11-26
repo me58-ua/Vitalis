@@ -4,10 +4,9 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from jose import jwt
-
 from app.config import settings
 from app.models import AppointmentStatus, AppointmentType, UserRole
+from app.services.daily_client import DailyClient, DailyUnavailableError
 from app.services.video_service import VideoForbiddenError, VideoService
 
 
@@ -63,14 +62,24 @@ class VideoServiceTests(unittest.TestCase):
         self.service = VideoService(FakeAppointmentRepository(self.appointment), self.events)
         self.config = patch.multiple(
             settings,
-            JITSI_DOMAIN="video.example.com",
-            JITSI_XMPP_DOMAIN="meet.jitsi",
-            JITSI_APP_ID="vitalis",
-            JITSI_APP_SECRET="test-secret",
-            JITSI_TOKEN_TTL_SECONDS=3600,
+            DAILY_API_KEY="test-secret",
+            DAILY_TOKEN_TTL_SECONDS=3600,
             VIDEO_JOIN_EARLY_MINUTES=10,
         )
         self.config.start()
+        daily = patch("app.services.daily_client.DailyClient._request", side_effect=self.daily_request)
+        self.daily = daily.start()
+        self.addCleanup(daily.stop)
+        self.rooms = {}
+
+    def daily_request(self, path, payload=None, *, missing_ok=False):
+        if path == "/rooms":
+            name = payload["name"]
+            self.rooms[name] = {"privacy": payload["privacy"], "url": f"https://vitalis-test.daily.co/{name}"}
+            return self.rooms[name]
+        if path == "/meeting-tokens":
+            return {"token": "test-daily-token"}
+        return self.rooms.get(path.removeprefix("/rooms/"))
 
     def tearDown(self):
         self.config.stop()
@@ -78,18 +87,32 @@ class VideoServiceTests(unittest.TestCase):
     def test_participant_gets_valid_token_and_room_is_stable(self):
         first = self.service.create_join_session(self.appointment.id, self.patient)
         second = self.service.create_join_session(self.appointment.id, self.patient)
-        claims = jwt.decode(first["jwt"], "test-secret", algorithms=["HS256"], audience="jitsi")
-        self.assertEqual(first["room_name"], second["room_name"])
-        self.assertEqual(claims["room"], first["room_name"])
-        self.assertEqual(claims["sub"], "meet.jitsi")
-        self.assertEqual(claims["context"]["user"]["id"], str(self.patient.id))
-        self.assertNotIn("moderator", claims)
+        self.assertEqual(first["room_url"], second["room_url"])
+        self.assertEqual(first["token"], "test-daily-token")
+        self.assertEqual(len(self.rooms), 1)
+        room = f"vitalis-{self.appointment.id.hex}"
+        self.assertEqual(self.rooms[room]["privacy"], "private")
+        token = self.daily.call_args.args[1]["properties"]
+        self.assertEqual(token["room_name"], room)
+        self.assertEqual(token["user_id"], str(self.patient.id))
+        self.assertFalse(token["is_owner"])
         self.assertEqual(len(self.events.events), 2)
 
-    def test_only_professional_gets_moderator_claim(self):
-        result = self.service.create_join_session(self.appointment.id, self.professional)
-        claims = jwt.decode(result["jwt"], "test-secret", algorithms=["HS256"], audience="jitsi")
-        self.assertTrue(claims["moderator"])
+    def test_only_professional_gets_owner_token(self):
+        self.service.create_join_session(self.appointment.id, self.professional)
+        self.assertTrue(self.daily.call_args.args[1]["properties"]["is_owner"])
+
+    def test_concurrent_room_creation_reuses_the_room_created_by_the_other_request(self):
+        url = "https://vitalis-test.daily.co/example"
+        self.daily.side_effect = [None, DailyUnavailableError(), {"privacy": "private", "url": url}]
+        self.assertEqual(DailyClient("test-secret").get_or_create_room("example"), url)
+        self.assertEqual(self.daily.call_args.args[0], "/rooms/example")
+
+    def test_daily_failure_does_not_record_access(self):
+        self.daily.side_effect = DailyUnavailableError()
+        with self.assertRaises(DailyUnavailableError):
+            self.service.create_join_session(self.appointment.id, self.patient)
+        self.assertEqual(self.events.events, [])
 
     def test_third_party_and_non_video_are_rejected(self):
         third_party = SimpleNamespace(id=uuid.uuid4(), role=UserRole.PATIENT, is_active=True)
@@ -108,7 +131,7 @@ class VideoServiceTests(unittest.TestCase):
     def test_join_inside_early_window_is_allowed(self):
         self.appointment.start_time = datetime.now(timezone.utc) + timedelta(minutes=9)
         self.appointment.end_time = self.appointment.start_time + timedelta(minutes=30)
-        self.assertIn('jwt', self.service.create_join_session(self.appointment.id, self.patient))
+        self.assertIn('token', self.service.create_join_session(self.appointment.id, self.patient))
 
     def test_join_grace_period_ends_after_one_hour_unless_professional_attended(self):
         self.appointment.start_time = datetime.now(timezone.utc) - timedelta(minutes=59)
@@ -121,7 +144,7 @@ class VideoServiceTests(unittest.TestCase):
         self.appointment.start_time += timedelta(minutes=2)
         self.service.record_attendance(self.appointment.id, self.professional, 'joined')
         self.appointment.start_time -= timedelta(minutes=2)
-        self.assertIn('jwt', self.service.create_join_session(self.appointment.id, self.patient))
+        self.assertIn('token', self.service.create_join_session(self.appointment.id, self.patient))
         self.assertEqual(self.service.expire_professional_no_shows(), 0)
 
     def test_completed_cancelled_and_no_show_appointments_cannot_join(self):

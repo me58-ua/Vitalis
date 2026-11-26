@@ -87,7 +87,7 @@ DEMO_USERS = tuple(
 
 def _seed_working_hours(session, professionals):
     hours = WorkingHoursRepository(session)
-    video_windows = {}
+    active_windows = {}
     for professional in professionals:
         hours.lock_owner(professional.id)
         rows = hours.list(professional.id)
@@ -121,11 +121,11 @@ def _seed_working_hours(session, professionals):
             ]
             session.add_all(rows)
             session.flush()
-        video_windows[professional.id] = [row for row in rows if row.is_active and row.channel == "video"]
-    return video_windows
+        active_windows[professional.id] = [row for row in rows if row.is_active]
+    return active_windows
 
 
-def _free_video_slot(session, professional_id, patient_id, candidate, windows):
+def _free_slot(session, professional_id, patient_id, candidate, windows):
     end = candidate + timedelta(minutes=30)
     if not any(row.day_of_week == candidate.weekday() and row.start_time <= candidate.time()
                and end.time() <= row.end_time for row in windows):
@@ -153,7 +153,7 @@ def _next_slot(session, professional_id, patient_id, candidate, windows):
         if candidate.weekday() >= 5 or candidate.hour >= 18:
             candidate = datetime.combine(candidate.date() + timedelta(days=1), time(9), candidate.tzinfo)
             continue
-        if slot := _free_video_slot(session, professional_id, patient_id, candidate, windows):
+        if slot := _free_slot(session, professional_id, patient_id, candidate, windows):
             return slot
         candidate += timedelta(minutes=30)
     return None
@@ -168,7 +168,7 @@ def _seed_past_appointment(session, professional, patient, day, hour, label, rea
     for index in range(18):
         slot = (preferred + index) % 18
         candidate = datetime.combine(day, time(9 + slot // 2, (slot % 2) * 30), ZoneInfo("Europe/Madrid"))
-        available = _free_video_slot(session, professional.id, patient.id, candidate, windows)
+        available = _free_slot(session, professional.id, patient.id, candidate, windows)
         if available:
             start, end = available
             session.add(Appointment(
@@ -181,15 +181,59 @@ def _seed_past_appointment(session, professional, patient, day, hour, label, rea
             return
 
 
+def _seed_carlos_week(session, professional, patients, now, windows):
+    madrid = ZoneInfo("Europe/Madrid")
+    today = now.astimezone(madrid).date()
+    monday = today - timedelta(days=today.weekday())
+
+    for index, patient in enumerate(patients[:9]):
+        kind = AppointmentType.VIDEO if index % 2 else AppointmentType.IN_PERSON
+        appointment_id = uuid5(NAMESPACE_URL, (
+            f"vitalis-development-appointment:{professional.email}:{patient.email}:week:{monday}"
+        ))
+        if session.get(Appointment, appointment_id) is not None:
+            continue
+        channel_windows = [row for row in windows if row.channel == kind.value]
+        for offset in range(7):
+            day = monday + timedelta(days=(index % 5 + offset) % 7)
+            for half_hour in range(18):
+                candidate = datetime.combine(day, time(9 + half_hour // 2, 30 * (half_hour % 2)), madrid)
+                if candidate <= now < candidate + timedelta(minutes=30):
+                    continue
+                if slot := _free_slot(session, professional.id, patient.id, candidate, channel_windows):
+                    break
+            else:
+                continue
+            break
+        else:
+            continue
+
+        start, end = slot
+        completed = end <= now
+        session.add(Appointment(
+            id=appointment_id, patient_id=patient.id, professional_id=professional.id,
+            start_time=start, end_time=end, type=kind,
+            status=AppointmentStatus.COMPLETED if completed else AppointmentStatus.CONFIRMED,
+            appointment_reason="Consulta de seguimiento",
+            created_at=min(now, start - timedelta(days=1)),
+            updated_at=end if completed else now,
+        ))
+        if session.get(ProfessionalPatient, (professional.id, patient.id)) is None:
+            session.add(ProfessionalPatient(professional_id=professional.id, patient_id=patient.id))
+        session.flush()
+
+
 def _seed_appointments(session, users, now):
     patients = [users[seed.email] for seed in (*SEED_USERS, *DEMO_USERS) if seed.role == UserRole.PATIENT]
     professionals = [users[seed.email] for seed in (*SEED_USERS, *DEMO_USERS) if seed.role == UserRole.PROFESSIONAL]
-    video_windows = _seed_working_hours(session, professionals)
+    active_windows = _seed_working_hours(session, professionals)
     today = now.astimezone(ZoneInfo("Europe/Madrid")).date()
     local_day = today + timedelta(days=1)
+    if today == date(2026, 11, 26):
+        _seed_daily_test_appointment(session, patients[0], professionals, active_windows)
     previous_month = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
     for professional_index, professional in enumerate(professionals[:APPOINTMENT_FIXTURE_DOCTORS]):
-        windows = video_windows[professional.id]
+        windows = [row for row in active_windows[professional.id] if row.channel == "video"]
         selected = patients if professional_index == 0 else patients[(professional_index - 1) * 3:professional_index * 3]
         for patient_index, patient in enumerate(selected):
             key = f"vitalis-development-appointment:{professional.email}:{patient.email}"
@@ -233,6 +277,35 @@ def _seed_appointments(session, users, now):
             if qualifying and session.get(ProfessionalPatient, (professional.id, patient.id)) is None:
                 session.add(ProfessionalPatient(professional_id=professional.id, patient_id=patient.id))
                 session.flush()
+
+    for professional in professionals:
+        if professional.username == "carlos_serrano":
+            _seed_carlos_week(session, professional, patients, now, active_windows[professional.id])
+            break
+
+
+def _seed_daily_test_appointment(session, patient, professionals, active_windows):
+    candidate = datetime(2026, 11, 26, 13, 30, tzinfo=ZoneInfo("Europe/Madrid"))
+    appointment_id = uuid5(NAMESPACE_URL, f"vitalis-development-daily-test:{patient.email}:{candidate.isoformat()}")
+    if session.get(Appointment, appointment_id) is not None:
+        return
+
+    for professional in sorted(professionals, key=lambda user: user.username != "rafael_nunez"):
+        profile = professional.professional_profile
+        if not profile.telehealth_enabled or profile.approval_status != ProfessionalApprovalStatus.APPROVED:
+            continue
+        windows = [row for row in active_windows[professional.id] if row.channel == "video"]
+        if slot := _free_slot(session, professional.id, patient.id, candidate, windows):
+            start, end = slot
+            session.add(Appointment(
+                id=appointment_id, patient_id=patient.id, professional_id=professional.id,
+                start_time=start, end_time=end, status=AppointmentStatus.CONFIRMED,
+                type=AppointmentType.VIDEO, appointment_reason="Prueba de videoconsulta con Daily",
+            ))
+            if session.get(ProfessionalPatient, (professional.id, patient.id)) is None:
+                session.add(ProfessionalPatient(professional_id=professional.id, patient_id=patient.id))
+            session.flush()
+            return
 
 
 def seed_users(session_factory=SessionLocal, *, include_demo=True, now=None) -> int:

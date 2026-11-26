@@ -64,7 +64,7 @@ export function consultationError(error: unknown): string {
     if (detail === 'Video is unavailable for this appointment') return 'Esta cita debe ser de vídeo y estar confirmada para acceder.';
     if (error.response?.status === 403) return 'No tienes acceso a esta consulta o su estado ya no permite esta acción.';
     if (error.response?.status === 404) return 'No se ha encontrado la consulta.';
-    if (error.response?.status === 503) return 'El servicio de videoconsulta no está disponible. Inténtalo de nuevo más tarde.';
+    if (error.response?.status === 502 || error.response?.status === 503) return 'El servicio de videoconsulta no está disponible. Inténtalo de nuevo más tarde.';
     if (error.response?.status === 409) return 'La cita ha cambiado. Actualiza sus datos antes de continuar.';
   }
   return errorMessage(error);

@@ -4528,12 +4528,10 @@ export interface components {
         };
         /** VideoJoinResponse */
         VideoJoinResponse: {
-            /** Domain */
-            domain: string;
-            /** Room Name */
-            room_name: string;
-            /** Jwt */
-            jwt: string;
+            /** Room Url */
+            room_url: string;
+            /** Token */
+            token: string;
             /**
              * Expires At
              * Format: date-time

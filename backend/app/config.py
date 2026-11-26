@@ -35,11 +35,8 @@ class Settings(BaseSettings):
     CHAT_CONNECTION_IDLE_TIMEOUT_SECONDS: int = 60
     CHAT_RATE_LIMIT_MESSAGES: int = 10
     CHAT_RATE_LIMIT_WINDOW_SECONDS: int = 5
-    JITSI_DOMAIN: str = ""
-    JITSI_XMPP_DOMAIN: str = "meet.jitsi"
-    JITSI_APP_ID: str = ""
-    JITSI_APP_SECRET: str = ""
-    JITSI_TOKEN_TTL_SECONDS: int = 3600
+    DAILY_API_KEY: str = ""
+    DAILY_TOKEN_TTL_SECONDS: int = 3600
     VIDEO_JOIN_EARLY_MINUTES: int = 10
 
     model_config = SettingsConfigDict(

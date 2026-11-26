@@ -2,13 +2,11 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from zoneinfo import ZoneInfo
-import secrets
-
-from jose import jwt
 
 from app.config import settings
 from app.models import Appointment, AppointmentStatus, AppointmentStatusHistory, AppointmentType, AuditAction, User, UserRole, VideoSessionEvent
 from app.services.audit_service import AuditService
+from app.services.daily_client import DailyClient
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.video_session_repository import VideoSessionRepository
 
@@ -93,7 +91,7 @@ class VideoService:
                 reason="Participant ended the attended video consultation",
             ))
             self.audit.record(user.id, user.role, AuditAction.UPDATE, "appointment", appointment_id, appointment.patient_id)
-        # No command is sent to Jitsi: the other participant keeps their session.
+        # No command is sent to Daily: the other participant keeps their session.
         return {"status": appointment.status}
 
     def create_join_session(self, appointment_id: UUID, user: User) -> dict:
@@ -107,14 +105,6 @@ class VideoService:
             raise VideoForbiddenError("User cannot join this appointment")
         if appointment.type != AppointmentType.VIDEO or appointment.status != AppointmentStatus.CONFIRMED:
             raise VideoForbiddenError("Video is unavailable for this appointment")
-        if (
-            not settings.JITSI_DOMAIN
-            or not settings.JITSI_XMPP_DOMAIN
-            or not settings.JITSI_APP_ID
-            or not settings.JITSI_APP_SECRET
-        ):
-            raise VideoConfigurationError("Jitsi is not configured")
-
         now = datetime.now(timezone.utc)
         if self._join_deadline_passed(appointment, now) and not self._professional_joined(appointment):
             raise VideoForbiddenError("Video join window is closed")
@@ -124,28 +114,14 @@ class VideoService:
         if local_now < window_start:
             raise VideoForbiddenError("Video join window is closed")
 
-        if not isinstance(appointment.room_id, str) or len(appointment.room_id) < 32:
-            appointment.room_id = secrets.token_urlsafe(24)
-            self.appointments.save(appointment)
+        if not settings.DAILY_API_KEY.strip():
+            raise VideoConfigurationError("Daily is not configured")
 
-        expires_at = now + timedelta(seconds=settings.JITSI_TOKEN_TTL_SECONDS)
-        payload = {
-            "aud": "jitsi",
-            "iss": settings.JITSI_APP_ID,
-            "sub": settings.JITSI_XMPP_DOMAIN,
-            "room": appointment.room_id,
-            "exp": int(expires_at.timestamp()),
-            "nbf": int(now.timestamp()),
-            "context": {
-                "user": {
-                    "id": str(user.id),
-                    "name": user.name,
-                }
-            },
-        }
-        if user.role == UserRole.PROFESSIONAL:
-            payload["moderator"] = True
-        token = jwt.encode(payload, settings.JITSI_APP_SECRET, algorithm="HS256")
+        daily = DailyClient(settings.DAILY_API_KEY)
+        room_name = f"vitalis-{appointment.id.hex}"
+        room_url = daily.get_or_create_room(room_name)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=settings.DAILY_TOKEN_TTL_SECONDS)
+        token = daily.create_token(room_name, user.id, user.role == UserRole.PROFESSIONAL, expires_at)
         self.events.create(
             VideoSessionEvent(
                 appointment_id=appointment.id,
@@ -154,8 +130,7 @@ class VideoService:
             )
         )
         return {
-            "domain": settings.JITSI_DOMAIN,
-            "room_name": appointment.room_id,
-            "jwt": token,
+            "room_url": room_url,
+            "token": token,
             "expires_at": expires_at,
         }

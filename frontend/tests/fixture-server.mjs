@@ -303,7 +303,7 @@ export async function fixtureServer(origin = 'http://localhost:3000') {
         state.videoJoinCalls += 1;
         if (state.videoDenied) return send(403, { detail: 'Video join window is closed' });
         if (item.status !== 'confirmed' || item.type !== 'video') return send(403, { detail: 'Video is unavailable for this appointment' });
-        return send(200, { domain: 'jitsi.fixture.invalid', room_name: `fixture-room-${id}`, jwt: 'test-video-jwt', expires_at: new Date(Date.now() + 3600000).toISOString() });
+        return send(200, { room_url: `https://vitalis-fixture.daily.co/fixture-room-${id}`, token: 'test-daily-token', expires_at: new Date(Date.now() + 3600000).toISOString() });
       }
       if (path.endsWith('/video/attendance')) {
         if (state.attendanceFail) return send(503, { detail: 'TEST_UNAVAILABLE' });

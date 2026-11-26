@@ -15,7 +15,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const output = path.join(root, 'test-results', 'client');
   await mkdir(output, { recursive: true });
-  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors', 'professional', 'professionalErrors', 'consultations', 'jitsi']) {
+  for (const name of ['client', 'session', 'auth', 'notifications', 'errors', 'admin', 'adminUserErrors', 'professional', 'professionalErrors', 'consultations', 'daily']) {
     const source = (await readFile(path.join(root, 'src/api', `${name}.ts`), 'utf8'))
       .replace('import.meta.env.VITE_API_BASE_URL', JSON.stringify(fixture.url));
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText
@@ -33,7 +33,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
   const admin = await load('admin');
   const professional = await load('professional');
   const consultations = await load('consultations');
-  const { jitsiOrigin } = await load('jitsi');
+  const { validateDailyRoomUrl } = await load('daily');
 
   await t.test('URL-encoded login and account lookup', async () => {
     const tokens = await auth.login('test_user', 'TestPassword!');
@@ -206,7 +206,7 @@ test('Axios follows authentication and notification contracts', async (t) => {
     const id = fixture.state.videoTestAppointment.id, signal = new AbortController().signal;
     assert.equal((await consultations.findVideoAppointment(id, '2030-11-04', signal)).status, 'confirmed');
     const joined = await consultations.joinVideo(id, signal);
-    assert.equal(joined.domain, 'jitsi.fixture.invalid');
+    assert.equal(joined.room_url, `https://vitalis-fixture.daily.co/fixture-room-${id}`);
     assert.ok(Date.parse(joined.expires_at) > Date.now());
     fixture.state.videoDenied = true;
     await assert.rejects(consultations.joinVideo(id, signal), error => /horario/.test(consultations.consultationError(error)));
@@ -231,10 +231,11 @@ test('Axios follows authentication and notification contracts', async (t) => {
     await consultations.updateConsultationStatus(fixture.account.id, id, 'completed', signal);
     assert.equal((await consultations.getChatRoom(id, signal)).can_write, false);
   });
-  await t.test('Jitsi origins reject unexpected protocols, credentials and paths', () => {
-    assert.equal(jitsiOrigin('localhost:8443').origin, 'https://localhost:8443');
-    assert.throws(() => jitsiOrigin('http://video.example.invalid'));
-    assert.throws(() => jitsiOrigin('https://video.example.invalid/other'));
-    assert.throws(() => jitsiOrigin('https://user:password@video.example.invalid'));
+  await t.test('Daily room URL validation rejects unexpected protocols, hosts and credentials', () => {
+    assert.doesNotThrow(() => validateDailyRoomUrl('https://vitalis-fixture.daily.co/room'));
+    assert.throws(() => validateDailyRoomUrl('http://video.daily.co/room'));
+    assert.throws(() => validateDailyRoomUrl('https://video.example.invalid/room'));
+    assert.throws(() => validateDailyRoomUrl('https://user:password@video.daily.co/room'));
+    assert.throws(() => validateDailyRoomUrl('https://video.daily.co/room?t=token'));
   });
 });
