@@ -4,7 +4,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from app.config import settings
-from app.models import Appointment, AppointmentStatus, AppointmentStatusHistory, AppointmentType, AuditAction, User, UserRole, VideoSessionEvent
+from app.models import Appointment, AppointmentStatus, AppointmentStatusHistory, AppointmentType, AuditAction, User, VideoSessionEvent
 from app.services.audit_service import AuditService
 from app.services.daily_client import DailyClient
 from app.repositories.appointment_repository import AppointmentRepository
@@ -121,7 +121,7 @@ class VideoService:
         room_name = f"vitalis-{appointment.id.hex}"
         room_url = daily.get_or_create_room(room_name)
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=settings.DAILY_TOKEN_TTL_SECONDS)
-        token = daily.create_token(room_name, user.id, user.role == UserRole.PROFESSIONAL, expires_at)
+        token = daily.create_token(room_name, user.id, expires_at)
         self.events.create(
             VideoSessionEvent(
                 appointment_id=appointment.id,

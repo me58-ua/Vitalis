@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from uuid import UUID
@@ -23,6 +23,11 @@ class DailyClient:
                     "privacy": "private",
                     "properties": {
                         "max_participants": 2,
+                        "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
+                        "eject_at_room_exp": True,
+                        "permissions": {"canAdmin": False},
+                        "enable_live_captions_ui": False,
+                        "enable_transcription_storage": False,
                         "enable_prejoin_ui": True,
                         "enable_knocking": False,
                         "enable_chat": False,
@@ -36,14 +41,17 @@ class DailyClient:
             raise DailyUnavailableError("Daily did not return a private room")
         return room["url"]
 
-    def create_token(self, room_name: str, user_id: UUID, is_owner: bool, expires_at: datetime) -> str:
+    def create_token(self, room_name: str, user_id: UUID, expires_at: datetime) -> str:
         response = self._request("/meeting-tokens", {"properties": {
             "room_name": room_name,
             "user_id": str(user_id),
-            "is_owner": is_owner,
+            "is_owner": False,
+            "permissions": {"canAdmin": False},
             "exp": int(expires_at.timestamp()),
             "enable_recording_ui": False,
             "enable_live_captions_ui": False,
+            "start_cloud_recording": False,
+            "auto_start_transcription": False,
         }})
         token = response.get("token")
         if not isinstance(token, str) or not token:

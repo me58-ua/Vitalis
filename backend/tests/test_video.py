@@ -98,9 +98,21 @@ class VideoServiceTests(unittest.TestCase):
         self.assertFalse(token["is_owner"])
         self.assertEqual(len(self.events.events), 2)
 
-    def test_only_professional_gets_owner_token(self):
+    def test_professional_cannot_start_paid_recording_or_transcription(self):
         self.service.create_join_session(self.appointment.id, self.professional)
-        self.assertTrue(self.daily.call_args.args[1]["properties"]["is_owner"])
+        token = self.daily.call_args.args[1]["properties"]
+        self.assertFalse(token["is_owner"])
+        self.assertIs(token["permissions"]["canAdmin"], False)
+        self.assertFalse(token["start_cloud_recording"])
+        self.assertFalse(token["auto_start_transcription"])
+
+        room = next(call.args[1]["properties"] for call in self.daily.call_args_list if call.args[0] == "/rooms")
+        self.assertEqual(room["max_participants"], 2)
+        self.assertGreater(room["exp"], int(datetime.now(timezone.utc).timestamp()))
+        self.assertLessEqual(room["exp"], int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()))
+        self.assertTrue(room["eject_at_room_exp"])
+        self.assertIs(room["permissions"]["canAdmin"], False)
+        self.assertFalse(room["enable_transcription_storage"])
 
     def test_concurrent_room_creation_reuses_the_room_created_by_the_other_request(self):
         url = "https://vitalis-test.daily.co/example"
